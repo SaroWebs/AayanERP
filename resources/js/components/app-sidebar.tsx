@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Globe, LayoutGrid, TruckIcon } from 'lucide-react';
+import { BookOpen, Globe, LayoutGrid, TruckIcon, Users, ShoppingCart, UserCircle, FileText, Receipt, Package, Wallet, CogIcon, ShieldIcon, User2 } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -17,26 +17,115 @@ const mainNavItems: NavItem[] = [
         title: 'Master',
         href: '#',
         icon: LayoutGrid,
+        children:[
+            {
+                title: 'Item Categories',
+                href: '/master/item-categories',
+                icon: TruckIcon,
+            },  
+            {
+                title: 'Equipments',
+                href: '/master/equipments',
+                icon: TruckIcon,
+            },  
+            {
+                title: 'Vendors',
+                href: '/master/vendors',
+                icon: TruckIcon,
+            },
+            {
+                title: 'Clients',
+                href: '/master/clients',
+                icon: UserCircle,
+            },
+        ]
     },
     {
-        title: 'Vendors',
-        href: '/vendors',
-        icon: TruckIcon,
+        title: 'Sales',
+        href: '#',
+        icon: ShoppingCart,
+        children: [
+            {
+                title: 'Enquiry',
+                href: '/sales/enquiry',
+                icon: FileText,
+            },
+            {
+                title: 'Quotation',
+                href: '/sales/quotation',
+                icon: Receipt,
+            },
+            {
+                title: 'Billing',
+                href: '/sales/billing',
+                icon: ShoppingCart,
+            },
+            {
+                title: 'Dispatch',
+                href: '/sales/dispatch',
+                icon: Package,
+            },
+            {
+                title: 'Collection',
+                href: '/sales/collection',
+                icon: Wallet,
+            },
+        ],
+    },
+    {
+        title: 'Purchase',
+        href: '#',
+        icon: Receipt,
+        children: [
+            {
+                title: 'Intend & PO',
+                href: '/purchase/intend-and-po',
+                icon: FileText,
+            },
+            {
+                title: 'Aproval & Receive',
+                href: '/purchase/aproval-and-receive',
+                icon: FileText,
+            }
+        ],
+    },
+    {
+        title: 'HR',
+        href: '#',
+        icon: User2,
+        children: [
+            {
+                title: 'Employees',
+                href: '/hr/employees',
+                icon: Users,
+            },
+        ],
     },
 ];
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Documentation',
+        title: 'Configuration',
         href: '#',
-        icon: BookOpen,
-        target:'_blank',
+        icon: CogIcon,
+        children: [
+            {
+                title: 'Roles & permissions',
+                href: '/configuration/roles',
+                icon: ShieldIcon,
+            },
+            {
+                title: 'Users',
+                href: '/configuration/users',
+                icon: UserCircle,
+            },
+        ],
     },
     {
         title: 'Browse website',
         href: 'http://aayangroup.in/',
         icon: Globe,
-        target:'_blank',
+        target: '_blank',
     },
 ];
 

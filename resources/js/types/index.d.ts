@@ -21,6 +21,7 @@ export interface NavItem {
     target?: string;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    children?: NavItem[];
 }
 
 export interface SharedData {
@@ -42,3 +43,19 @@ export interface User {
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
 }
+
+export interface Permission {
+    id: number;
+    name: string;
+    guard_name: string;
+}
+
+export interface Role {
+    id: number;
+    name: string;
+    guard_name: string;
+    permissions: Permission[];
+    created_at: string;
+    updated_at: string;
+}
+
