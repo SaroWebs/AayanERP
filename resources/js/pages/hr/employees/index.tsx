@@ -32,13 +32,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 const index = (props: Props) => {
-    return(
+    return (
         <AppLayout breadcrumbs={breadcrumbs}>
-        <Head title="Employees" />
-        <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            Employees
-        </div>
-    </AppLayout>
+            <Head title="Employees" />
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                Employees
+            </div>
+        </AppLayout>
     );
 }
 

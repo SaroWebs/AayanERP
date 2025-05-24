@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('emp_educational_qalifications', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
+            // 
             $table->timestamps();
         });
     }

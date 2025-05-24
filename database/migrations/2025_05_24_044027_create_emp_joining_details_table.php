@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('emp_joining_details', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
+
+            $table->string('photo_url');
             $table->timestamps();
         });
     }
