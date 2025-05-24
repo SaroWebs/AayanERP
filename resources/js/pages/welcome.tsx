@@ -63,13 +63,11 @@ export default function Welcome() {
                         </nav>
                     </header>
 
-                    <main className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+                    <main className="w-full flex justify-between items-end gap-8 px-8">
                         <div className="flex flex-col justify-center">
-                            <h1 className="mb-6 text-4xl font-bold leading-tight lg:text-5xl">
+                            <h1 className="mb-6 text-4xl text-slate-500 font-bold leading-tight lg:text-4xl">
                                 Streamline Your Industrial Operations
                             </h1>
-
-
                             <div className="mb-8 grid grid-cols-2 gap-4">
                                 <div className="rounded-lg border border-gray-200 bg-white p-4">
                                     <Package className="mb-2 h-6 w-6 text-blue-600" />
@@ -92,13 +90,15 @@ export default function Welcome() {
                                     <p className="text-sm text-gray-600">Track performance and growth</p>
                                 </div>
                             </div>
-
                         </div>
                         <div className="relative hidden lg:block">
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                            <div className="min-w-md rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50">
                                 {!auth.user ? (
                                     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                                        <h2 className="mb-4 text-xl font-semibold">Login</h2>
+                                        <div className="mb-4 ">
+                                            <h2 className="text-sm font-bold text-slate-900">Welcome Back</h2>
+                                            <p className="text-xl font-semibold text-slate-400">Please enter details to login</p>
+                                        </div>
                                         <form onSubmit={submit} className="space-y-4">
                                             <div>
                                                 <Label htmlFor="email">Email</Label>

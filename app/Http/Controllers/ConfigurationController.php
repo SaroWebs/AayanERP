@@ -86,19 +86,18 @@ class ConfigurationController extends Controller
     }
 
     public function storePermission(Request $request) {
-        $validatedData = $request->validate([
-            'name' => 'required|string|unique:permissions,name|max:255',
+        $request->validate([
+            'module' => 'required|string',
+            'actions' => 'required|array|min:1',
+            'actions.*' => 'in:create,read,update,delete',
         ]);
     
-        $permission = Permission::create([
-            'name' => $validatedData['name'],
-        ]);
-    
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Permission created successfully.',
-            'data' => $permission,
-        ], 201);
+        foreach ($request->actions as $action) {
+            Permission::firstOrCreate([
+                'name' => "{$request->module}.{$action}",
+                'guard_name' => 'web',
+            ]);
+        }
     }
 
     public function updatePermission(Request $request, $id)
@@ -126,6 +125,14 @@ class ConfigurationController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Permission deleted successfully.',
+        ]);
+    }
+    public function deletePermissionByModule($module)
+    {
+        $deleted = Permission::where('name', 'LIKE', "$module.%")->delete();
+
+        return response()->json([
+            'message' => "Deleted $deleted permission(s) under module '$module'."
         ]);
     }
 

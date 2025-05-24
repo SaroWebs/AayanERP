@@ -14,7 +14,12 @@ return new class extends Migration
         Schema::create('employment_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
-            // 
+            $table->string('organization')->nullable();
+            $table->string('position')->nullable();
+            $table->date('joining_date')->nullable();
+            $table->date('relieving_date')->nullable();
+            $table->unsignedInteger('salary')->nullable();
+            $table->text('relieving_reason')->nullable();
             $table->timestamps();
         });
     }

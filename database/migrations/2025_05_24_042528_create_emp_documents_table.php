@@ -14,7 +14,26 @@ return new class extends Migration
         Schema::create('emp_documents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
-            // 
+            $table->enum('category', [
+                'passport',
+                'pan_card',
+                'gst_certificate',
+                'identity_proof',
+                'address_proof',
+                'bank_documents',
+                'registration_documents',
+                'invoice',
+                'quotation',
+                'other'
+            ])->default('other');
+            $table->string('name');
+            $table->string('number')->nullable();
+            $table->string('type')->nullable();
+            $table->text('remarks')->nullable();
+            $table->enum('sharing_option', ['public', 'private'])->default('public');
+            $table->string('issued_by')->nullable();
+            $table->date('issued_date')->nullable();
+            $table->string('document_url');
             $table->timestamps();
         });
     }

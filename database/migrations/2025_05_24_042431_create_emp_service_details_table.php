@@ -14,7 +14,14 @@ return new class extends Migration
         Schema::create('emp_service_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
-            // 
+            $table->string('period_leave_allocation')->nullable();
+            $table->text('leave_details')->nullable();
+            $table->string('warning_letter')->nullable();
+            $table->text('warning_subject')->nullable();
+            $table->string('warning_issued_by')->nullable();
+            $table->date('termination_date')->nullable();
+            $table->enum('termination_type', ['termination', 'promotion', 'transfer', 'dismissal', 'resignation', 'other'])->nullable();
+            $table->text('termination_reason')->nullable();
             $table->timestamps();
         });
     }

@@ -41,6 +41,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/data/config/permissions/add', 'storePermission');
         Route::put('/data/config/permissions/{id}/update', 'updatePermission');
         Route::delete('/data/config/permissions/{id}/delete', 'deletePermission');
+        Route::delete('/data/config/permissions/module/{module}/delete', 'deletePermissionByModule');
 
         // users
         Route::get('configuration/users', 'usersPage');
