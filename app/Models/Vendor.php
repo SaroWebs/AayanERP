@@ -11,18 +11,19 @@ class Vendor extends Model
 {
     protected $guarded = [];
 
-    public function bank_accounts()
+    public function bankAccounts()
     {
-        return $this->hasMany(VendorBankAccount::class, 'vendor_id');
+        return $this->hasMany(VendorBankAccount::class);
     }
-
-    public function contact_details()
+    
+    public function contactDetails()
     {
-        return $this->hasMany(VendorContactDetail::class, 'vendor_id');
+        return $this->hasMany(VendorContactDetail::class);
     }
-
+    
     public function documents()
     {
-        return $this->hasMany(VendorDocument::class, 'vendor_id');
+        return $this->hasMany(VendorDocument::class);
     }
+    
 }

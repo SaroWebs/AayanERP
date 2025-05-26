@@ -19,7 +19,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // only admin
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('master/vendors', [VendorController::class, 'index']);
+
+    Route::controller(VendorController::class)->group(function () {
+        // Views
+        Route::get('master/vendors', 'index'); // listing page/view
+
+        // Store
+        Route::get('/data/vendors', 'getVendors')->name('vendor.list'); // full vendor creation
+        Route::post('/data/vendors/add', 'store')->name('vendor.store'); // full vendor creation
+
+        // Modular Updates (part-by-part)
+        Route::patch('/data/vendors/{vendor}/basic', 'updateBasic')->name('vendor.update.basic');
+        Route::patch('/data/vendors/{vendor}/bank-accounts', 'updateBankAccounts')->name('vendor.update.bank');
+        Route::patch('/data/vendors/{vendor}/contact-details', 'updateContactDetails')->name('vendor.update.contact');
+        Route::patch('/data/vendors/{vendor}/documents', 'updateDocuments')->name('vendor.update.documents');
+
+        // Optional: A unified update endpoint if needed
+        Route::patch('/data/vendors/{vendor}', 'update')->name('vendor.update');
+
+        // Deletion
+        Route::delete('/data/vendors/{vendor}', 'destroy')->name('vendor.destroy');
+        Route::delete('/data/vendors/{vendor}/document/{docId}', 'deleteDocument')->name('vendor.document.delete');
+    });
 });
 
 Route::middleware(['auth', 'role:hr'])->group(function () {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button, TextInput, Select } from '@mantine/core';
 import axios from "axios";
+import { notifications } from "@mantine/notifications";
 
 interface BankAccount {
     account_holder_name: string;
@@ -45,8 +46,13 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
                     label: label as string
                 }));
                 setBankNames(formattedBankNames);
-            } catch (error) {
-                console.error('Error loading bank names:', error);
+            } catch (err: any) {
+                notifications.show({
+                    title: 'Error',
+                    message: err.response?.data?.message || 'Failed to fetch bank details',
+                    color: 'red',
+                });
+
             }
         };
 
@@ -62,19 +68,23 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
 
     const handleSearch = async () => {
         if (!bankInfo.ifsc) return;
-        
+
         setIsSearching(true);
         try {
             const response = await axios.get(`https://ifsc.razorpay.com/${bankInfo.ifsc}`);
             const data = response.data;
-            
+
             setBankInfo(prev => ({
                 ...prev,
                 bank_name: data.BANKCODE || prev.bank_name,
                 branch_address: data.ADDRESS || prev.branch_address
             }));
-        } catch (err) {
-            console.error('Error fetching IFSC details:', err);
+        } catch (err: any) {
+            notifications.show({
+                title: 'Error',
+                message: err.message || 'Failed to fetch bank details',
+                color: 'red',
+            });
         } finally {
             setIsSearching(false);
         }
@@ -93,6 +103,11 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
 
     const handleSubmit = () => {
         if (!validateRequiredFields(bankInfo)) {
+            notifications.show({
+                title: 'Validation Error',
+                message: 'Please fill in all required fields',
+                color: 'red',
+            });
             return;
         }
 
@@ -100,8 +115,18 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
             const updatedAccounts = [...bankAccounts];
             updatedAccounts[editingIndex] = bankInfo;
             onBankAccountsChange(updatedAccounts);
+            notifications.show({
+                title: 'Success',
+                message: 'Bank account updated successfully',
+                color: 'green',
+            });
         } else {
             onBankAccountsChange([...bankAccounts, bankInfo]);
+            notifications.show({
+                title: 'Success',
+                message: 'Bank account added successfully',
+                color: 'green',
+            });
         }
         resetForm();
     };
@@ -115,6 +140,11 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
         const updatedAccounts = bankAccounts.filter((_, i) => i !== index);
         onBankAccountsChange(updatedAccounts);
         resetForm();
+        notifications.show({
+            title: 'Success',
+            message: 'Bank account deleted successfully',
+            color: 'green',
+        });
     };
 
     return (
@@ -127,17 +157,17 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
                     <Button variant="subtle" color="gray" onClick={resetForm}>Clear</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <TextInput 
-                        label="Account Holder Name" 
-                        value={bankInfo.account_holder_name} 
+                    <TextInput
+                        label="Account Holder Name"
+                        value={bankInfo.account_holder_name}
                         onChange={(e) => setBankInfo({ ...bankInfo, account_holder_name: e.target.value })}
-                        required 
+                        required
                     />
-                    <TextInput 
-                        label="Account Number" 
-                        value={bankInfo.account_number} 
+                    <TextInput
+                        label="Account Number"
+                        value={bankInfo.account_number}
                         onChange={(e) => setBankInfo({ ...bankInfo, account_number: e.target.value })}
-                        required 
+                        required
                     />
                     <Select
                         label="Bank Name"
@@ -149,14 +179,14 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
                         placeholder="Select a bank"
                     />
                     <div className="flex gap-2">
-                        <TextInput 
-                            label="IFSC Code" 
-                            value={bankInfo.ifsc} 
+                        <TextInput
+                            label="IFSC Code"
+                            value={bankInfo.ifsc}
                             onChange={(e) => setBankInfo({ ...bankInfo, ifsc: e.target.value })}
-                            required 
+                            required
                             className="flex-1"
                         />
-                        <Button 
+                        <Button
                             onClick={handleSearch}
                             loading={isSearching}
                             className="mt-6"
@@ -164,15 +194,16 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
                             Search
                         </Button>
                     </div>
-                    <TextInput 
-                        label="Branch Address" 
-                        className="col-span-2" 
-                        value={bankInfo.branch_address} 
-                        onChange={(e) => setBankInfo({ ...bankInfo, branch_address: e.target.value })} 
+                    <TextInput
+                        label="Branch Address"
+                        className="col-span-2"
+                        value={bankInfo.branch_address}
+                        onChange={(e) => setBankInfo({ ...bankInfo, branch_address: e.target.value })}
                     />
                 </div>
-                <Button 
-                    className="mt-4" 
+               
+                <Button
+                    className="mt-4"
                     onClick={handleSubmit}
                     disabled={!validateRequiredFields(bankInfo)}
                 >
