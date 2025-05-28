@@ -72,10 +72,6 @@ interface PaginatedData<T> {
     total: number;
 }
 
-interface Props {
-    vendors: PaginatedData<Vendor>;
-}
-
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Vendors',
@@ -83,7 +79,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const VendorsList = (props: Props) => {
+const VendorsList = () => {
     const [vendors, setVendors] = useState<PaginatedData<Vendor>>();
     const [loading, setLoading] = useState(true);
 

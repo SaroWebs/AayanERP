@@ -19,10 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
     Route::controller(ClientDetailController::class)->group(function () {
-        // 
+        Route::get('master/clients', 'paginatedlist');
     });
-
-
 });
 
 // only admin
