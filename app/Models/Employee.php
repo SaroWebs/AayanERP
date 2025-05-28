@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Models\EmpAddress;
 use App\Models\EmpDocument;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\EmpEducationalQalification;
+use App\Models\EmpEducationalQualification;
 
 class Employee extends Model
 {
@@ -23,7 +23,7 @@ class Employee extends Model
 
     public function educational_qualifications()
     {
-        return $this->hasMany(EmpEducationalQalification::class);
+        return $this->hasMany(EmpEducationalQualification::class);
     }
     // 
 }

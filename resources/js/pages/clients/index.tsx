@@ -47,14 +47,20 @@ const index = (props: Props) => {
   const [clients, setClients] = useState<PaginatedData<Client>>();
 
   const loadClientDetails = () => {
-    axios.get('master/clients')
+    axios.get('/data/clients')
       .then(res => {
         setClients(res.data);
+        notifications.show({
+          title: 'Success',
+          message: 'Clients data loaded successfully',
+          color: 'green',
+        });
       })
       .catch(err => {
+        console.log(err);
         notifications.show({
-          title: 'Error loading vendors',
-          message: 'Failed to load vendors data',
+          title: 'Error loading clients',
+          message: 'Failed to load clients data',
           color: 'red',
         });
       });

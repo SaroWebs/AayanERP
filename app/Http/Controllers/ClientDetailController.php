@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Inertia\Inertia;
 use App\Models\ClientDetail;
 use Illuminate\Http\Request;
 
 class ClientDetailController extends Controller
 {
+    public function index() {
+        return Inertia::render('clients/index');
+    }
     
     public function paginatedlist(Request $request) {
         $clients = ClientDetail::query()

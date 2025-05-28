@@ -19,7 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
     Route::controller(ClientDetailController::class)->group(function () {
-        Route::get('master/clients', 'paginatedlist');
+        Route::get('master/clients', 'index');
+        Route::get('data/clients', 'paginatedlist');
     });
 });
 
