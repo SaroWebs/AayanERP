@@ -4,6 +4,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ClientDetailController;
 use App\Http\Controllers\ConfigurationController;
 
 Route::get('/', function () {
@@ -15,6 +16,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+
+    Route::controller(ClientDetailController::class)->group(function () {
+        // 
+    });
+
+
 });
 
 // only admin
