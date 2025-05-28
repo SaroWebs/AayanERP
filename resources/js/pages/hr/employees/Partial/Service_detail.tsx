@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, TextInput, Textarea, Select } from '@mantine/core';
 
-export interface EmploymentDetail {
+export interface ServiceDetail {
     employee_id?: number;
     designation: string;
     department: string;
@@ -17,13 +17,13 @@ export interface EmploymentDetail {
     updated_at?: string;
 }
 
-interface EmploymentDetailsProps {
-    serviceDetails: EmploymentDetail[];
-    onServiceDetailsChange: (details: EmploymentDetail[]) => void;
+interface ServiceDetailProps {
+    serviceDetails: ServiceDetail[];
+    onServiceDetailsChange: (details: ServiceDetail[]) => void;
 }
 
 // Define required fields
-const REQUIRED_FIELDS: (keyof EmploymentDetail)[] = [
+const REQUIRED_FIELDS: (keyof ServiceDetail)[] = [
     'designation',
     'department',
     'joining_date',
@@ -34,8 +34,8 @@ const REQUIRED_FIELDS: (keyof EmploymentDetail)[] = [
     'employment_status'
 ];
 
-const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: EmploymentDetailsProps) => {
-    const [employmentInfo, setEmploymentInfo] = useState<EmploymentDetail>({
+const ServiceDetail = ({ serviceDetails, onServiceDetailsChange }: ServiceDetailProps) => {
+    const [serviceInfo, setServiceInfo] = useState<ServiceDetail>({
         designation: '',
         department: '',
         joining_date: '',
@@ -49,7 +49,7 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
     });
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-    const validateRequiredFields = (data: EmploymentDetail): boolean => {
+    const validateRequiredFields = (data: ServiceDetail): boolean => {
         return REQUIRED_FIELDS.every(field => {
             const value = data[field];
             if (typeof value === 'string') {
@@ -60,7 +60,7 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
     };
 
     const resetForm = () => {
-        setEmploymentInfo({
+        setServiceInfo({
             designation: '',
             department: '',
             joining_date: '',
@@ -76,23 +76,23 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
     };
 
     const handleSubmit = () => {
-        if (!validateRequiredFields(employmentInfo)) {
+        if (!validateRequiredFields(serviceInfo)) {
             return;
         }
 
         if (editingIndex !== null) {
             const updatedDetails = [...serviceDetails];
-            updatedDetails[editingIndex] = employmentInfo;
+            updatedDetails[editingIndex] = serviceInfo;
             onServiceDetailsChange(updatedDetails);
         } else {
-            onServiceDetailsChange([...serviceDetails, employmentInfo]);
+            onServiceDetailsChange([...serviceDetails, serviceInfo]);
         }
         resetForm();
     };
 
     const handleEdit = (index: number) => {
         setEditingIndex(index);
-        setEmploymentInfo(serviceDetails[index]);
+        setServiceInfo(serviceDetails[index]);
     };
 
     const handleDelete = (index: number) => {
@@ -106,34 +106,34 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
             <div className="rounded-lg shadow-md p-6">
                 <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
-                        {editingIndex !== null ? 'Edit Employment Details' : 'Add New Employment Details'}
+                        {editingIndex !== null ? 'Edit Service Details' : 'Add New Service Details'}
                     </h3>
                     <Button variant="subtle" color="gray" onClick={resetForm}>Clear</Button>
                 </div>
                 <div className="grid grid-cols-4 gap-4">
                     <TextInput 
                         label="Designation" 
-                        value={employmentInfo.designation} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, designation: e.target.value })}
+                        value={serviceInfo.designation} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, designation: e.target.value })}
                         required 
                     />
                     <TextInput 
                         label="Department" 
-                        value={employmentInfo.department} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, department: e.target.value })}
+                        value={serviceInfo.department} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, department: e.target.value })}
                         required 
                     />
                     <TextInput 
                         label="Joining Date" 
                         type="date"
-                        value={employmentInfo.joining_date} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, joining_date: e.target.value })}
+                        value={serviceInfo.joining_date} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, joining_date: e.target.value })}
                         required 
                     />
                     <Select
                         label="Employment Type"
-                        value={employmentInfo.employment_type}
-                        onChange={(value) => setEmploymentInfo({ ...employmentInfo, employment_type: value as 'full-time' | 'part-time' | 'contract' | 'internship' })}
+                        value={serviceInfo.employment_type}
+                        onChange={(value) => setServiceInfo({ ...serviceInfo, employment_type: value as 'full-time' | 'part-time' | 'contract' | 'internship' })}
                         data={[
                             { value: 'full-time', label: 'Full Time' },
                             { value: 'part-time', label: 'Part Time' },
@@ -144,26 +144,26 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
                     />
                     <TextInput 
                         label="Salary" 
-                        value={employmentInfo.salary} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, salary: e.target.value })}
+                        value={serviceInfo.salary} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, salary: e.target.value })}
                         required 
                     />
                     <TextInput 
                         label="Reporting To" 
-                        value={employmentInfo.reporting_to} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, reporting_to: e.target.value })}
+                        value={serviceInfo.reporting_to} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, reporting_to: e.target.value })}
                         required 
                     />
                     <TextInput 
                         label="Work Location" 
-                        value={employmentInfo.work_location} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, work_location: e.target.value })}
+                        value={serviceInfo.work_location} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, work_location: e.target.value })}
                         required 
                     />
                     <Select
                         label="Employment Status"
-                        value={employmentInfo.employment_status}
-                        onChange={(value) => setEmploymentInfo({ ...employmentInfo, employment_status: value as 'active' | 'on-leave' | 'terminated' })}
+                        value={serviceInfo.employment_status}
+                        onChange={(value) => setServiceInfo({ ...serviceInfo, employment_status: value as 'active' | 'on-leave' | 'terminated' })}
                         data={[
                             { value: 'active', label: 'Active' },
                             { value: 'on-leave', label: 'On Leave' },
@@ -173,14 +173,14 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
                     />
                     <TextInput 
                         label="Notice Period" 
-                        value={employmentInfo.notice_period || ''} 
-                        onChange={(e) => setEmploymentInfo({ ...employmentInfo, notice_period: e.target.value })}
+                        value={serviceInfo.notice_period || ''} 
+                        onChange={(e) => setServiceInfo({ ...serviceInfo, notice_period: e.target.value })}
                     />
                     <div className="col-span-2">
                         <Textarea 
                             label="Remarks" 
-                            value={employmentInfo.remarks || ''} 
-                            onChange={(e) => setEmploymentInfo({ ...employmentInfo, remarks: e.target.value })}
+                            value={serviceInfo.remarks || ''} 
+                            onChange={(e) => setServiceInfo({ ...serviceInfo, remarks: e.target.value })}
                             minRows={2}
                         />
                     </div>
@@ -188,7 +188,7 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
                 <Button 
                     className="mt-4" 
                     onClick={handleSubmit}
-                    disabled={!validateRequiredFields(employmentInfo)}
+                    disabled={!validateRequiredFields(serviceInfo)}
                 >
                     {editingIndex !== null ? 'Update Details' : 'Add Details'}
                 </Button>
@@ -235,4 +235,4 @@ const EmploymentDetails = ({ serviceDetails, onServiceDetailsChange }: Employmen
     );
 };
 
-export default EmploymentDetails; 
+export default ServiceDetail; 

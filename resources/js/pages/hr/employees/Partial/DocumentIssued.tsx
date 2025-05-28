@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Button, TextInput, Textarea } from '@mantine/core';
+import { Button, TextInput, Textarea, Select } from '@mantine/core';
 
 export interface DocumentIssue {
+    employee_id?: number;
     document_type: string;
+    document_number: string;
+    document_path: string;
     issue_date: string;
     expiry_date: string | null;
-    issued_by: string;
-    document_number: string;
+    issuing_authority: string;
+    verification_status: 'pending' | 'verified' | 'rejected';
     remarks: string | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface DocumentIssuedProps {
@@ -16,15 +21,22 @@ interface DocumentIssuedProps {
 }
 
 // Define required fields
-const REQUIRED_FIELDS: (keyof DocumentIssue)[] = ['document_type', 'issue_date', 'issued_by', 'document_number'];
+const REQUIRED_FIELDS: (keyof DocumentIssue)[] = [
+    'document_type',
+    'document_number',
+    'issue_date',
+    'issuing_authority'
+];
 
 const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) => {
     const [documentInfo, setDocumentInfo] = useState<DocumentIssue>({
         document_type: '',
+        document_number: '',
+        document_path: '',
         issue_date: '',
         expiry_date: '',
-        issued_by: '',
-        document_number: '',
+        issuing_authority: '',
+        verification_status: 'pending',
         remarks: '',
     });
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -32,17 +44,22 @@ const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) =
     const validateRequiredFields = (data: DocumentIssue): boolean => {
         return REQUIRED_FIELDS.every(field => {
             const value = data[field];
-            return value !== undefined && value !== null && value.trim() !== '';
+            if (typeof value === 'string') {
+                return value.trim() !== '';
+            }
+            return value !== undefined && value !== null;
         });
     };
 
     const resetForm = () => {
         setDocumentInfo({
             document_type: '',
+            document_number: '',
+            document_path: '',
             issue_date: '',
             expiry_date: '',
-            issued_by: '',
-            document_number: '',
+            issuing_authority: '',
+            verification_status: 'pending',
             remarks: '',
         });
         setEditingIndex(null);
@@ -83,11 +100,17 @@ const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) =
                     </h3>
                     <Button variant="subtle" color="gray" onClick={resetForm}>Clear</Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                     <TextInput 
                         label="Document Type" 
                         value={documentInfo.document_type} 
                         onChange={(e) => setDocumentInfo({ ...documentInfo, document_type: e.target.value })}
+                        required 
+                    />
+                    <TextInput 
+                        label="Document Number" 
+                        value={documentInfo.document_number} 
+                        onChange={(e) => setDocumentInfo({ ...documentInfo, document_number: e.target.value })}
                         required 
                     />
                     <TextInput 
@@ -104,16 +127,21 @@ const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) =
                         onChange={(e) => setDocumentInfo({ ...documentInfo, expiry_date: e.target.value })}
                     />
                     <TextInput 
-                        label="Issued By" 
-                        value={documentInfo.issued_by} 
-                        onChange={(e) => setDocumentInfo({ ...documentInfo, issued_by: e.target.value })}
+                        label="Issuing Authority" 
+                        value={documentInfo.issuing_authority} 
+                        onChange={(e) => setDocumentInfo({ ...documentInfo, issuing_authority: e.target.value })}
                         required 
                     />
-                    <TextInput 
-                        label="Document Number" 
-                        value={documentInfo.document_number} 
-                        onChange={(e) => setDocumentInfo({ ...documentInfo, document_number: e.target.value })}
-                        required 
+                    <Select
+                        label="Verification Status"
+                        value={documentInfo.verification_status}
+                        onChange={(value) => setDocumentInfo({ ...documentInfo, verification_status: value as 'pending' | 'verified' | 'rejected' })}
+                        data={[
+                            { value: 'pending', label: 'Pending' },
+                            { value: 'verified', label: 'Verified' },
+                            { value: 'rejected', label: 'Rejected' },
+                        ]}
+                        required
                     />
                     <div className="col-span-2">
                         <Textarea 
@@ -139,10 +167,11 @@ const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) =
                         <thead>
                             <tr className="bg-gray-50 border-b">
                                 <th className="px-4 py-2">Document Type</th>
+                                <th className="px-4 py-2">Document Number</th>
                                 <th className="px-4 py-2">Issue Date</th>
                                 <th className="px-4 py-2">Expiry Date</th>
-                                <th className="px-4 py-2">Issued By</th>
-                                <th className="px-4 py-2">Document Number</th>
+                                <th className="px-4 py-2">Issuing Authority</th>
+                                <th className="px-4 py-2">Verification Status</th>
                                 <th className="px-4 py-2">Remarks</th>
                                 <th className="px-4 py-2">Actions</th>
                             </tr>
@@ -151,10 +180,11 @@ const DocumentIssued = ({ documents, onDocumentsChange }: DocumentIssuedProps) =
                             {documents.map((doc, index) => (
                                 <tr key={index} className="border-b text-sm">
                                     <td className="px-4 py-2">{doc.document_type}</td>
+                                    <td className="px-4 py-2">{doc.document_number}</td>
                                     <td className="px-4 py-2">{doc.issue_date}</td>
                                     <td className="px-4 py-2">{doc.expiry_date}</td>
-                                    <td className="px-4 py-2">{doc.issued_by}</td>
-                                    <td className="px-4 py-2">{doc.document_number}</td>
+                                    <td className="px-4 py-2">{doc.issuing_authority}</td>
+                                    <td className="px-4 py-2">{doc.verification_status}</td>
                                     <td className="px-4 py-2">{doc.remarks}</td>
                                     <td className="px-4 py-2">
                                         <Button size="xs" variant="subtle" color="blue" onClick={() => handleEdit(index)}>Edit</Button>

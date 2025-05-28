@@ -5,11 +5,11 @@ namespace App\Models;
 use App\Models\Employee;
 use Illuminate\Database\Eloquent\Model;
 
-class EmpDocument extends Model
+class EmployeeKnownLanguage extends Model
 {
     protected $guarded = [];
 
-    public function emplyee()
+    public function employee()
     {
         return $this->belongsTo(Employee::class);
     }

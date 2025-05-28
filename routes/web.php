@@ -51,7 +51,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:hr'])->group(function () {
-    Route::get('hr/employees', [EmployeeController::class, 'index']);
+    // 
+    Route::controller(EmployeeController::class)->group(function () {
+        Route::get('hr/employees', 'index');
+        Route::get('data/employees', 'paginatedlist');
+        Route::post('data/employees/add', 'store');
+    });
 });
 
 // logged in user

@@ -7,12 +7,16 @@ import { useForm } from '@inertiajs/react';
 
 interface QualificationDetail {
     id: number;
-    degree: string;
+    employee_id: number;
+    qualification_type: string;
     institution: string;
     year_of_passing: string;
+    marks_percentage: string;
     grade: string;
     specialization: string | null;
     board: string | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface Props {
@@ -24,9 +28,10 @@ interface Props {
 const QualificationDetail = ({ employeeId, qualification, onUpdate }: Props) => {
     const [open, setOpen] = useState(false);
     const { data, setData, put, processing, errors, reset } = useForm({
-        degree: qualification.degree,
+        qualification_type: qualification.qualification_type,
         institution: qualification.institution,
         year_of_passing: qualification.year_of_passing,
+        marks_percentage: qualification.marks_percentage,
         grade: qualification.grade,
         specialization: qualification.specialization || '',
         board: qualification.board || ''
@@ -56,11 +61,11 @@ const QualificationDetail = ({ employeeId, qualification, onUpdate }: Props) => 
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <Label htmlFor="degree">Degree</Label>
+                        <Label htmlFor="qualification_type">Qualification Type</Label>
                         <Input
-                            id="degree"
-                            value={data.degree}
-                            onChange={e => setData('degree', e.target.value)}
+                            id="qualification_type"
+                            value={data.qualification_type}
+                            onChange={e => setData('qualification_type', e.target.value)}
                             required
                         />
                     </div>
@@ -80,6 +85,16 @@ const QualificationDetail = ({ employeeId, qualification, onUpdate }: Props) => 
                             type="number"
                             value={data.year_of_passing}
                             onChange={e => setData('year_of_passing', e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="marks_percentage">Marks/Percentage</Label>
+                        <Input
+                            id="marks_percentage"
+                            type="number"
+                            value={data.marks_percentage}
+                            onChange={e => setData('marks_percentage', e.target.value)}
                             required
                         />
                     </div>

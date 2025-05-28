@@ -9,7 +9,7 @@ class EmpAddress extends Model
 {
     protected $guarded = [];
 
-    public function emplyee()
+    public function employee()
     {
         return $this->belongsTo(Employee::class);
     }

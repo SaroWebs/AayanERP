@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Button, TextInput, Textarea, Select } from '@mantine/core';
 
 export interface Documents {
+    employee_id?: number;
     document_type: string;
-    submission_date: string;
     document_number: string | null;
     document_path: string;
     document_file?: File | null;
+    issue_date: string;
+    expiry_date: string | null;
+    issuing_authority: string | null;
     verification_status: 'pending' | 'verified' | 'rejected';
     remarks: string | null;
 }
@@ -17,15 +20,17 @@ interface DocumentSubmittedProps {
 }
 
 // Define required fields
-const REQUIRED_FIELDS: (keyof Documents)[] = ['document_type', 'document_file'];
+const REQUIRED_FIELDS: (keyof Documents)[] = ['document_type', 'document_file', 'issue_date'];
 
 const Documents = ({ documents, onDocumentsChange }: DocumentSubmittedProps) => {
     const [documentInfo, setDocumentInfo] = useState<Documents>({
         document_type: '',
-        submission_date: new Date().toISOString().split('T')[0],
         document_number: '',
-        document_path: '', 
+        document_path: '',
         document_file: null,
+        issue_date: new Date().toISOString().split('T')[0],
+        expiry_date: '',
+        issuing_authority: '',
         verification_status: 'pending',
         remarks: '',
     });
@@ -57,10 +62,12 @@ const Documents = ({ documents, onDocumentsChange }: DocumentSubmittedProps) => 
     const resetForm = () => {
         setDocumentInfo({
             document_type: '',
-            submission_date: new Date().toISOString().split('T')[0],
             document_number: '',
             document_path: '',
             document_file: null,
+            issue_date: new Date().toISOString().split('T')[0],
+            expiry_date: '',
+            issuing_authority: '',
             verification_status: 'pending',
             remarks: '',
         });
@@ -102,17 +109,47 @@ const Documents = ({ documents, onDocumentsChange }: DocumentSubmittedProps) => 
                     </h3>
                     <Button variant="subtle" color="gray" onClick={resetForm}>Clear</Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <TextInput 
-                        label="Document Type" 
-                        value={documentInfo.document_type} 
-                        onChange={(e) => setDocumentInfo({ ...documentInfo, document_type: e.target.value })}
-                        required 
+                <div className="grid grid-cols-4 gap-4">
+                    <Select
+                        label="Document Type"
+                        value={documentInfo.document_type}
+                        onChange={(value) => setDocumentInfo({ ...documentInfo, document_type: value || '' })}
+                        data={[
+                            { value: 'passport', label: 'Passport' },
+                            { value: 'pan_card', label: 'PAN Card' },
+                            { value: 'gst_certificate', label: 'GST Certificate' },
+                            { value: 'identity_proof', label: 'Identity Proof' },
+                            { value: 'address_proof', label: 'Address Proof' },
+                            { value: 'bank_documents', label: 'Bank Documents' },
+                            { value: 'registration_documents', label: 'Registration Documents' },
+                            { value: 'invoice', label: 'Invoice' },
+                            { value: 'quotation', label: 'Quotation' },
+                            { value: 'other', label: 'Other' }
+                        ]}
+                        required
                     />
                     <TextInput 
                         label="Document Number" 
                         value={documentInfo.document_number || ''} 
                         onChange={(e) => setDocumentInfo({ ...documentInfo, document_number: e.target.value })}
+                    />
+                    <TextInput 
+                        label="Issue Date" 
+                        type="date"
+                        value={documentInfo.issue_date} 
+                        onChange={(e) => setDocumentInfo({ ...documentInfo, issue_date: e.target.value })}
+                        required
+                    />
+                    <TextInput 
+                        label="Expiry Date" 
+                        type="date"
+                        value={documentInfo.expiry_date || ''} 
+                        onChange={(e) => setDocumentInfo({ ...documentInfo, expiry_date: e.target.value })}
+                    />
+                    <TextInput 
+                        label="Issuing Authority" 
+                        value={documentInfo.issuing_authority || ''} 
+                        onChange={(e) => setDocumentInfo({ ...documentInfo, issuing_authority: e.target.value })}
                     />
                     <div className="col-span-2">
                         <div className="mb-2">
@@ -162,8 +199,10 @@ const Documents = ({ documents, onDocumentsChange }: DocumentSubmittedProps) => 
                         <thead>
                             <tr className="bg-gray-50 border-b">
                                 <th className="px-4 py-2">Document Type</th>
-                                <th className="px-4 py-2">Submission Date</th>
                                 <th className="px-4 py-2">Document Number</th>
+                                <th className="px-4 py-2">Issue Date</th>
+                                <th className="px-4 py-2">Expiry Date</th>
+                                <th className="px-4 py-2">Issuing Authority</th>
                                 <th className="px-4 py-2">Verification Status</th>
                                 <th className="px-4 py-2">Remarks</th>
                                 <th className="px-4 py-2">Actions</th>
@@ -173,8 +212,10 @@ const Documents = ({ documents, onDocumentsChange }: DocumentSubmittedProps) => 
                             {documents.map((doc, index) => (
                                 <tr key={index} className="border-b text-sm">
                                     <td className="px-4 py-2">{doc.document_type}</td>
-                                    <td className="px-4 py-2">{doc.submission_date}</td>
                                     <td className="px-4 py-2">{doc.document_number}</td>
+                                    <td className="px-4 py-2">{doc.issue_date}</td>
+                                    <td className="px-4 py-2">{doc.expiry_date}</td>
+                                    <td className="px-4 py-2">{doc.issuing_authority}</td>
                                     <td className="px-4 py-2">{doc.verification_status}</td>
                                     <td className="px-4 py-2">{doc.remarks}</td>
                                     <td className="px-4 py-2">

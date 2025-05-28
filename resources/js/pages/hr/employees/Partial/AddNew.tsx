@@ -1,80 +1,36 @@
 import React, { useState, useRef } from 'react';
 import { useDisclosure } from '@mantine/hooks';
-import { Modal, Button, Tabs, Textarea, TextInput, Group } from '@mantine/core';
+import { Modal, Button, Tabs, Textarea, TextInput, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import axios from 'axios';
-import OtherDetails from './OtherDetails';
+import AddressDetails from './AddressDetails';
 import DocumentSubmitted from './Documents';
-import type { Documents as DocumentSubmittedType } from './Documents';
+import type { Documents } from './Documents';
 import EmploymentDetails from './EmploymentDetails';
 import type { EmploymentDetail } from './EmploymentDetails';
-
-interface ServiceDetail {
-   
-    service_type: string;
-    service_start_date: string;
-    service_end_date: string | null;
-    service_status: 'active' | 'completed' | 'terminated';
-    service_location: string;
-    service_description: string | null;
-}
-
-interface OtherDetail {
-   
-    blood_group: string;
-    emergency_contact_name: string;
-    emergency_contact_number: string;
-    emergency_contact_relation: string;
-    hobbies: string | null;
-    achievements: string | null;
-}
-
-interface QualificationDetail {
-   
-    degree: string;
-    institution: string;
-    year_of_passing: string;
-    grade: string;
-    specialization: string | null;
-    board: string | null;
-}
-
-interface EducationalQualification {
-  qualification: string;
-  year_of_passing: string;
-  school_college: string;
-  board_university: string;
-  date_of_completion: string;
-  subjects: string;
-  medium: string;
-  marks: string;
-}
-
-interface ProfessionalQualification {
-  name_of_exam: string;
-  university: string;
-  division: string;
-  year: string;
-}
-
-interface EmployeeForm {
-  first_name: string;
-  last_name: string;
-  date_of_birth: string;
-  nationality: string;
-  marital_status: string;
-  contact_no: string;
-  email: string;
-  state: string;
-  address: string;
-}
-
-// Define required fields for Educational Qualification
-const REQUIRED_EDUCATIONAL_FIELDS: (keyof EducationalQualification)[] = ['qualification', 'year_of_passing', 'school_college', 'board_university'];
-
-// Define required fields for Professional Qualification
-const REQUIRED_PROFESSIONAL_FIELDS: (keyof ProfessionalQualification)[] = ['name_of_exam', 'university', 'division', 'year'];
+import ServiceDetail from './Service_detail';
+import type { ServiceDetail as ServiceDetailType } from './Service_detail';
+import DocumentIssued from './DocumentIssued';
+import type { DocumentIssue } from './DocumentIssued';
+import OtherDetails from './OtherDetails';
+import EducationalDetails from './EducationalDetails';
+import ProfessionalDetails from './ProfessionalDetails';
+import {
+  EmployeeProfile,
+  EducationalQualification,
+  ProfessionalQualification,
+  Address,
+  Child,
+  Spouse,
+  Nominee,
+  Reference,
+  KnownLanguage,
+  SpecialTraining,
+  CurricularActivity,
+  REQUIRED_EDUCATIONAL_FIELDS,
+  REQUIRED_PROFESSIONAL_FIELDS
+} from '../types';
 
 const AddNew = () => {
   const [opened, { open, close }] = useDisclosure(false);
@@ -84,64 +40,99 @@ const AddNew = () => {
   // State for subcomponent data
   const [educationalList, setEducationalList] = useState<EducationalQualification[]>([]);
   const [educationalInput, setEducationalInput] = useState<EducationalQualification>({
-    qualification: '',
-    year_of_passing: '',
-    school_college: '',
+    qualification_type: '',
+    institution: '',
     board_university: '',
-    date_of_completion: '',
-    subjects: '',
+    year_of_passing: '',
+    marks_percentage: '',
+    grade: '',
+    specialization: null,
     medium: '',
-    marks: '',
+    subject: '',
   });
   const [editingEducationalIndex, setEditingEducationalIndex] = useState<number | null>(null);
 
   const [professionalList, setProfessionalList] = useState<ProfessionalQualification[]>([]);
   const [professionalInput, setProfessionalInput] = useState<ProfessionalQualification>({
-    name_of_exam: '',
-    university: '',
-    division: '',
-    year: '',
+    exam_name: '',
+    institution: '',
+    division: null,
+    completion_year: '',
+    certificate_number: null,
+    valid_from: null,
+    valid_until: null,
+    remarks: null
   });
   const [editingProfessionalIndex, setEditingProfessionalIndex] = useState<number | null>(null);
 
-  const [otherDetails, setOtherDetails] = useState<OtherDetail[]>([]);
-
-  // Add new state for documents and employment details
-  const [submittedDocuments, setSubmittedDocuments] = useState<DocumentSubmittedType[]>([]);
+  // Add new state for all other components
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [documents, setDocuments] = useState<Documents[]>([]);
+  const [serviceDetails, setServiceDetails] = useState<ServiceDetailType[]>([]);
   const [employmentDetails, setEmploymentDetails] = useState<EmploymentDetail[]>([]);
+  const [documentIssued, setDocumentIssued] = useState<DocumentIssue[]>([]);
+  const [children, setChildren] = useState<Child[]>([]);
+  const [spouses, setSpouses] = useState<Spouse[]>([]);
+  const [nominees, setNominees] = useState<Nominee[]>([]);
+  const [references, setReferences] = useState<Reference[]>([]);
+  const [knownLanguages, setKnownLanguages] = useState<KnownLanguage[]>([]);
+  const [specialTrainings, setSpecialTrainings] = useState<SpecialTraining[]>([]);
+  const [curricularActivities, setCurricularActivities] = useState<CurricularActivity[]>([]);
+
+  const form = useForm<EmployeeProfile>({
+    initialValues: {
+      first_name: '',
+      last_name: null,
+      pf_no: null,
+      date_of_birth: null,
+      gender: 'male',
+      blood_group: null,
+      pan_no: null,
+      aadhar_no: null,
+      guardian_name: null,
+      contact_no: null,
+      email: null,
+      country: null,
+    },
+    validateInputOnBlur: false,
+    validateInputOnChange: false,
+  });
 
   const validateRequiredFields = (data: EducationalQualification | ProfessionalQualification, requiredFields: (keyof EducationalQualification | keyof ProfessionalQualification)[]): boolean => {
+    // Only validate fields that are in the requiredFields array
     return requiredFields.every(field => {
-      if ('qualification' in data) {
-        // data is EducationalQualification
-        return data[field as keyof EducationalQualification] !== undefined && data[field as keyof EducationalQualification] !== null && String(data[field as keyof EducationalQualification]).trim() !== '';
-      } else {
-        // data is ProfessionalQualification
-        return data[field as keyof ProfessionalQualification] !== undefined && data[field as keyof ProfessionalQualification] !== null && String(data[field as keyof ProfessionalQualification]).trim() !== '';
-      }
+      const value = 'qualification_type' in data 
+        ? data[field as keyof EducationalQualification]
+        : data[field as keyof ProfessionalQualification];
+      return value !== undefined && value !== null && String(value).trim() !== '';
     });
   };
 
   const resetEducationalForm = () => {
     setEducationalInput({
-      qualification: '',
-      year_of_passing: '',
-      school_college: '',
+      qualification_type: '',
+      institution: '',
       board_university: '',
-      date_of_completion: '',
-      subjects: '',
+      year_of_passing: '',
+      marks_percentage: '',
+      grade: '',
+      specialization: null,
       medium: '',
-      marks: '',
+      subject: '',
     });
     setEditingEducationalIndex(null);
   };
 
   const resetProfessionalForm = () => {
     setProfessionalInput({
-      name_of_exam: '',
-      university: '',
-      division: '',
-      year: '',
+      exam_name: '',
+      institution: '',
+      division: null,
+      completion_year: '',
+      certificate_number: null,
+      valid_from: null,
+      valid_until: null,
+      remarks: null
     });
     setEditingProfessionalIndex(null);
   };
@@ -198,262 +189,345 @@ const AddNew = () => {
     resetProfessionalForm();
   };
 
-  const form = useForm<EmployeeForm>({
-    initialValues: {
-      first_name: '',
-      last_name: '',
-      date_of_birth: '',
-      nationality: '',
-      marital_status: '',
-      contact_no: '',
-      email: '',
-      state: '',
-      address: '',
-    },
-    validateInputOnBlur: false,
-    validateInputOnChange: false,
-  });
+  const handleSubmit = (values: EmployeeProfile) => {
+    const formData = new FormData();
 
-  const handleSubmit = (values: EmployeeForm) => {
-    try {
-      const formData = new FormData();
-      formData.append('first_name', values.first_name);
-      formData.append('last_name', values.last_name);
-      formData.append('date_of_birth', values.date_of_birth);
-      formData.append('nationality', values.nationality);
-      formData.append('marital_status', values.marital_status);
-      formData.append('contact_no', values.contact_no);
-      formData.append('email', values.email);
-      formData.append('state', values.state);
-      formData.append('address', values.address);
+    // Append basic profile - include all fields even if null
+    Object.keys(values).forEach((key) => {
+      formData.append(key, values[key as keyof EmployeeProfile]?.toString() || '');
+    });
 
-      // Append Educational Qualifications
-      educationalList.forEach((item, idx) => {
-        Object.entries(item).forEach(([key, value]) => {
-          formData.append(`educational_qualifications[${idx}][${key}]`, value);
-        });
+    // Append Educational Qualifications
+    educationalList.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`educational_qualifications[${idx}][${key}]`, String(value));
+        }
       });
-      // Append Professional Qualifications
-      professionalList.forEach((item, idx) => {
-        Object.entries(item).forEach(([key, value]) => {
-          formData.append(`professional_qualifications[${idx}][${key}]`, value);
-        });
-      });
+    });
 
-      // Append Other Details
-      otherDetails.forEach((item, idx) => {
-        Object.entries(item).forEach(([key, value]) => {
-          if (value !== null) {
-            formData.append(`other_details[${idx}][${key}]`, value);
-          }
-        });
+    // Append Professional Qualifications
+    professionalList.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`professional_qualifications[${idx}][${key}]`, String(value));
+        }
       });
+    });
 
-      // Append Submitted Documents
-      submittedDocuments.forEach((item, idx) => {
-        Object.entries(item).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            formData.append(`submitted_documents[${idx}][${key}]`, String(value));
-          }
-        });
+    // Append Addresses
+    addresses.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`addresses[${idx}][${key}]`, String(value));
+        }
       });
+    });
 
-
-      // Append Employment Details
-      employmentDetails.forEach((item, idx) => {
-        Object.entries(item).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            formData.append(`employment_details[${idx}][${key}]`, String(value));
-          }
-        });
+    // Append Documents
+    documents.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`documents[${idx}][${key}]`, String(value));
+        }
       });
+    });
 
-      axios.post('/hr/employees', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-        .then(res => {
-          notifications.show({
-            title: 'Success',
-            message: 'Employee added successfully',
-            color: 'green',
-          });
-          close();
-        })
-        .catch(err => {
-          notifications.show({
-            title: 'Error',
-            message: 'Failed to add employee',
-            color: 'red',
-          });
-        });
-    } catch (error) {
-      notifications.show({
-        title: 'Error',
-        message: 'Fill the required fields first.',
-        color: 'red',
+    // Append Service Details
+    serviceDetails.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`service_details[${idx}][${key}]`, String(value));
+        }
       });
-      setActiveTab('basic_profile');
+    });
+
+    // Append Employment Details
+    employmentDetails.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`employment_details[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Document Issued
+    documentIssued.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`document_issued[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Children
+    children.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`children[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Spouses
+    spouses.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`spouses[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Nominees
+    nominees.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`nominees[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append References
+    references.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`references[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Known Languages
+    knownLanguages.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`known_languages[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Special Trainings
+    specialTrainings.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`special_trainings[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    // Append Curricular Activities
+    curricularActivities.forEach((item, idx) => {
+      Object.entries(item).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(`curricular_activities[${idx}][${key}]`, String(value));
+        }
+      });
+    });
+
+    console.log(formData);
+    // Submit the form
+    // axios.post('/data/employees/add', formData)
+    //   .then(response => {
+    //     notifications.show({
+    //       title: 'Success',
+    //       message: 'Employee added successfully',
+    //       color: 'green',
+    //     });
+    //     close();
+    //   })
+    //   .catch(error => {
+    //     notifications.show({
+    //       title: 'Error',
+    //       message: error.response?.data?.message || 'Failed to add employee',
+    //       color: 'red',
+    //     });
+    //   });
+  };
+
+  const handleFormSubmit = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
     }
   };
 
   return (
     <>
-      <Button variant="outline" color="cyan" size="xs" radius="xs" onClick={open}>Add New</Button>
-      <Modal
-        opened={opened}
-        onClose={close}
-        size={'80%'}
-        title="Add New Employee"
-      >
-        <form ref={formRef} onSubmit={form.onSubmit(handleSubmit)}>
-          <Tabs value={activeTab} onChange={setActiveTab}>
-            <Tabs.List justify="flex-end">
-              <Tabs.Tab value="basic_profile">Basic Profile</Tabs.Tab>
-              <Tabs.Tab value="qualification_details">Qualification Details</Tabs.Tab>
-              <Tabs.Tab value="other_details">Other Details</Tabs.Tab>
-              <Tabs.Tab value="employment_details">Employment Details</Tabs.Tab>
-              <Tabs.Tab value="document_submitted">Documents</Tabs.Tab>
-            </Tabs.List>
+      <Button onClick={open}>Add New Employee</Button>
+      <Modal opened={opened} onClose={close} size="100%" title="Add New Employee">
+        <Tabs value={activeTab} onChange={setActiveTab}>
+          <Tabs.List>
+            <Tabs.Tab value="basic_profile">Basic Profile</Tabs.Tab>
+            <Tabs.Tab value="qualification_details">Qualification Details</Tabs.Tab>
+            <Tabs.Tab value="address_details">Address Details</Tabs.Tab>
+            <Tabs.Tab value="document_details">Document Details</Tabs.Tab>
+            <Tabs.Tab value="service_details">Service Details</Tabs.Tab>
+            <Tabs.Tab value="employment_details">Employment Details</Tabs.Tab>
+            <Tabs.Tab value="document_issued">Document Issued</Tabs.Tab>
+            <Tabs.Tab value="other_details">Other Details</Tabs.Tab>
+          </Tabs.List>
 
-            <Tabs.Panel value="basic_profile">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <TextInput label="First Name" required {...form.getInputProps('first_name')} />
-                  <TextInput label="Last Name" required {...form.getInputProps('last_name')} />
-                  <TextInput label="Date of Birth" type="date" required {...form.getInputProps('date_of_birth')} />
-                  <TextInput label="Nationality" required {...form.getInputProps('nationality')} />
-                  <TextInput label="Marital Status" required {...form.getInputProps('marital_status')} />
-                  <TextInput label="Contact No" required {...form.getInputProps('contact_no')} />
-                  <TextInput label="Email" type="email" required {...form.getInputProps('email')} />
-                  <TextInput label="State" {...form.getInputProps('state')} />
-                </div>
-                <Textarea label="Address" minRows={3} {...form.getInputProps('address')} />
+          <Tabs.Panel value="basic_profile">
+            <form ref={formRef} onSubmit={form.onSubmit(handleSubmit)}>
+
+              <div className="grid grid-cols-4 gap-4">
+                <TextInput
+                  label="First Name"
+                  required
+                  {...form.getInputProps('first_name')}
+                />
+                <TextInput
+                  label="Last Name"
+                  {...form.getInputProps('last_name')}
+                />
+                <TextInput
+                  label="PF Number"
+                  {...form.getInputProps('pf_no')}
+                />
+                <TextInput
+                  label="Date of Birth"
+                  type="date"
+                  {...form.getInputProps('date_of_birth')}
+                />
+                <Select
+                  label="Gender"
+                  required
+                  data={[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  {...form.getInputProps('gender')}
+                />
+                <Select
+                  label="Blood Group"
+                  data={[
+                    { value: 'A+', label: 'A+' },
+                    { value: 'A-', label: 'A-' },
+                    { value: 'B+', label: 'B+' },
+                    { value: 'B-', label: 'B-' },
+                    { value: 'AB+', label: 'AB+' },
+                    { value: 'AB-', label: 'AB-' },
+                    { value: 'O+', label: 'O+' },
+                    { value: 'O-', label: 'O-' },
+                  ]}
+                  {...form.getInputProps('blood_group')}
+                />
+                <TextInput
+                  label="PAN Number"
+                  {...form.getInputProps('pan_no')}
+                />
+                <TextInput
+                  label="Aadhar Number"
+                  {...form.getInputProps('aadhar_no')}
+                />
+                <TextInput
+                  label="Guardian Name"
+                  {...form.getInputProps('guardian_name')}
+                />
+                <TextInput
+                  label="Contact Number"
+                  {...form.getInputProps('contact_no')}
+                />
+                <TextInput
+                  label="Email"
+                  type="email"
+                  {...form.getInputProps('email')}
+                />
+                <TextInput
+                  label="Country"
+                  {...form.getInputProps('country')}
+                />
               </div>
-            </Tabs.Panel>
+            </form>
 
-            <Tabs.Panel value="qualification_details">
-              {/* Educational Details */}
-              <div className="border p-4 rounded mb-4">
-                <h4 className="font-semibold mb-2">Educational Details</h4>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  <TextInput label="Qualification" value={educationalInput.qualification} onChange={e => setEducationalInput({ ...educationalInput, qualification: e.target.value })} required />
-                  <TextInput label="Year of Passing" value={educationalInput.year_of_passing} onChange={e => setEducationalInput({ ...educationalInput, year_of_passing: e.target.value })} type="number" required />
-                  <TextInput label="School/College Name" value={educationalInput.school_college} onChange={e => setEducationalInput({ ...educationalInput, school_college: e.target.value })} required />
-                  <TextInput label="Board/University" value={educationalInput.board_university} onChange={e => setEducationalInput({ ...educationalInput, board_university: e.target.value })} required />
-                  <TextInput label="Date of Completion" value={educationalInput.date_of_completion} onChange={e => setEducationalInput({ ...educationalInput, date_of_completion: e.target.value })} type="date" />
-                  <TextInput label="Subjects" value={educationalInput.subjects} onChange={e => setEducationalInput({ ...educationalInput, subjects: e.target.value })} />
-                  <TextInput label="Medium" value={educationalInput.medium} onChange={e => setEducationalInput({ ...educationalInput, medium: e.target.value })} />
-                  <TextInput label="Marks(%)" value={educationalInput.marks} onChange={e => setEducationalInput({ ...educationalInput, marks: e.target.value })} type="number" />
-                </div>
-                <Button type="button" onClick={handleAddEducational} className="mb-2" disabled={!validateRequiredFields(educationalInput, REQUIRED_EDUCATIONAL_FIELDS)}>
-                  {editingEducationalIndex !== null ? 'Update' : 'Add'}
-                </Button>
-                <Button type="button" onClick={resetEducationalForm} className="mb-2 ml-2">Clear</Button>
-                <table className="w-full text-xs border mt-2">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th>Qualification</th>
-                      <th>Year</th>
-                      <th>School/College</th>
-                      <th>University/Board</th>
-                      <th>Date of Completion</th>
-                      <th>Subject</th>
-                      <th>Medium</th>
-                      <th>Mark(%)</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {educationalList.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{item.qualification}</td>
-                        <td>{item.year_of_passing}</td>
-                        <td>{item.school_college}</td>
-                        <td>{item.board_university}</td>
-                        <td>{item.date_of_completion}</td>
-                        <td>{item.subjects}</td>
-                        <td>{item.medium}</td>
-                        <td>{item.marks}</td>
-                        <td>
-                          <Button size="xs" variant="subtle" color="blue" onClick={() => handleEditEducational(idx)}>Edit</Button>
-                          <Button size="xs" variant="subtle" color="red" onClick={() => handleDeleteEducational(idx)}>Delete</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Professional Qualification Details */}
-              <div className="border p-4 rounded">
-                <h4 className="font-semibold mb-2">Professional Qualification Details</h4>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  <TextInput label="Name of Examination" value={professionalInput.name_of_exam} onChange={e => setProfessionalInput({ ...professionalInput, name_of_exam: e.target.value })} required />
-                  <TextInput label="University/Institution" value={professionalInput.university} onChange={e => setProfessionalInput({ ...professionalInput, university: e.target.value })} required />
-                  <TextInput label="Division" value={professionalInput.division} onChange={e => setProfessionalInput({ ...professionalInput, division: e.target.value })} required />
-                  <TextInput label="Year" value={professionalInput.year} onChange={e => setProfessionalInput({ ...professionalInput, year: e.target.value })} type="number" required />
-                </div>
-                <Button type="button" onClick={handleAddProfessional} className="mb-2" disabled={!validateRequiredFields(professionalInput, REQUIRED_PROFESSIONAL_FIELDS)}>
-                  {editingProfessionalIndex !== null ? 'Update' : 'Add'}
-                </Button>
-                <Button type="button" onClick={resetProfessionalForm} className="mb-2 ml-2">Clear</Button>
-                <table className="w-full text-xs border mt-2">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th>SN</th>
-                      <th>Name of Examination</th>
-                      <th>University/Institution</th>
-                      <th>Division</th>
-                      <th>Year</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {professionalList.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{idx + 1}</td>
-                        <td>{item.name_of_exam}</td>
-                        <td>{item.university}</td>
-                        <td>{item.division}</td>
-                        <td>{item.year}</td>
-                        <td>
-                          <Button size="xs" variant="subtle" color="blue" onClick={() => handleEditProfessional(idx)}>Edit</Button>
-                          <Button size="xs" variant="subtle" color="red" onClick={() => handleDeleteProfessional(idx)}>Delete</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Tabs.Panel>
+          </Tabs.Panel>
 
-            <Tabs.Panel value="other_details">
-              <OtherDetails
-                otherDetails={otherDetails}
-                onOtherDetailsChange={setOtherDetails}
+          <Tabs.Panel value="qualification_details">
+            <>
+              <EducationalDetails
+                educationalList={educationalList}
+                educationalInput={educationalInput}
+                editingEducationalIndex={editingEducationalIndex}
+                onEducationalInputChange={setEducationalInput}
+                onAddEducational={handleAddEducational}
+                onResetEducationalForm={resetEducationalForm}
+                onEditEducational={handleEditEducational}
+                onDeleteEducational={handleDeleteEducational}
+                validateRequiredFields={validateRequiredFields}
+                requiredFields={REQUIRED_EDUCATIONAL_FIELDS}
               />
-            </Tabs.Panel>
-
-            <Tabs.Panel value="employment_details">
-              <EmploymentDetails
-                employmentDetails={employmentDetails}
-                onEmploymentDetailsChange={setEmploymentDetails}
+              <hr className="my-4" />
+              <ProfessionalDetails
+                professionalList={professionalList}
+                professionalInput={professionalInput}
+                editingProfessionalIndex={editingProfessionalIndex}
+                onProfessionalInputChange={setProfessionalInput}
+                onAddProfessional={handleAddProfessional}
+                onResetProfessionalForm={resetProfessionalForm}
+                onEditProfessional={handleEditProfessional}
+                onDeleteProfessional={handleDeleteProfessional}
+                validateRequiredFields={validateRequiredFields}
+                requiredFields={REQUIRED_PROFESSIONAL_FIELDS}
               />
-            </Tabs.Panel>
+            </>
+          </Tabs.Panel>
 
-            <Tabs.Panel value="document_submitted">
-              <DocumentSubmitted
-                documents={submittedDocuments}
-                onDocumentsChange={setSubmittedDocuments}
-              />
-            </Tabs.Panel>
-          </Tabs>
-          <Group justify="flex-end" mt="xl">
-            <Button variant="outline" onClick={close} type="button">Cancel</Button>
-            <Button type="submit">Save Employee</Button>
-          </Group>
-        </form>
+          <Tabs.Panel value="address_details">
+            <AddressDetails
+              addresses={addresses}
+              onAddressesChange={setAddresses}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="document_details">
+            <DocumentSubmitted
+              documents={documents}
+              onDocumentsChange={setDocuments}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="service_details">
+            <ServiceDetail
+              serviceDetails={serviceDetails}
+              onServiceDetailsChange={setServiceDetails}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="employment_details">
+            <EmploymentDetails
+              serviceDetails={employmentDetails}
+              onServiceDetailsChange={setEmploymentDetails}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="document_issued">
+            <DocumentIssued
+              documents={documentIssued}
+              onDocumentsChange={setDocumentIssued}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="other_details">
+            <OtherDetails
+              spouses={spouses}
+              onSpousesChange={setSpouses}
+              children={children}
+              onChildrenChange={setChildren}
+              nominees={nominees}
+              onNomineesChange={setNominees}
+              references={references}
+              onReferencesChange={setReferences}
+              knownLanguages={knownLanguages}
+              onKnownLanguagesChange={setKnownLanguages}
+              specialTrainings={specialTrainings}
+              onSpecialTrainingsChange={setSpecialTrainings}
+              curricularActivities={curricularActivities}
+              onCurricularActivitiesChange={setCurricularActivities}
+            />
+          </Tabs.Panel>
+        </Tabs>
+        <Group justify="flex-end" mt="md">
+          <Button onClick={handleFormSubmit}>Submit</Button>
+        </Group>
       </Modal>
     </>
   );

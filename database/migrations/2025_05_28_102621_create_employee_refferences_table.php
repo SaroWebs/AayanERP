@@ -11,39 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('emp_other_details', function (Blueprint $table) {
+        Schema::create('employee_refferences', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
-            $table->string('spouse_name')->nullable();
-            $table->date('spouse_dob')->nullable();
-            $table->string('spouse_telephone')->nullable();
-            $table->string('spouse_qualification')->nullable();
-            $table->date('marriage_date')->nullable();
-            $table->enum('mother_tongue', ['hindi', 'english', 'assamese', 'bengali', 'other'])->nullable()->default('other');
-            $table->enum('religion', ['hindu', 'muslim', 'christian', 'jain', 'buddhist', 'other'])->nullable()->default('other');
-            $table->text('spouse_job_details')->nullable();
-            $table->string('children_name')->nullable();
-            $table->date('children_dob')->nullable();
-            $table->enum('children_gender', ['male', 'female', 'other'])->nullable()->default('other');
-            $table->string('qualification')->nullable();
-            $table->string('event_name')->nullable();
-            $table->string('discipline')->nullable();
-            $table->string('prize_awarded')->nullable();
-            $table->date('event_year')->nullable();
-            $table->string('other_details')->nullable();
-            $table->string('training_name')->nullable();
-            $table->string('training_place')->nullable();
-            $table->string('organized_by')->nullable();
-            $table->date('training_start_date')->nullable();
-            $table->date('training_end_date')->nullable();
-            $table->string('language_name')->nullable();
-            $table->enum('can_speak', ['yes', 'no'])->nullable()->default('no');
-            $table->enum('can_read', ['yes', 'no'])->nullable()->default('no');
-            $table->enum('can_write', ['yes', 'no'])->nullable()->default('no');
-            $table->string('nominee_name')->nullable();
-            $table->enum('nominee_relationship', ['father', 'mother', 'brother', 'sister', 'son', 'daughter', 'husband', 'wife', 'other'])->nullable()->default('other');
-            $table->date('nominee_dob')->nullable();
-            $table->integer('share_percentage')->nullable();
             $table->string('reference_name')->nullable();
             $table->enum('designation', [
                 'senior_manager_maintenance',
@@ -100,6 +70,7 @@ return new class extends Migration
                 'crane_operator'
             ])->nullable();
             $table->string('reference_address')->nullable();
+
             $table->timestamps();
         });
     }
@@ -109,6 +80,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('emp_other_details');
+        Schema::dropIfExists('employee_refferences');
     }
 };

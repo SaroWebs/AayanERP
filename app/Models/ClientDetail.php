@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\ClientDocument;
+use App\Models\ClientBankAccount;
+use App\Models\ClientContactDetail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
