@@ -1,22 +1,10 @@
-import { useState } from 'react';
-import { Button, TextInput, Select, FileInput } from '@mantine/core';
-
-interface Document {
-    document_type: string;
-    document_name: string;
-    document_number: string;
-    remarks: string;
-    sharing_option: 'public' | 'private';
-    file: File | null;
-}
-
-interface DocumentDetailsProps {
-    documents: Document[];
-    onDocumentsChange: (documents: Document[]) => void;
-}
+import React, { useState } from 'react';
+import { Button, TextInput, Select, FileInput, Group } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { DocumentDetailsProps, Document } from '../types';
 
 // Define required fields
-const REQUIRED_FIELDS: (keyof Document)[] = ['document_type', 'document_name', 'document_number'];
+const REQUIRED_FIELDS: (keyof Document)[] = ['document_type', 'document_number'];
 
 const DOCUMENT_TYPES = [
     { value: 'pan', label: 'PAN Card' },
@@ -30,7 +18,7 @@ const SHARING_OPTIONS = [
     { value: 'private', label: 'Private' },
 ];
 
-const DocumentDetails = ({ documents, onDocumentsChange }: DocumentDetailsProps) => {
+const DocumentDetails: React.FC<DocumentDetailsProps> = ({ documents, setDocuments, isEdit = false }) => {
     const [documentInfo, setDocumentInfo] = useState<Document>({
         document_type: '',
         document_name: '',
@@ -40,16 +28,6 @@ const DocumentDetails = ({ documents, onDocumentsChange }: DocumentDetailsProps)
         file: null,
     });
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
-
-    const validateRequiredFields = (data: Document): boolean => {
-        return REQUIRED_FIELDS.every(field => {
-            const value = data[field];
-            if (field === 'file') {
-                return value !== null;
-            }
-            return typeof value === 'string' && value.trim() !== '';
-        });
-    };
 
     const resetForm = () => {
         setDocumentInfo({
@@ -64,18 +42,36 @@ const DocumentDetails = ({ documents, onDocumentsChange }: DocumentDetailsProps)
     };
 
     const handleSubmit = () => {
-        if (!validateRequiredFields(documentInfo)) {
+        // Validate required fields
+        const missingFields = REQUIRED_FIELDS.filter(field => !documentInfo[field]);
+        if (missingFields.length > 0) {
+            notifications.show({
+                title: 'Validation Error',
+                message: `Please fill in all required fields: ${missingFields.join(', ')}`,
+                color: 'red',
+            });
             return;
         }
 
         if (editingIndex !== null) {
             const updatedDocuments = [...documents];
             updatedDocuments[editingIndex] = documentInfo;
-            onDocumentsChange(updatedDocuments);
+            setDocuments(updatedDocuments);
+            notifications.show({
+                title: 'Success',
+                message: 'Document updated successfully',
+                color: 'green',
+            });
+            resetForm();
         } else {
-            onDocumentsChange([...documents, documentInfo]);
+            setDocuments([...documents, documentInfo]);
+            notifications.show({
+                title: 'Success',
+                message: 'Document added successfully',
+                color: 'green',
+            });
+            resetForm();
         }
-        resetForm();
     };
 
     const handleEdit = (index: number) => {
@@ -85,8 +81,13 @@ const DocumentDetails = ({ documents, onDocumentsChange }: DocumentDetailsProps)
 
     const handleDelete = (index: number) => {
         const updatedDocuments = documents.filter((_, i) => i !== index);
-        onDocumentsChange(updatedDocuments);
+        setDocuments(updatedDocuments);
         resetForm();
+        notifications.show({
+            title: 'Success',
+            message: 'Document deleted successfully',
+            color: 'green',
+        });
     };
 
     return (
@@ -139,7 +140,7 @@ const DocumentDetails = ({ documents, onDocumentsChange }: DocumentDetailsProps)
                 <Button 
                     className="mt-4" 
                     onClick={handleSubmit}
-                    disabled={!validateRequiredFields(documentInfo)}
+                    disabled={!documentInfo.document_type || !documentInfo.sharing_option}
                 >
                     {editingIndex !== null ? 'Update Document' : 'Add Document'}
                 </Button>

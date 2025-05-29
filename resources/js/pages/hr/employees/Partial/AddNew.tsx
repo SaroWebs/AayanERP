@@ -323,24 +323,24 @@ const AddNew = () => {
       });
     });
 
-    console.log(formData);
+    // console.log(formData);
     // Submit the form
-    // axios.post('/data/employees/add', formData)
-    //   .then(response => {
-    //     notifications.show({
-    //       title: 'Success',
-    //       message: 'Employee added successfully',
-    //       color: 'green',
-    //     });
-    //     close();
-    //   })
-    //   .catch(error => {
-    //     notifications.show({
-    //       title: 'Error',
-    //       message: error.response?.data?.message || 'Failed to add employee',
-    //       color: 'red',
-    //     });
-    //   });
+    axios.post('/data/employees/add', formData)
+      .then(response => {
+        notifications.show({
+          title: 'Success',
+          message: 'Employee added successfully',
+          color: 'green',
+        });
+        close();
+      })
+      .catch(error => {
+        notifications.show({
+          title: 'Error',
+          message: error.response?.data?.message || 'Failed to add employee',
+          color: 'red',
+        });
+      });
   };
 
   const handleFormSubmit = () => {

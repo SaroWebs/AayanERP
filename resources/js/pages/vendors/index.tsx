@@ -1,69 +1,26 @@
 import AppLayout from '@/layouts/app-layout'
 import { BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import AddNew from './AddNew';
+import EditVendor from './EditVendor';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
 import { LoadingOverlay } from '@mantine/core';
-
-interface VendorBankAccount {
-    id: number;
-    account_holder_name: string;
-    account_number: string;
-    bank_name: string;
-    ifsc: string;
-    branch_address: string | null;
-}
-
-interface VendorContactDetail {
-    id: number;
-    contact_person: string;
-    department: string | null;
-    designation: string | null;
-    phone: string | null;
-    email: string | null;
-}
-
-interface VendorDocument {
-    id: number;
-    document_type: string;
-    document_name: string | null;
-    document_number: string | null;
-    remarks: string | null;
-    sharing_option: 'public' | 'private';
-    document_path: string | null;
-}
-
-interface Vendor {
-    id: number;
-    name: string;
-    contact_no: string;
-    email: string;
-    gstin: string;
-    pan_no: string;
-    fax: string;
-    state: string;
-    address: string;
-    created_at: string | null;
-    updated_at: string | null;
-    bank_accounts: VendorBankAccount[];
-    contact_details: VendorContactDetail[];
-    documents: VendorDocument[];
-}
+import { Vendor } from './types';
 
 interface PaginatedData<T> {
-    data: T[];
     current_page: number;
+    data: T[];
     first_page_url: string;
     from: number;
     last_page: number;
     last_page_url: string;
-    links: {
+    links: Array<{
         url: string | null;
         label: string;
         active: boolean;
-    }[];
+    }>;
     next_page_url: string | null;
     path: string;
     per_page: number;
@@ -82,6 +39,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const VendorsList = () => {
     const [vendors, setVendors] = useState<PaginatedData<Vendor>>();
     const [loading, setLoading] = useState(true);
+    const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
 
     const loadVendor = async () => {
         setLoading(true);
@@ -109,12 +67,18 @@ const VendorsList = () => {
         loadVendor();
     }, []);
 
+    const handleVendorUpdate = (updatedVendor: Vendor) => {
+        if (updatedVendor) {
+            console.log(updatedVendor);
+            loadVendor();
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Vendors" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="p-6 relative">
-
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-semibold">Vendors List</h2>
                         <AddNew />
@@ -126,8 +90,8 @@ const VendorsList = () => {
                             loaderProps={{ color: 'pink', type: 'bars' }}
                         />
                         {vendors ?
-                            <div className="">
-                                <div className="max-w-5xl min-h-64 overflow-x-auto">
+                            <>
+                                <div className="overflow-x-scroll">
                                     <table className="min-w-full text-sm table-auto divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
@@ -170,7 +134,7 @@ const VendorsList = () => {
                                                             <div className="flex flex-col gap-1">
                                                                 {vendor.contact_details.map(contact => (
                                                                     <div key={contact.id} className="text-xs">
-                                                                        {contact.contact_person} {contact.designation ? `(${contact.designation})` : ''}
+                                                                        {contact.name} {contact.designation ? `(${contact.designation})` : ''}
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -193,18 +157,18 @@ const VendorsList = () => {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                                         <div className="flex space-x-2">
-                                                            <Link
-                                                                href={`/vendors/${vendor.id}/edit`}
+                                                            <button
+                                                                onClick={() => setEditingVendor(vendor)}
                                                                 className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                                                             >
                                                                 Edit
-                                                            </Link>
-                                                            <Link
-                                                                href={`/vendors/${vendor.id}`}
+                                                            </button>
+                                                            <a
+                                                                href={`/master/vendors/${vendor.id}`}
                                                                 className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
                                                             >
                                                                 View
-                                                            </Link>
+                                                            </a>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -224,27 +188,34 @@ const VendorsList = () => {
                                     </div>
                                     <div className="flex space-x-2">
                                         {vendors.links.map((link, index) => (
-                                            <Link
+                                            <a
                                                 key={index}
                                                 href={link.url || '#'}
                                                 className={`px-3 py-1 rounded ${link.active
                                                     ? 'bg-blue-600 text-white'
                                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                                                     } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                preserveScroll
                                             >
                                                 <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                            </Link>
+                                            </a>
                                         ))}
                                     </div>
                                 </div>
-                            </div>
+                            </>
                             : <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                 Failed to load vendors data. Please try again later.
                             </div>}
                     </div>
                 </div>
             </div>
+
+            {editingVendor && (
+                <EditVendor
+                    vendor={editingVendor}
+                    onClose={() => setEditingVendor(null)}
+                    onUpdate={handleVendorUpdate}
+                />
+            )}
         </AppLayout>
     )
 }

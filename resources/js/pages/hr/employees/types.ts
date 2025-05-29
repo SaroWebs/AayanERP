@@ -164,4 +164,193 @@ export const REQUIRED_PROFESSIONAL_FIELDS: (keyof ProfessionalQualification)[] =
   'exam_name',
   'institution',
   'completion_year'
-]; 
+];
+
+export interface EmployeeAddress {
+    id: number;
+    employee_id: number;
+    type: 'permanent' | 'residential' | 'work';
+    care_of: string | null;
+    house_number: string | null;
+    street: string | null;
+    landmark: string | null;
+    police_station: string | null;
+    post_office: string | null;
+    city: string | null;
+    state: string | null;
+    pin_code: string | null;
+    country: string | null;
+    phone: string | null;
+    email: string | null;
+    is_verified: boolean;
+}
+
+export interface EmployeeQualification {
+    id: number;
+    employee_id: number;
+    qualification_type: string;
+    institution: string;
+    board_university: string;
+    year_of_passing: string;
+    marks_percentage: string;
+    grade: string;
+    specialization: string | null;
+    medium: string;
+    subject: string;
+}
+
+export interface EmployeeDocument {
+    id: number;
+    employee_id: number;
+    document_type: string;
+    document_number: string | null;
+    document_path: string;
+    issue_date: string | null;
+    expiry_date: string | null;
+    verification_status: 'pending' | 'verified' | 'rejected';
+    remarks: string | null;
+}
+
+export interface EmployeeServiceDetail {
+    id: number;
+    employee_id: number;
+    service_type: string;
+    service_start_date: string;
+    service_end_date: string | null;
+    service_status: 'active' | 'completed' | 'terminated';
+    service_location: string;
+    service_description: string | null;
+}
+
+export interface EmployeeJoiningDetail {
+    id: number;
+    employee_id: number;
+    joining_date: string;
+    confirmation_date: string | null;
+    employment_type: 'full-time' | 'part-time' | 'contract' | 'intern';
+    employment_status: 'active' | 'on-leave' | 'terminated';
+    notice_period: number;
+    reporting_manager: string;
+    department: string;
+    designation: string;
+    cost_center: string | null;
+}
+
+export interface EmployeeChild {
+    id: number;
+    employee_id: number;
+    name: string;
+    date_of_birth: string;
+    gender: 'male' | 'female' | 'other';
+}
+
+export interface EmployeeSpouse {
+    id: number;
+    employee_id: number;
+    name: string;
+    date_of_birth: string;
+    occupation: string | null;
+    contact_number: string | null;
+}
+
+export interface EmployeeNominee {
+    id: number;
+    employee_id: number;
+    name: string;
+    relationship: string;
+    contact_number: string;
+    address: string;
+}
+
+export interface EmployeeReference {
+    id: number;
+    employee_id: number;
+    name: string;
+    designation: string;
+    organization: string;
+    contact_number: string;
+    email: string | null;
+    relationship: string;
+}
+
+export interface EmployeeKnownLanguage {
+    id: number;
+    employee_id: number;
+    language: string;
+    proficiency: 'basic' | 'intermediate' | 'advanced' | 'native';
+}
+
+export interface EmployeeSpecialTraining {
+    id: number;
+    employee_id: number;
+    training_name: string;
+    institution: string;
+    duration: string;
+    completion_date: string;
+}
+
+export interface EmployeeCurricularActivity {
+    id: number;
+    employee_id: number;
+    activity_name: string;
+    role: string;
+    achievement: string | null;
+}
+
+export interface Employee {
+    id: number;
+    first_name: string;
+    last_name: string | null;
+    pf_no: string | null;
+    date_of_birth: string | null;
+    gender: 'male' | 'female' | 'other';
+    blood_group: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null;
+    pan_no: string | null;
+    aadhar_no: string | null;
+    guardian_name: string | null;
+    contact_no: string | null;
+    email: string | null;
+    country: string | null;
+    addresses: EmployeeAddress[];
+    educational_qualifications: EmployeeQualification[];
+    professional_qualifications: EmployeeQualification[];
+    documents: EmployeeDocument[];
+    service_details: EmployeeServiceDetail[];
+    joining_details: EmployeeJoiningDetail[];
+    children: EmployeeChild[];
+    spouses: EmployeeSpouse[];
+    nominees: EmployeeNominee[];
+    references: EmployeeReference[];
+    known_languages: EmployeeKnownLanguage[];
+    special_trainings: EmployeeSpecialTraining[];
+    curricular_activities: EmployeeCurricularActivity[];
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export interface PaginatedData<T> {
+    data: T[];
+    current_page: number;
+    first_page_url: string;
+    from: number;
+    last_page: number;
+    last_page_url: string;
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number;
+    total: number;
+}
+
+// Props interfaces for components
+export interface EditEmployeeProps {
+    employee: Employee;
+    onClose: () => void;
+    onUpdate: (updatedEmployee: Employee) => void;
+} 

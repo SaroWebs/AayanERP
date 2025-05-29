@@ -1,30 +1,18 @@
-import { useState, useEffect } from "react";
-import { Button, TextInput, Select } from '@mantine/core';
+import React, { useState, useEffect } from "react";
+import { Button, TextInput, Select, Group } from '@mantine/core';
 import axios from "axios";
 import { notifications } from "@mantine/notifications";
-
-interface BankAccount {
-    account_holder_name: string;
-    account_number: string;
-    bank_name: string;
-    ifsc: string;
-    branch_address: string;
-}
-
-interface BankDetailsProps {
-    bankAccounts: BankAccount[];
-    onBankAccountsChange: (accounts: BankAccount[]) => void;
-}
+import { BankDetailsProps, BankAccount } from '../types';
 
 // Define required fields
 const REQUIRED_FIELDS: (keyof BankAccount)[] = ['account_holder_name', 'account_number', 'ifsc'];
 
-interface BankName {
+interface BankNameOption {
     value: string;
     label: string;
 }
 
-const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) => {
+const BankDetails: React.FC<BankDetailsProps> = ({ bankAccounts, setBankAccounts, isEdit = false }) => {
     const [bankInfo, setBankInfo] = useState<BankAccount>({
         account_holder_name: '',
         account_number: '',
@@ -34,7 +22,7 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
     });
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [isSearching, setIsSearching] = useState(false);
-    const [bankNames, setBankNames] = useState<BankName[]>([]);
+    const [bankNames, setBankNames] = useState<BankNameOption[]>([]);
 
     useEffect(() => {
         const loadBankNames = async () => {
@@ -52,7 +40,6 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
                     message: err.response?.data?.message || 'Failed to fetch bank details',
                     color: 'red',
                 });
-
             }
         };
 
@@ -102,10 +89,12 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
     };
 
     const handleSubmit = () => {
-        if (!validateRequiredFields(bankInfo)) {
+        // Validate required fields
+        const missingFields = REQUIRED_FIELDS.filter(field => !bankInfo[field]);
+        if (missingFields.length > 0) {
             notifications.show({
                 title: 'Validation Error',
-                message: 'Please fill in all required fields',
+                message: `Please fill in all required fields: ${missingFields.join(', ')}`,
                 color: 'red',
             });
             return;
@@ -114,21 +103,22 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
         if (editingIndex !== null) {
             const updatedAccounts = [...bankAccounts];
             updatedAccounts[editingIndex] = bankInfo;
-            onBankAccountsChange(updatedAccounts);
+            setBankAccounts(updatedAccounts);
             notifications.show({
                 title: 'Success',
                 message: 'Bank account updated successfully',
                 color: 'green',
             });
+            resetForm();
         } else {
-            onBankAccountsChange([...bankAccounts, bankInfo]);
+            setBankAccounts([...bankAccounts, bankInfo]);
             notifications.show({
                 title: 'Success',
                 message: 'Bank account added successfully',
                 color: 'green',
             });
+            resetForm();
         }
-        resetForm();
     };
 
     const handleEdit = (index: number) => {
@@ -138,7 +128,7 @@ const BankDetails = ({ bankAccounts, onBankAccountsChange }: BankDetailsProps) =
 
     const handleDelete = (index: number) => {
         const updatedAccounts = bankAccounts.filter((_, i) => i !== index);
-        onBankAccountsChange(updatedAccounts);
+        setBankAccounts(updatedAccounts);
         resetForm();
         notifications.show({
             title: 'Success',

@@ -7,42 +7,7 @@ import BankDetails from './partial/BankDetails'
 import DocumentDetails from './partial/DocumentDetails'
 import ContactDetails from './partial/ContactDetails';
 import axios from 'axios';
-
-interface BankAccount {
-    account_holder_name: string;
-    account_number: string;
-    bank_name: string;
-    ifsc: string;
-    branch_address: string;
-}
-
-interface ContactDetail {
-    contact_person: string;
-    department: string;
-    designation: string;
-    phone: string;
-    email: string;
-}
-
-interface Document {
-    document_type: string;
-    document_name: string;
-    document_number: string;
-    remarks: string;
-    sharing_option: 'public' | 'private';
-    file: File | null;
-}
-
-interface VendorForm {
-    name: string;
-    contact_no: string;
-    email: string;
-    gstin: string;
-    pan_no: string;
-    fax: string;
-    state: string;
-    address: string;
-}
+import { VendorForm, BankAccount, ContactDetail, Document as VendorDocument } from './types';
 
 const AddNew = () => {
     const [opened, { open, close }] = useDisclosure(false);
@@ -52,7 +17,7 @@ const AddNew = () => {
     // State for subcomponent data
     const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
     const [contactDetails, setContactDetails] = useState<ContactDetail[]>([]);
-    const [documents, setDocuments] = useState<Document[]>([]);
+    const [documents, setDocuments] = useState<VendorDocument[]>([]);
 
     const form = useForm<VendorForm>({
         initialValues: {
@@ -93,11 +58,12 @@ const AddNew = () => {
 
             // Append Contact Details
             contactDetails.forEach((contact, index) => {
-                formData.append(`contact_details[${index}][contact_person]`, contact.contact_person);
-                formData.append(`contact_details[${index}][department]`, contact.department || '');
+                formData.append(`contact_details[${index}][name]`, contact.name);
                 formData.append(`contact_details[${index}][designation]`, contact.designation || '');
-                formData.append(`contact_details[${index}][phone]`, contact.phone || '');
+                formData.append(`contact_details[${index}][mobile]`, contact.mobile || '');
                 formData.append(`contact_details[${index}][email]`, contact.email || '');
+                formData.append(`contact_details[${index}][landline]`, contact.landline || '');
+                formData.append(`contact_details[${index}][is_primary]`, contact.is_primary ? '1' : '0');
             });
 
             // Append Documents
@@ -233,21 +199,21 @@ const AddNew = () => {
                     <Tabs.Panel value="bank_details">
                         <BankDetails
                             bankAccounts={bankAccounts}
-                            onBankAccountsChange={setBankAccounts}
+                            setBankAccounts={setBankAccounts}
                         />
                     </Tabs.Panel>
 
                     <Tabs.Panel value="contact_details">
                         <ContactDetails
                             contactDetails={contactDetails}
-                            onContactDetailsChange={setContactDetails}
+                            setContactDetails={setContactDetails}
                         />
                     </Tabs.Panel>
 
                     <Tabs.Panel value="documents">
                         <DocumentDetails
                             documents={documents}
-                            onDocumentsChange={setDocuments}
+                            setDocuments={setDocuments}
                         />
                     </Tabs.Panel>
                 </Tabs>

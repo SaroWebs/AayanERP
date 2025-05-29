@@ -30,6 +30,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::controller(VendorController::class)->group(function () {
         // Views
         Route::get('master/vendors', 'index'); // listing page/view
+        Route::get('master/vendors/{vendor}', 'show'); // listing page/view
 
         // Store
         Route::get('/data/vendors', 'getVendors')->name('vendor.list'); // full vendor creation

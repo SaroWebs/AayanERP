@@ -1,63 +1,65 @@
-import { useState } from 'react';
-import { Button, TextInput } from '@mantine/core';
-
-interface ContactDetail {
-    contact_person: string;
-    department: string;
-    designation: string;
-    phone: string;
-    email: string;
-}
-
-interface ContactDetailsProps {
-    contactDetails: ContactDetail[];
-    onContactDetailsChange: (contacts: ContactDetail[]) => void;
-}
+import React, { useState } from 'react';
+import { Button, TextInput, Group } from '@mantine/core';
+import { notifications } from "@mantine/notifications";
+import { ContactDetailsProps, ContactDetail } from '../types';
 
 // Define required fields
-const REQUIRED_FIELDS: (keyof ContactDetail)[] = ['contact_person', 'phone'];
+const REQUIRED_FIELDS: (keyof ContactDetail)[] = ['name', 'designation', 'mobile', 'email'];
 
-const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetailsProps) => {
+const ContactDetails: React.FC<ContactDetailsProps> = ({ contactDetails, setContactDetails, isEdit = false }) => {
     const [contactInfo, setContactInfo] = useState<ContactDetail>({
-        contact_person: '',
-        department: '',
+        name: '',
         designation: '',
-        phone: '',
+        mobile: '',
         email: '',
+        landline: '',
+        is_primary: false
     });
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-    const validateRequiredFields = (data: ContactDetail): boolean => {
-        return REQUIRED_FIELDS.every(field => {
-            const value = data[field];
-            return value !== undefined && value !== null && value.trim() !== '';
-        });
-    };
-
     const resetForm = () => {
         setContactInfo({
-            contact_person: '',
-            department: '',
+            name: '',
             designation: '',
-            phone: '',
+            mobile: '',
             email: '',
+            landline: '',
+            is_primary: false
         });
         setEditingIndex(null);
     };
 
     const handleSubmit = () => {
-        if (!validateRequiredFields(contactInfo)) {
+        // Validate required fields
+        const missingFields = REQUIRED_FIELDS.filter(field => !contactInfo[field]);
+        if (missingFields.length > 0) {
+            notifications.show({
+                title: 'Validation Error',
+                message: `Please fill in all required fields: ${missingFields.join(', ')}`,
+                color: 'red',
+            });
             return;
         }
 
         if (editingIndex !== null) {
             const updatedContacts = [...contactDetails];
             updatedContacts[editingIndex] = contactInfo;
-            onContactDetailsChange(updatedContacts);
+            setContactDetails(updatedContacts);
+            notifications.show({
+                title: 'Success',
+                message: 'Contact updated successfully',
+                color: 'green',
+            });
+            resetForm();
         } else {
-            onContactDetailsChange([...contactDetails, contactInfo]);
+            setContactDetails([...contactDetails, contactInfo]);
+            notifications.show({
+                title: 'Success',
+                message: 'Contact added successfully',
+                color: 'green',
+            });
+            resetForm();
         }
-        resetForm();
     };
 
     const handleEdit = (index: number) => {
@@ -67,8 +69,13 @@ const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetai
 
     const handleDelete = (index: number) => {
         const updatedContacts = contactDetails.filter((_, i) => i !== index);
-        onContactDetailsChange(updatedContacts);
+        setContactDetails(updatedContacts);
         resetForm();
+        notifications.show({
+            title: 'Success',
+            message: 'Contact deleted successfully',
+            color: 'green',
+        });
     };
 
     return (
@@ -82,25 +89,26 @@ const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetai
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <TextInput 
-                        label="Contact Person" 
-                        value={contactInfo.contact_person} 
-                        onChange={(e) => setContactInfo({ ...contactInfo, contact_person: e.target.value })}
+                        label="Name" 
+                        value={contactInfo.name} 
+                        onChange={(e) => setContactInfo({ ...contactInfo, name: e.target.value })}
                         required 
                     />
                     <TextInput 
-                        label="Department" 
-                        value={contactInfo.department} 
-                        onChange={(e) => setContactInfo({ ...contactInfo, department: e.target.value })}
+                        label="Landline" 
+                        value={contactInfo.landline} 
+                        onChange={(e) => setContactInfo({ ...contactInfo, landline: e.target.value })}
                     />
                     <TextInput 
                         label="Designation" 
                         value={contactInfo.designation} 
                         onChange={(e) => setContactInfo({ ...contactInfo, designation: e.target.value })}
+                        required
                     />
                     <TextInput 
-                        label="Phone" 
-                        value={contactInfo.phone} 
-                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                        label="Mobile" 
+                        value={contactInfo.mobile} 
+                        onChange={(e) => setContactInfo({ ...contactInfo, mobile: e.target.value })}
                         required 
                     />
                     <TextInput 
@@ -108,12 +116,13 @@ const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetai
                         value={contactInfo.email} 
                         onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
                         type="email"
+                        required
                     />
                 </div>
                 <Button 
                     className="mt-4" 
                     onClick={handleSubmit}
-                    disabled={!validateRequiredFields(contactInfo)}
+                    disabled={!REQUIRED_FIELDS.every(field => contactInfo[field])}
                 >
                     {editingIndex !== null ? 'Update Contact' : 'Add Contact'}
                 </Button>
@@ -124,10 +133,10 @@ const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetai
                     <table className="w-full">
                         <thead>
                             <tr className="bg-gray-50 border-b">
-                                <th className="px-4 py-2">Contact Person</th>
-                                <th className="px-4 py-2">Department</th>
+                                <th className="px-4 py-2">Name</th>
+                                <th className="px-4 py-2">Landline</th>
                                 <th className="px-4 py-2">Designation</th>
-                                <th className="px-4 py-2">Phone</th>
+                                <th className="px-4 py-2">Mobile</th>
                                 <th className="px-4 py-2">Email</th>
                                 <th className="px-4 py-2">Actions</th>
                             </tr>
@@ -135,10 +144,10 @@ const ContactDetails = ({ contactDetails, onContactDetailsChange }: ContactDetai
                         <tbody>
                             {contactDetails.map((contact, index) => (
                                 <tr key={index} className="border-b text-sm">
-                                    <td className="px-4 py-2">{contact.contact_person}</td>
-                                    <td className="px-4 py-2">{contact.department}</td>
+                                    <td className="px-4 py-2">{contact.name}</td>
+                                    <td className="px-4 py-2">{contact.landline}</td>
                                     <td className="px-4 py-2">{contact.designation}</td>
-                                    <td className="px-4 py-2">{contact.phone}</td>
+                                    <td className="px-4 py-2">{contact.mobile}</td>
                                     <td className="px-4 py-2">{contact.email}</td>
                                     <td className="px-4 py-2">
                                         <Button size="xs" variant="subtle" color="blue" onClick={() => handleEdit(index)}>Edit</Button>
