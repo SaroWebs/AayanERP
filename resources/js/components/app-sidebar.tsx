@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Globe, LayoutGrid, TruckIcon, Users, ShoppingCart, UserCircle, FileText, Receipt, Package, Wallet, CogIcon, ShieldIcon, User2 } from 'lucide-react';
+import { BookOpen, Globe, LayoutGrid, TruckIcon, Users, ShoppingCart, UserCircle, FileText, Receipt, Package, Wallet, CogIcon, ShieldIcon, User2, Wrench, Layers, Boxes, ListTree } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -14,20 +14,42 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Equipment',
+        href: '#',
+        icon: Wrench,
+        children: [
+            {
+                title: 'Category Types',
+                href: route('equipment.category-types.index'),
+                icon: ListTree,
+            },
+            {
+                title: 'Categories',
+                href: route('equipment.categories.index'),
+                icon: Layers,
+            },
+            {
+                title: 'Equipment Series',
+                href: route('equipment.series.index'),
+                icon: Boxes,
+            },
+            {
+                title: 'Equipment',
+                href: route('equipment.equipment.index'),
+                icon: TruckIcon,
+            },
+            {
+                title: 'Items',
+                href: route('equipment.items.index'),
+                icon: Package,
+            },
+        ],
+    },
+    {
         title: 'Master',
         href: '#',
         icon: LayoutGrid,
         children:[
-            {
-                title: 'Item Categories',
-                href: '/master/item-categories',
-                icon: TruckIcon,
-            },  
-            {
-                title: 'Equipments',
-                href: '/master/equipments',
-                icon: TruckIcon,
-            },  
             {
                 title: 'Vendors',
                 href: '/master/vendors',

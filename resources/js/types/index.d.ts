@@ -1,5 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import type { Config } from 'ziggy-js';
+import { User } from '@/types/user';
 
 export interface Auth {
     user: User;
@@ -57,5 +58,28 @@ export interface Role {
     permissions: Permission[];
     created_at: string;
     updated_at: string;
+}
+
+export interface PageProps {
+    auth: {
+        user: User;
+    };
+}
+
+export interface PaginatedData<T> {
+    data: T[];
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+}
+
+export interface BadgeVariant {
+    variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success';
 }
 
