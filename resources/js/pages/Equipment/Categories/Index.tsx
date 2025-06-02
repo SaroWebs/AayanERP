@@ -1,233 +1,242 @@
-import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import { 
     Card, 
-    TextInput, 
-    Select, 
-    Table, 
-    Badge, 
     Button, 
     Group, 
     Stack,
-    ActionIcon,
     Text,
-    Pagination,
-    Box
+    Box,
+    Tabs,
+    Badge,
 } from '@mantine/core';
-import { Plus, Pencil, Trash } from 'lucide-react';
-
-interface CategoryType {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { DataTable, DataTableColumn } from 'mantine-datatable';
+import CreateCategoryModal from './Partials/CreateCategoryModal';
+import EditCategoryModal from './Partials/EditCategoryModal';
+import CreateCategoryTypeModal from './Partials/CreateCategoryTypeModal';
+import EditCategoryTypeModal from './Partials/EditCategoryTypeModal';
 
 interface Category {
     id: number;
     name: string;
     slug: string;
     description: string | null;
+    category_type_id: number;
     hsn: string | null;
     status: 'active' | 'inactive';
     sort_order: number;
     created_at: string;
     updated_at: string;
     category_type: CategoryType;
-    equipment_count: number;
+}
+
+interface CategoryType {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    variant: 'equipment' | 'scaffolding';
+    status: 'active' | 'inactive';
+    created_at: string;
+    updated_at: string;
 }
 
 interface Props extends PageProps {
-    categories: {
-        data: Category[];
-        links: any[];
-        current_page: number;
-        last_page: number;
-    };
+    categories: Category[];
     categoryTypes: CategoryType[];
-    filters: {
-        category_type_id?: string;
-        status?: string;
-        search?: string;
-    };
 }
 
-export default function Index({ auth, categories, categoryTypes, filters }: Props) {
-    const [search, setSearch] = useState(filters.search || '');
-    const [categoryTypeId, setCategoryTypeId] = useState(filters.category_type_id || '');
-    const [status, setStatus] = useState(filters.status || '');
+export default function Index({ auth, categories, categoryTypes }: Props) {
+    const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false);
+    const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
+    const [createCategoryTypeModalOpen, setCreateCategoryTypeModalOpen] = useState(false);
+    const [editCategoryTypeModalOpen, setEditCategoryTypeModalOpen] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+    const [selectedCategoryType, setSelectedCategoryType] = useState<CategoryType | null>(null);
 
     const breadcrumbs = [
         { title: 'Equipment', href: '#' },
         { title: 'Categories', href: route('equipment.categories.index') },
     ];
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get(
-            route('equipment.categories.index'),
-            { search: value, category_type_id: categoryTypeId, status },
-            { preserveState: true, preserveScroll: true }
-        );
+    const handleEditCategory = (category: Category) => {
+        setSelectedCategory(category);
+        setEditCategoryModalOpen(true);
     };
 
-    const handleCategoryTypeChange = (value: string | null) => {
-        setCategoryTypeId(value || '');
-        router.get(
-            route('equipment.categories.index'),
-            { search, category_type_id: value || '', status },
-            { preserveState: true, preserveScroll: true }
-        );
+    const handleEditCategoryType = (categoryType: CategoryType) => {
+        setSelectedCategoryType(categoryType);
+        setEditCategoryTypeModalOpen(true);
     };
 
-    const handleStatusChange = (value: string | null) => {
-        setStatus(value || '');
-        router.get(
-            route('equipment.categories.index'),
-            { search, category_type_id: categoryTypeId, status: value || '' },
-            { preserveState: true, preserveScroll: true }
-        );
-    };
-
-    const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this category?')) {
-            router.delete(route('equipment.categories.destroy', id));
+    const categoryColumns: DataTableColumn<Category>[] = [
+        { accessor: 'name', title: 'Name' },
+        { accessor: 'slug', title: 'Slug' },
+        { 
+            accessor: 'category_type.name',
+            title: 'Category Type'
+        },
+        { 
+            accessor: 'status',
+            title: 'Status',
+            render: (record: Category) => (
+                <Badge
+                    color={record.status === 'active' ? 'green' : 'red'}
+                >
+                    {record.status}
+                </Badge>
+            )
+        },
+        {
+            accessor: 'actions',
+            title: 'Actions',
+            render: (record: Category) => (
+                <Group gap="xs">
+                    <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => handleEditCategory(record)}
+                    >
+                        Edit
+                    </Button>
+                </Group>
+            )
         }
-    };
+    ];
 
-    const getStatusColor = (status: string) => {
-        return status === 'active' ? 'green' : 'red';
-    };
-
-    const getCategoryTypeColor = (variant: string) => {
-        return variant === 'equipment' ? 'blue' : 'gray';
-    };
+    const categoryTypeColumns: DataTableColumn<CategoryType>[] = [
+        { accessor: 'name', title: 'Name' },
+        { accessor: 'slug', title: 'Slug' },
+        { 
+            accessor: 'variant',
+            title: 'Variant',
+            render: (record: CategoryType) => (
+                <Badge
+                    color={record.variant === 'equipment' ? 'blue' : 'green'}
+                >
+                    {record.variant}
+                </Badge>
+            )
+        },
+        { 
+            accessor: 'status',
+            title: 'Status',
+            render: (record: CategoryType) => (
+                <Badge
+                    color={record.status === 'active' ? 'green' : 'red'}
+                >
+                    {record.status}
+                </Badge>
+            )
+        },
+        {
+            accessor: 'actions',
+            title: 'Actions',
+            render: (record: CategoryType) => (
+                <Group gap="xs">
+                    <Button
+                        variant="light"
+                        size="xs"
+                        onClick={() => handleEditCategoryType(record)}
+                    >
+                        Edit
+                    </Button>
+                </Group>
+            )
+        }
+    ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Categories" />
 
             <Box py="xl">
-                <Card>
+                    <Card>
                     <Card.Section p="md">
                         <Group justify="space-between">
                             <Text fw={500} size="xl">Categories</Text>
+                            <Group>
                             <Button
-                                leftSection={<Plus size={16} />}
-                                onClick={() => router.visit(route('equipment.categories.create'))}
+                                    leftSection={<Plus size={16} />}
+                                    onClick={() => setCreateCategoryModalOpen(true)}
                             >
                                 Add Category
                             </Button>
+                                <Button
+                                    leftSection={<Plus size={16} />}
+                                    onClick={() => setCreateCategoryTypeModalOpen(true)}
+                                >
+                                    Add Category Type
+                                </Button>
+                            </Group>
                         </Group>
                     </Card.Section>
 
                     <Card.Section p="md">
-                        <Stack gap="md">
-                            <Group>
-                                <TextInput
-                                    placeholder="Search categories..."
-                                    value={search}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    style={{ maxWidth: 300 }}
-                                />
-                                <Select
-                                    value={categoryTypeId}
-                                    onChange={handleCategoryTypeChange}
-                                    placeholder="Select category type"
-                                    data={[
-                                        { value: '', label: 'All Category Types' },
-                                        ...categoryTypes.map((type) => ({
-                                            value: type.id.toString(),
-                                            label: type.name
-                                        }))
-                                    ]}
-                                    style={{ width: 200 }}
-                                />
-                                <Select
-                                    value={status}
-                                    onChange={handleStatusChange}
-                                    placeholder="Select status"
-                                    data={[
-                                        { value: '', label: 'All Status' },
-                                        { value: 'active', label: 'Active' },
-                                        { value: 'inactive', label: 'Inactive' }
-                                    ]}
-                                    style={{ width: 200 }}
-                                />
-                            </Group>
+                        <Tabs defaultValue="categories">
+                            <Tabs.List>
+                                <Tabs.Tab value="categories">Categories</Tabs.Tab>
+                                <Tabs.Tab value="category-types">Category Types</Tabs.Tab>
+                            </Tabs.List>
 
-                            <Table striped highlightOnHover>
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Category Type</th>
-                                        <th>HSN</th>
-                                        <th>Status</th>
-                                        <th>Equipment</th>
-                                        <th>Sort Order</th>
-                                        <th>Created At</th>
-                                        <th style={{ textAlign: 'right' }}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {categories.data.map((category) => (
-                                        <tr key={category.id}>
-                                            <td>{category.name}</td>
-                                            <td>
-                                                <Badge color={getCategoryTypeColor(category.category_type.variant)}>
-                                                    {category.category_type.name}
-                                                </Badge>
-                                            </td>
-                                            <td>{category.hsn || '-'}</td>
-                                            <td>
-                                                <Badge color={getStatusColor(category.status)}>
-                                                    {category.status}
-                                                </Badge>
-                                            </td>
-                                            <td>{category.equipment_count}</td>
-                                            <td>{category.sort_order}</td>
-                                            <td>{new Date(category.created_at).toLocaleDateString()}</td>
-                                            <td>
-                                                <Group justify="flex-end" gap="xs">
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="blue"
-                                                        onClick={() => router.visit(route('equipment.categories.edit', category.id))}
-                                                    >
-                                                        <Pencil size={16} />
-                                                    </ActionIcon>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="red"
-                                                        onClick={() => handleDelete(category.id)}
-                                                    >
-                                                        <Trash size={16} />
-                                                    </ActionIcon>
-                                                </Group>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-
-                            <Group justify="center" mt="md">
-                                <Pagination
-                                    total={categories.last_page}
-                                    value={categories.current_page}
-                                    onChange={(page) => {
-                                        router.get(
-                                            route('equipment.categories.index'),
-                                            { page, search, category_type_id: categoryTypeId, status },
-                                            { preserveState: true }
-                                        );
-                                    }}
+                            <Tabs.Panel value="categories" pt="md">
+                                <DataTable
+                                    borderRadius="sm"
+                                    withTableBorder
+                                    withColumnBorders
+                                    striped
+                                    highlightOnHover
+                                    records={categories}
+                                    columns={categoryColumns}
                                 />
-                            </Group>
-                        </Stack>
+                            </Tabs.Panel>
+
+                            <Tabs.Panel value="category-types" pt="md">
+                                <DataTable
+                                    borderRadius="sm"
+                                    withTableBorder
+                                    withColumnBorders
+                                    striped
+                                    highlightOnHover
+                                    records={categoryTypes}
+                                    columns={categoryTypeColumns}
+                                />
+                            </Tabs.Panel>
+                        </Tabs>
                     </Card.Section>
-                </Card>
+                    </Card>
             </Box>
+
+            <CreateCategoryModal
+                opened={createCategoryModalOpen}
+                onClose={() => setCreateCategoryModalOpen(false)}
+            />
+
+            <EditCategoryModal
+                opened={editCategoryModalOpen}
+                onClose={() => {
+                    setEditCategoryModalOpen(false);
+                    setSelectedCategory(null);
+                }}
+                category={selectedCategory}
+            />
+
+            <CreateCategoryTypeModal
+                opened={createCategoryTypeModalOpen}
+                onClose={() => setCreateCategoryTypeModalOpen(false)}
+            />
+
+            <EditCategoryTypeModal
+                opened={editCategoryTypeModalOpen}
+                onClose={() => {
+                    setEditCategoryTypeModalOpen(false);
+                    setSelectedCategoryType(null);
+                }}
+                categoryType={selectedCategoryType}
+            />
         </AppLayout>
     );
 } 
