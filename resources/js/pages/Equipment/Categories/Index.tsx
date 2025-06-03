@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import { 
@@ -10,6 +10,8 @@ import {
     Box,
     Tabs,
     Badge,
+    Switch,
+    Modal,
 } from '@mantine/core';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -56,6 +58,18 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
     const [editCategoryTypeModalOpen, setEditCategoryTypeModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [selectedCategoryType, setSelectedCategoryType] = useState<CategoryType | null>(null);
+    const [statusConfirmModalOpen, setStatusConfirmModalOpen] = useState(false);
+    const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ id: number; status: 'active' | 'inactive' } | null>(null);
+    const [pendingCategoryStatusUpdate, setPendingCategoryStatusUpdate] = useState<{ id: number; status: 'active' | 'inactive' } | null>(null);
+    const [categoryStatusConfirmModalOpen, setCategoryStatusConfirmModalOpen] = useState(false);
+
+    const form = useForm({
+        status: '',
+    });
+
+    const categoryForm = useForm({
+        status: '',
+    });
 
     const breadcrumbs = [
         { title: 'Equipment', href: '#' },
@@ -72,6 +86,40 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
         setEditCategoryTypeModalOpen(true);
     };
 
+    const handleStatusChange = (categoryType: CategoryType, newStatus: 'active' | 'inactive') => {
+        form.setData('status', newStatus);
+        setPendingStatusUpdate({ id: categoryType.id, status: newStatus });
+        setStatusConfirmModalOpen(true);
+    };
+
+    const confirmStatusUpdate = () => {
+        if (!pendingStatusUpdate) return;
+        
+        form.put(route('equipment.category-types.status.update', pendingStatusUpdate.id), {
+            onSuccess: () => {
+                setStatusConfirmModalOpen(false);
+                setPendingStatusUpdate(null);
+            },
+        });
+    };
+
+    const handleCategoryStatusChange = (category: Category, newStatus: 'active' | 'inactive') => {
+        categoryForm.setData('status', newStatus);
+        setPendingCategoryStatusUpdate({ id: category.id, status: newStatus });
+        setCategoryStatusConfirmModalOpen(true);
+    };
+
+    const confirmCategoryStatusUpdate = () => {
+        if (!pendingCategoryStatusUpdate) return;
+        
+        categoryForm.put(route('equipment.categories.status.update', pendingCategoryStatusUpdate.id), {
+            onSuccess: () => {
+                setCategoryStatusConfirmModalOpen(false);
+                setPendingCategoryStatusUpdate(null);
+            },
+        });
+    };
+
     const categoryColumns: DataTableColumn<Category>[] = [
         { accessor: 'name', title: 'Name' },
         { accessor: 'slug', title: 'Slug' },
@@ -83,11 +131,12 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             accessor: 'status',
             title: 'Status',
             render: (record: Category) => (
-                <Badge
-                    color={record.status === 'active' ? 'green' : 'red'}
-                >
-                    {record.status}
-                </Badge>
+                <Switch
+                    checked={record.status === 'active'}
+                    onChange={(event) => handleCategoryStatusChange(record, event.currentTarget.checked ? 'active' : 'inactive')}
+                    color="green"
+                    size="md"
+                />
             )
         },
         {
@@ -125,11 +174,12 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             accessor: 'status',
             title: 'Status',
             render: (record: CategoryType) => (
-                <Badge
-                    color={record.status === 'active' ? 'green' : 'red'}
-                >
-                    {record.status}
-                </Badge>
+                <Switch
+                    checked={record.status === 'active'}
+                    onChange={(event) => handleStatusChange(record, event.currentTarget.checked ? 'active' : 'inactive')}
+                    color="green"
+                    size="md"
+                />
             )
         },
         {
@@ -213,6 +263,8 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             <CreateCategoryModal
                 opened={createCategoryModalOpen}
                 onClose={() => setCreateCategoryModalOpen(false)}
+                categoryTypes={categoryTypes}
+                categories={categories}
             />
 
             <EditCategoryModal
@@ -222,6 +274,7 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
                     setSelectedCategory(null);
                 }}
                 category={selectedCategory}
+                categoryTypes={categoryTypes}
             />
 
             <CreateCategoryTypeModal
@@ -237,6 +290,72 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
                 }}
                 categoryType={selectedCategoryType}
             />
+
+            <Modal
+                opened={statusConfirmModalOpen}
+                onClose={() => {
+                    setStatusConfirmModalOpen(false);
+                    setPendingStatusUpdate(null);
+                }}
+                title="Confirm Status Change"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to {pendingStatusUpdate?.status === 'active' ? 'activate' : 'deactivate'} this category type?
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setStatusConfirmModalOpen(false);
+                                setPendingStatusUpdate(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color={pendingStatusUpdate?.status === 'active' ? 'green' : 'red'}
+                            onClick={confirmStatusUpdate}
+                        >
+                            Confirm
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={categoryStatusConfirmModalOpen}
+                onClose={() => {
+                    setCategoryStatusConfirmModalOpen(false);
+                    setPendingCategoryStatusUpdate(null);
+                }}
+                title="Confirm Status Change"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to {pendingCategoryStatusUpdate?.status === 'active' ? 'activate' : 'deactivate'} this category?
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setCategoryStatusConfirmModalOpen(false);
+                                setPendingCategoryStatusUpdate(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color={pendingCategoryStatusUpdate?.status === 'active' ? 'green' : 'red'}
+                            onClick={confirmCategoryStatusUpdate}
+                        >
+                            Confirm
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </AppLayout>
     );
 } 

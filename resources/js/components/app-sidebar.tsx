@@ -19,11 +19,6 @@ const mainNavItems: NavItem[] = [
         icon: Wrench,
         children: [
             {
-                title: 'Category Types',
-                href: route('equipment.category-types.index'),
-                icon: ListTree,
-            },
-            {
                 title: 'Categories',
                 href: route('equipment.categories.index'),
                 icon: Layers,

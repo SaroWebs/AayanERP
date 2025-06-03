@@ -17,7 +17,7 @@ class EquipmentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Equipment::query()->with(['category', 'series']);
+        $query = Equipment::query()->with(['category.categoryType', 'series']);
 
         if ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -45,27 +45,12 @@ class EquipmentController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $categories = Category::active()->get();
         $series = EquipmentSeries::active()->get();
 
         return Inertia::render('Equipment/Equipment/Index', [
             'equipment' => $equipment,
-            'categories' => $categories,
             'series' => $series,
             'filters' => $request->only(['category_id', 'series_id', 'status', 'search']),
-        ]);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        $categories = Category::active()->get();
-        $series = EquipmentSeries::active()->get();
-        return Inertia::render('Equipment/Equipment/Create', [
-            'categories' => $categories,
-            'series' => $series,
         ]);
     }
 
@@ -74,53 +59,54 @@ class EquipmentController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:equipment',
-            'serial_number' => 'required|string|max:100|unique:equipment',
-            'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'equipment_series_id' => 'required|exists:equipment_series,id',
-            'purchase_date' => 'nullable|date',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'warranty_expiry' => 'nullable|date',
-            'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-            'location' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'category_id' => 'required|exists:categories,id',
+                'equipment_series_id' => 'required|exists:equipment_series,id',
+                'details' => 'nullable|string',
+                'rental_rate' => 'nullable|numeric|min:0',
+                'make' => 'nullable|string|max:255',
+                'model' => 'nullable|string|max:255',
+                'serial_no' => 'nullable|string|max:255|unique:equipment',
+                'code' => 'nullable|string|max:255|unique:equipment',
+                'make_year' => 'nullable|integer|min:1800|max:' . date('Y'),
+                'capacity' => 'nullable|string|max:255',
+                'stock_unit' => 'nullable|string|max:255',
+                'unit_weight' => 'nullable|string|max:255',
+                'rental_unit' => 'nullable|string|max:255',
+                'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
+                'condition' => ['required', Rule::in(['new', 'good', 'fair', 'poor'])],
+                'purchase_date' => 'nullable|date',
+                'purchase_price' => 'nullable|numeric|min:0',
+                'warranty_expiry' => 'nullable|date',
+                'last_maintenance_date' => 'nullable|date',
+                'next_maintenance_date' => 'nullable|date',
+                'location' => 'nullable|string|max:255',
+                'notes' => 'nullable|string',
+            ]);
 
-        $validated['slug'] = Str::slug($validated['name']);
+            $equipment = Equipment::create($validated);
 
-        Equipment::create($validated);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Equipment created successfully.',
+                'data' => $equipment
+            ], 200);
 
-        return redirect()
-            ->route('equipment.equipment.index')
-            ->with('success', 'Equipment created successfully.');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Equipment $equipment)
-    {
-        $equipment->load(['category', 'series', 'maintenanceRecords']);
-        return Inertia::render('Equipment/Equipment/Show', [
-            'equipment' => $equipment,
-        ]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Equipment $equipment)
-    {
-        $categories = Category::active()->get();
-        $series = EquipmentSeries::active()->get();
-        return Inertia::render('Equipment/Equipment/Edit', [
-            'equipment' => $equipment,
-            'categories' => $categories,
-            'series' => $series,
-        ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to create equipment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -128,28 +114,54 @@ class EquipmentController extends Controller
      */
     public function update(Request $request, Equipment $equipment)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => ['required', 'string', 'max:50', Rule::unique('equipment')->ignore($equipment)],
-            'serial_number' => ['required', 'string', 'max:100', Rule::unique('equipment')->ignore($equipment)],
-            'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
-            'equipment_series_id' => 'required|exists:equipment_series,id',
-            'purchase_date' => 'nullable|date',
-            'purchase_price' => 'nullable|numeric|min:0',
-            'warranty_expiry' => 'nullable|date',
-            'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-            'location' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'category_id' => 'required|exists:categories,id',
+                'equipment_series_id' => 'required|exists:equipment_series,id',
+                'details' => 'nullable|string',
+                'rental_rate' => 'nullable|numeric|min:0',
+                'make' => 'nullable|string|max:255',
+                'model' => 'nullable|string|max:255',
+                'serial_no' => ['nullable', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
+                'code' => ['nullable', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
+                'make_year' => 'nullable|integer|min:1800|max:' . date('Y'),
+                'capacity' => 'nullable|string|max:255',
+                'stock_unit' => 'nullable|string|max:255',
+                'unit_weight' => 'nullable|string|max:255',
+                'rental_unit' => 'nullable|string|max:255',
+                'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
+                'condition' => ['required', Rule::in(['new', 'good', 'fair', 'poor'])],
+                'purchase_date' => 'nullable|date',
+                'purchase_price' => 'nullable|numeric|min:0',
+                'warranty_expiry' => 'nullable|date',
+                'last_maintenance_date' => 'nullable|date',
+                'next_maintenance_date' => 'nullable|date',
+                'location' => 'nullable|string|max:255',
+                'notes' => 'nullable|string',
+            ]);
 
-        $validated['slug'] = Str::slug($validated['name']);
+            $equipment->update($validated);
 
-        $equipment->update($validated);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Equipment updated successfully.',
+                'data' => $equipment->fresh()
+            ], 200);
 
-        return redirect()
-            ->route('equipment.equipment.index')
-            ->with('success', 'Equipment updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update equipment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -204,7 +216,61 @@ class EquipmentController extends Controller
         ]);
 
         return redirect()
-            ->route('equipment.equipment.show', $equipment)
+            ->route('equipment.equipment.index')
             ->with('success', 'Maintenance record updated successfully.');
+    }
+
+    /**
+     * Get paginated equipment data for AJAX requests.
+     */
+    public function data(Request $request)
+    {
+        try {
+            $query = Equipment::query()->with(['category.categoryType', 'equipmentSeries']);
+
+            // Filter by category
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+
+            // Filter by series
+            if ($request->filled('series_id')) {
+                $query->where('equipment_series_id', $request->series_id);
+            }
+
+            // Filter by status
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            } else {
+                $query->active(); // Only show active by default
+            }
+
+            // Search functionality
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%")
+                        ->orWhere('serial_no', 'like', "%{$search}%")
+                        ->orWhere('make', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhere('location', 'like', "%{$search}%");
+                });
+            }
+
+            // Get paginated results
+            $equipment = $query->latest()
+                ->paginate(10)
+                ->withQueryString();
+
+            return response()->json($equipment);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch equipment data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

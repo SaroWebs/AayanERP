@@ -12,16 +12,20 @@ class Equipment extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'name',
         'category_id',
         'equipment_series_id',
         'details',
+        'rental_rate',
         'make',
         'model',
         'serial_no',
         'code',
         'make_year',
         'capacity',
-        'rental_rate',
+        'stock_unit',
+        'unit_weight',
+        'rental_unit',
         'status',
         'condition',
         'purchase_date',
@@ -34,15 +38,27 @@ class Equipment extends Model
     ];
 
     protected $casts = [
+        'name' => 'string',
+        'details' => 'string',
+        'rental_rate' => 'decimal:2',
+        'make' => 'string',
+        'model' => 'string',
+        'serial_no' => 'string',
+        'code' => 'string',
+        'make_year' => 'integer',
+        'capacity' => 'string',
+        'stock_unit' => 'string',
+        'unit_weight' => 'string',
+        'rental_unit' => 'string',
         'status' => 'string',
         'condition' => 'string',
-        'make_year' => 'integer',
-        'rental_rate' => 'decimal:2',
-        'purchase_price' => 'decimal:2',
         'purchase_date' => 'date',
+        'purchase_price' => 'decimal:2',
         'warranty_expiry' => 'date',
         'last_maintenance_date' => 'date',
         'next_maintenance_date' => 'date',
+        'location' => 'string',
+        'notes' => 'string',
     ];
 
     /**
@@ -57,6 +73,11 @@ class Equipment extends Model
      * Get the equipment series that owns the equipment.
      */
     public function equipmentSeries(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentSeries::class);
+    }
+    
+    public function series(): BelongsTo
     {
         return $this->belongsTo(EquipmentSeries::class);
     }

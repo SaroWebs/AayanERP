@@ -13,16 +13,27 @@ return new class extends Migration
     {
         Schema::create('equipment', function (Blueprint $table) {
             $table->id();
+            // common details
+            $table->string('name');
             $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete();
             $table->foreignId('equipment_series_id')->constrained('equipment_series')->cascadeOnDelete();
             $table->text('details')->nullable();
-            $table->string('make');
-            $table->string('model');
+            $table->decimal('rental_rate', 10, 2)->nullable();
+
+            // Equipment Details
+            $table->string('make')->nullable();
+            $table->string('model')->nullable();
             $table->string('serial_no')->unique();
             $table->string('code')->unique();
-            $table->year('make_year');
+            $table->year('make_year')->nullable();
             $table->string('capacity')->nullable();
-            $table->decimal('rental_rate', 10, 2);
+
+            // Scaffolding Details
+            $table->string('stock_unit')->nullable();
+            $table->string('unit_weight')->nullable();
+            $table->string('rental_unit')->nullable();
+            
+            // Other Details
             $table->enum('status', ['active', 'inactive', 'maintenance', 'retired'])->default('active');
             $table->enum('condition', ['new', 'good', 'fair', 'poor'])->default('good');
             $table->date('purchase_date')->nullable();

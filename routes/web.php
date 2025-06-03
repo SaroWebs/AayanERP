@@ -2,11 +2,14 @@
 
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\ClientDetailController;
 use App\Http\Controllers\ConfigurationController;
-use App\Http\Controllers\Equipment\CategoryController;
+use App\Http\Controllers\EquipmentSeriesController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -22,6 +25,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::controller(ClientDetailController::class)->group(function () {
         Route::get('master/clients', 'index');
         Route::get('data/clients', 'paginatedlist');
+    });
+
+    Route::prefix('equipment')->name('equipment.')->group(function () {
+        Route::get('/equipment/data', [EquipmentController::class, 'data'])->name('equipment.data');
+        Route::resource('equipment', EquipmentController::class);
     });
 });
 
@@ -86,39 +94,41 @@ Route::middleware(['auth'])->group(function () {
 
     // Equipment Management Routes
     Route::prefix('equipment')->name('equipment.')->group(function () {
-        // Categories and Category Types
-        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
-        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
-        Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
-        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
-        Route::post('/categories/{category}/restore', [CategoryController::class, 'restore'])->name('categories.restore');
 
-        // Category Types
-        Route::get('/category-types', [CategoryController::class, 'indexTypes'])->name('category-types.index');
-        Route::post('/category-types', [CategoryController::class, 'storeType'])->name('category-types.store');
-        Route::put('/category-types/{categoryType}', [CategoryController::class, 'updateType'])->name('category-types.update');
-        Route::delete('/category-types/{categoryType}', [CategoryController::class, 'destroyType'])->name('category-types.destroy');
-        Route::post('/category-types/{categoryType}/restore', [CategoryController::class, 'restoreType'])->name('category-types.restore');
+        // Categories
+        Route::controller(CategoryController::class)->group(function () {
+            Route::get('/categories', 'index')->name('categories.index');
+            Route::post('/categories', 'store')->name('categories.store');
+            Route::put('/categories/{category}', 'update')->name('categories.update');
+            Route::put('/categories/{category}/status', 'updateStatus')->name('categories.status.update');
+            Route::delete('/categories/{category}', 'destroy')->name('categories.destroy');
+            Route::post('/categories/{category}/restore', 'restore')->name('categories.restore');
+
+            Route::get('/category-types', 'indexTypes')->name('category-types.index');
+            Route::post('/category-types', 'storeType')->name('category-types.store');
+            Route::put('/category-types/{categoryType}', 'updateType')->name('category-types.update');
+            Route::put('/category-types/{categoryType}/status', 'updateTypeStatus')->name('category-types.status.update');
+            Route::delete('/category-types/{categoryType}', 'destroyType')->name('category-types.destroy');
+            Route::post('/category-types/{categoryType}/restore', 'restoreType')->name('category-types.restore');
+
+            // New routes for fetching categories and category types
+            Route::get('/data/categories', 'getCategories')->name('categories.data');
+            Route::get('/data/category-types', 'getCategoryTypes')->name('category-types.data');
+        });
 
         // Equipment Series
-        Route::controller(App\Http\Controllers\EquipmentSeriesController::class)->group(function () {
+        Route::controller(EquipmentSeriesController::class)->group(function () {
             Route::get('series', 'index')->name('series.index');
-            Route::get('series/create', 'create')->name('series.create');
             Route::post('series', 'store')->name('series.store');
-            Route::get('series/{equipmentSeries}', 'show')->name('series.show');
-            Route::get('series/{equipmentSeries}/edit', 'edit')->name('series.edit');
             Route::put('series/{equipmentSeries}', 'update')->name('series.update');
             Route::delete('series/{equipmentSeries}', 'destroy')->name('series.destroy');
             Route::post('series/{equipmentSeries}/restore', 'restore')->name('series.restore');
         });
 
         // Equipment
-        Route::controller(App\Http\Controllers\EquipmentController::class)->group(function () {
+        Route::controller(EquipmentController::class)->group(function () {
             Route::get('equipment', 'index')->name('equipment.index');
-            Route::get('equipment/create', 'create')->name('equipment.create');
             Route::post('equipment', 'store')->name('equipment.store');
-            Route::get('equipment/{equipment}', 'show')->name('equipment.show');
-            Route::get('equipment/{equipment}/edit', 'edit')->name('equipment.edit');
             Route::put('equipment/{equipment}', 'update')->name('equipment.update');
             Route::delete('equipment/{equipment}', 'destroy')->name('equipment.destroy');
             Route::post('equipment/{equipment}/restore', 'restore')->name('equipment.restore');
@@ -126,7 +136,7 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Items
-        Route::controller(App\Http\Controllers\ItemController::class)->group(function () {
+        Route::controller(ItemController::class)->group(function () {
             Route::get('items', 'index')->name('items.index');
             Route::get('items/create', 'create')->name('items.create');
             Route::post('items', 'store')->name('items.store');

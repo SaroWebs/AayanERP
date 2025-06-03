@@ -2,14 +2,14 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { PageProps } from '@/types';
 import AppLayout from '@/layouts/app-layout';
-import { 
-    Card, 
-    TextInput, 
-    Select, 
-    Table, 
-    Badge, 
-    Button, 
-    Group, 
+import {
+    Card,
+    TextInput,
+    Select,
+    Table,
+    Badge,
+    Button,
+    Group,
     Stack,
     ActionIcon,
     Text,
@@ -17,24 +17,17 @@ import {
     Box
 } from '@mantine/core';
 import { Plus, Pencil, Trash } from 'lucide-react';
-
-interface Category {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
+import CreateSeriesModal from './Partials/CreateSeriesModal';
+import EditSeriesModal from './Partials/EditSeriesModal';
 
 interface Series {
     id: number;
     name: string;
-    code: string;
     slug: string;
     description: string | null;
     status: 'active' | 'inactive';
-    sort_order: number;
     created_at: string;
     updated_at: string;
-    category: Category;
     equipment_count: number;
 }
 
@@ -45,18 +38,18 @@ interface Props extends PageProps {
         current_page: number;
         last_page: number;
     };
-    categories: Category[];
     filters: {
-        category_id?: string;
         status?: string;
         search?: string;
     };
 }
 
-export default function Index({ auth, series, categories, filters }: Props) {
+export default function Index({ auth, series, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
-    const [categoryId, setCategoryId] = useState(filters.category_id || '');
     const [status, setStatus] = useState(filters.status || '');
+    const [createModalOpened, setCreateModalOpened] = useState(false);
+    const [editModalOpened, setEditModalOpened] = useState(false);
+    const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
 
     const breadcrumbs = [
         { title: 'Equipment', href: '#' },
@@ -67,16 +60,7 @@ export default function Index({ auth, series, categories, filters }: Props) {
         setSearch(value);
         router.get(
             route('equipment.series.index'),
-            { search: value, category_id: categoryId, status },
-            { preserveState: true, preserveScroll: true }
-        );
-    };
-
-    const handleCategoryChange = (value: string | null) => {
-        setCategoryId(value || '');
-        router.get(
-            route('equipment.series.index'),
-            { search, category_id: value || '', status },
+            { search: value, status },
             { preserveState: true, preserveScroll: true }
         );
     };
@@ -85,7 +69,7 @@ export default function Index({ auth, series, categories, filters }: Props) {
         setStatus(value || '');
         router.get(
             route('equipment.series.index'),
-            { search, category_id: categoryId, status: value || '' },
+            { search, status: value || '' },
             { preserveState: true, preserveScroll: true }
         );
     };
@@ -96,12 +80,13 @@ export default function Index({ auth, series, categories, filters }: Props) {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        return status === 'active' ? 'green' : 'red';
+    const handleEdit = (series: Series) => {
+        setSelectedSeries(series);
+        setEditModalOpened(true);
     };
 
-    const getCategoryColor = (variant: string) => {
-        return variant === 'equipment' ? 'blue' : 'gray';
+    const getStatusColor = (status: string) => {
+        return status === 'active' ? 'green' : 'red';
     };
 
     return (
@@ -115,7 +100,7 @@ export default function Index({ auth, series, categories, filters }: Props) {
                             <Text fw={500} size="xl">Equipment Series</Text>
                             <Button
                                 leftSection={<Plus size={16} />}
-                                onClick={() => router.visit(route('equipment.series.create'))}
+                                onClick={() => setCreateModalOpened(true)}
                             >
                                 Add Series
                             </Button>
@@ -129,71 +114,63 @@ export default function Index({ auth, series, categories, filters }: Props) {
                                     placeholder="Search series..."
                                     value={search}
                                     onChange={(e) => handleSearch(e.target.value)}
-                                    style={{ maxWidth: 300 }}
+                                    style={{ flex: 1 }}
                                 />
                                 <Select
-                                    value={categoryId}
-                                    onChange={handleCategoryChange}
-                                    placeholder="Select category"
-                                    data={[
-                                        { value: '', label: 'All Categories' },
-                                        ...categories.map((category) => ({
-                                            value: category.id.toString(),
-                                            label: category.name
-                                        }))
-                                    ]}
-                                    style={{ width: 200 }}
-                                />
-                                <Select
+                                    placeholder="Filter by status"
                                     value={status}
                                     onChange={handleStatusChange}
-                                    placeholder="Select status"
                                     data={[
-                                        { value: '', label: 'All Status' },
                                         { value: 'active', label: 'Active' },
-                                        { value: 'inactive', label: 'Inactive' }
+                                        { value: 'inactive', label: 'Inactive' },
                                     ]}
+                                    clearable
                                     style={{ width: 200 }}
                                 />
                             </Group>
 
                             <Table striped highlightOnHover>
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Code</th>
-                                        <th>Category</th>
-                                        <th>Status</th>
-                                        <th>Equipment</th>
-                                        <th>Sort Order</th>
-                                        <th>Created At</th>
-                                        <th style={{ textAlign: 'right' }}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Name</Table.Th>
+                                        <Table.Th>Description</Table.Th>
+                                        <Table.Th>Status</Table.Th>
+                                        <Table.Th>Equipment Count</Table.Th>
+                                        <Table.Th>Last Updated</Table.Th>
+                                        <Table.Th style={{ width: 100 }}></Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
                                     {series.data.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.name}</td>
-                                            <td>{item.code}</td>
-                                            <td>
-                                                <Badge color={getCategoryColor(item.category.variant)}>
-                                                    {item.category.name}
-                                                </Badge>
-                                            </td>
-                                            <td>
+                                        <Table.Tr key={item.id}>
+                                            <Table.Td>
+                                                <Text fw={500}>{item.name}</Text>
+                                                <Text size="xs" c="dimmed">{item.slug}</Text>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Text lineClamp={2}>{item.description || '-'}</Text>
+                                            </Table.Td>
+                                            <Table.Td>
                                                 <Badge color={getStatusColor(item.status)}>
                                                     {item.status}
                                                 </Badge>
-                                            </td>
-                                            <td>{item.equipment_count}</td>
-                                            <td>{item.sort_order}</td>
-                                            <td>{new Date(item.created_at).toLocaleDateString()}</td>
-                                            <td>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Badge variant="light" color="blue">
+                                                    {item.equipment_count} items
+                                                </Badge>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Text size="sm">{new Date(item.updated_at).toLocaleDateString()}</Text>
+                                                <Text size="xs" c="dimmed">{new Date(item.updated_at).toLocaleTimeString()}</Text>
+                                            </Table.Td>
+                                            <Table.Td>
                                                 <Group justify="flex-end" gap="xs">
                                                     <ActionIcon
                                                         variant="subtle"
                                                         color="blue"
-                                                        onClick={() => router.visit(route('equipment.series.edit', item.id))}
+                                                        onClick={() => handleEdit(item)}
+                                                        title="Edit Series"
                                                     >
                                                         <Pencil size={16} />
                                                     </ActionIcon>
@@ -201,24 +178,25 @@ export default function Index({ auth, series, categories, filters }: Props) {
                                                         variant="subtle"
                                                         color="red"
                                                         onClick={() => handleDelete(item.id)}
+                                                        title="Delete Series"
                                                     >
                                                         <Trash size={16} />
                                                     </ActionIcon>
                                                 </Group>
-                                            </td>
-                                        </tr>
+                                            </Table.Td>
+                                        </Table.Tr>
                                     ))}
-                                </tbody>
+                                </Table.Tbody>
                             </Table>
 
-                            <Group justify="center" mt="md">
+                            <Group justify="end">
                                 <Pagination
                                     total={series.last_page}
                                     value={series.current_page}
                                     onChange={(page) => {
                                         router.get(
                                             route('equipment.series.index'),
-                                            { page, search, category_id: categoryId, status },
+                                            { page, search, status },
                                             { preserveState: true }
                                         );
                                     }}
@@ -228,6 +206,22 @@ export default function Index({ auth, series, categories, filters }: Props) {
                     </Card.Section>
                 </Card>
             </Box>
+
+            <CreateSeriesModal
+                opened={createModalOpened}
+                onClose={() => setCreateModalOpened(false)}
+            />
+
+            {selectedSeries && (
+                <EditSeriesModal
+                    opened={editModalOpened}
+                    onClose={() => {
+                        setEditModalOpened(false);
+                        setSelectedSeries(null);
+                    }}
+                    series={selectedSeries}
+                />
+            )}
         </AppLayout>
     );
 } 
