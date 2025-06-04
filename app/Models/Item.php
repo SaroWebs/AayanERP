@@ -10,21 +10,7 @@ class Item extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = [
-        'code',
-        'name',
-        'slug',
-        'hsn',
-        'description_1',
-        'description_2',
-        'unit',
-        'applicable_for',
-        'status',
-        'minimum_stock',
-        'maximum_stock',
-        'reorder_point',
-        'sort_order',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'status' => 'string',

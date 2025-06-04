@@ -16,10 +16,15 @@ class ItemController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Item::query()->with(['category']);
+        return Inertia::render('Equipment/Items/Index');
+    }
 
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
+    public function getData(Request $request)
+    {
+        $query = Item::query();
+
+        if ($request->has('applicable_for')) {
+            $query->where('applicable_for', $request->applicable_for);
         }
 
         if ($request->has('status')) {
@@ -40,26 +45,8 @@ class ItemController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $categories = Category::active()->get();
-
-        return Inertia::render('Equipment/Items/Index', [
-            'items' => $items,
-            'categories' => $categories,
-            'filters' => $request->only(['category_id', 'status', 'search']),
-        ]);
+        return response()->json($items);
     }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        $categories = Category::active()->get();
-        return Inertia::render('Equipment/Items/Create', [
-            'categories' => $categories,
-        ]);
-    }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -68,17 +55,17 @@ class ItemController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:items',
             'code' => 'required|string|max:50|unique:items',
-            'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
+            'description_1' => 'nullable|string',
+            'description_2' => 'nullable|string',
+            'applicable_for' => ['required', Rule::in(['all', 'equipment', 'scaffolding'])],
             'hsn' => 'nullable|string|max:50',
-            'unit' => 'required|string|max:50',
-            'min_stock' => 'required|integer|min:0',
-            'max_stock' => 'required|integer|min:0|gt:min_stock',
-            'reorder_level' => 'required|integer|min:0',
-            'purchase_price' => 'required|numeric|min:0',
-            'selling_price' => 'required|numeric|min:min:purchase_price',
+            'unit' => ['nullable', Rule::in(['set', 'nos', 'rmt', 'sqm', 'ltr', 'na'])],
+            'minimum_stock' => 'required|integer|min:0',
+            'current_stock' => 'required|integer|min:0',
+            'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
+            'reorder_point' => 'nullable|integer|min:0',
+            'sort_order' => 'integer|min:0',
             'status' => ['required', Rule::in(['active', 'inactive'])],
-            'notes' => 'nullable|string',
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
@@ -102,18 +89,6 @@ class ItemController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Item $item)
-    {
-        $categories = Category::active()->get();
-        return Inertia::render('Equipment/Items/Edit', [
-            'item' => $item,
-            'categories' => $categories,
-        ]);
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Item $item)
@@ -121,17 +96,17 @@ class ItemController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('items')->ignore($item)],
             'code' => ['required', 'string', 'max:50', Rule::unique('items')->ignore($item)],
-            'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
+            'description_1' => 'nullable|string',
+            'description_2' => 'nullable|string',
+            'applicable_for' => ['required', Rule::in(['all', 'equipment', 'scaffolding'])],
             'hsn' => 'nullable|string|max:50',
-            'unit' => 'required|string|max:50',
-            'min_stock' => 'required|integer|min:0',
-            'max_stock' => 'required|integer|min:0|gt:min_stock',
-            'reorder_level' => 'required|integer|min:0',
-            'purchase_price' => 'required|numeric|min:0',
-            'selling_price' => 'required|numeric|min:min:purchase_price',
+            'unit' => ['nullable', Rule::in(['set', 'nos', 'rmt', 'sqm', 'ltr', 'na'])],
+            'minimum_stock' => 'required|integer|min:0',
+            'current_stock' => 'required|integer|min:0',
+            'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
+            'reorder_point' => 'nullable|integer|min:0',
+            'sort_order' => 'integer|min:0',
             'status' => ['required', Rule::in(['active', 'inactive'])],
-            'notes' => 'nullable|string',
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
@@ -170,5 +145,27 @@ class ItemController extends Controller
         return redirect()
             ->route('equipment.items.index')
             ->with('success', 'Item restored successfully.');
+    }
+
+    /**
+     * Get the last item code.
+     */
+    public function getLastCode()
+    {
+        $lastItem = Item::latest()->first();
+
+        if (!$lastItem) {
+            return response()->json(['code' => 'ITM000000']);
+        }
+
+        // Extract the numeric part from the last code
+        $lastCode = $lastItem->code;
+        $numericPart = (int) substr($lastCode, 3); // Remove 'ITM' prefix and convert to number
+
+        // Generate new code with incremented number
+        $newNumber = $numericPart + 1;
+        $newCode = 'ITM' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+
+        return response()->json(['code' => $newCode]);
     }
 }

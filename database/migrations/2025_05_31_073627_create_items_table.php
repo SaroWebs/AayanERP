@@ -23,6 +23,7 @@ return new class extends Migration
             $table->enum('applicable_for', ['all', 'equipment', 'scaffolding'])->default('all');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->integer('minimum_stock')->default(0);
+            $table->integer('current_stock')->default(0);
             $table->integer('maximum_stock')->nullable();
             $table->integer('reorder_point')->nullable();
             $table->integer('sort_order')->default(0);
