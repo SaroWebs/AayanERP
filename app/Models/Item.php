@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Item extends Model
 {
@@ -20,7 +21,16 @@ class Item extends Model
         'maximum_stock' => 'integer',
         'reorder_point' => 'integer',
         'sort_order' => 'integer',
+        'current_stock' => 'integer',
     ];
+
+    /**
+     * Get the stock movements for the item.
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
+    }
 
     /**
      * Scope a query to only include active items.

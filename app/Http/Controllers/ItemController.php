@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use App\Models\Category;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ItemController extends Controller
 {
@@ -78,11 +81,20 @@ class ItemController extends Controller
     }
 
     /**
+     * Get the specified item with its stock movements.
+     */
+    public function getItem(Item $item)
+    {
+        $item->load(['stockMovements.creator']);
+        return response()->json(['item' => $item]);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(Item $item)
     {
-        $item->load(['category', 'stockMovements']);
+        $item->load(['stockMovements.creator']);
         return Inertia::render('Equipment/Items/Show', [
             'item' => $item,
         ]);
@@ -167,5 +179,77 @@ class ItemController extends Controller
         $newCode = 'ITM' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
 
         return response()->json(['code' => $newCode]);
+    }
+
+    /**
+     * Store a new stock movement for the item.
+     */
+    public function storeStockMovement(Request $request, Item $item)
+    {
+        $validated = $request->validate([
+            'type' => ['required', Rule::in(['in', 'out'])],
+            'quantity' => 'required|integer|min:1',
+            'reference_type' => 'nullable|string|max:255',
+            'reference_id' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Create stock movement
+            $stockMovement = $item->stockMovements()->create([
+                ...$validated,
+                'created_by' => Auth::id(),
+            ]);
+
+            // Update item's current stock
+            $newStock = $validated['type'] === 'in'
+                ? $item->current_stock + $validated['quantity']
+                : $item->current_stock - $validated['quantity'];
+
+            // Prevent negative stock
+            if ($newStock < 0) {
+                throw new \Exception('Stock cannot go below zero.');
+            }
+
+            $item->update(['current_stock' => $newStock]);
+
+            DB::commit();
+
+            return response()->json($stockMovement->load('creator'));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Delete a stock movement and update item stock.
+     */
+    public function destroyStockMovement(Item $item, StockMovement $movement)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Update item's current stock
+            $newStock = $movement->type === 'in'
+                ? $item->current_stock - $movement->quantity
+                : $item->current_stock + $movement->quantity;
+
+            // Prevent negative stock
+            if ($newStock < 0) {
+                throw new \Exception('Cannot delete movement: would result in negative stock.');
+            }
+
+            $item->update(['current_stock' => $newStock]);
+            $movement->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Stock movement deleted successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
     }
 }

@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { PageProps } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import axios from 'axios';
-import {
-    Card,
-    TextInput,
-    Select,
-    Badge,
-    Button,
-    Group,
+import { 
+    Card, 
+    TextInput, 
+    Select, 
+    Badge, 
+    Button, 
+    Group, 
     Stack,
     ActionIcon,
     Text,
@@ -24,11 +24,6 @@ import { modals } from '@mantine/modals';
 import CreateItemModal from './Partials/CreateItemModal';
 import EditItemModal from './Partials/EditItemModal';
 
-interface Category {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
 
 interface Item {
     id: number;
@@ -323,37 +318,37 @@ export default function Index({ auth, filters = {} }: Props) {
                         <Stack gap="md">
                             <Card>
                                 <Card.Section p="md">
-                                    <Group>
-                                        <TextInput
-                                            placeholder="Search items..."
-                                            value={search}
-                                            onChange={(e) => handleSearch(e.target.value)}
-                                            style={{ maxWidth: 300 }}
-                                        />
-                                        <Select
-                                            value={applicableFor}
-                                            onChange={handleApplicableForChange}
-                                            placeholder="Select type"
-                                            data={[
-                                                { value: '', label: 'All Types' },
-                                                { value: 'all', label: 'All' },
-                                                { value: 'equipment', label: 'Equipment' },
-                                                { value: 'scaffolding', label: 'Scaffolding' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
-                                        <Select
-                                            value={status}
-                                            onChange={handleStatusChange}
-                                            placeholder="Select status"
-                                            data={[
-                                                { value: '', label: 'All Status' },
-                                                { value: 'active', label: 'Active' },
-                                                { value: 'inactive', label: 'Inactive' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
-                                    </Group>
+                            <Group>
+                                <TextInput
+                                    placeholder="Search items..."
+                                    value={search}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    style={{ maxWidth: 300 }}
+                                />
+                                <Select
+                                    value={applicableFor}
+                                    onChange={handleApplicableForChange}
+                                    placeholder="Select type"
+                                    data={[
+                                        { value: '', label: 'All Types' },
+                                        { value: 'all', label: 'All' },
+                                        { value: 'equipment', label: 'Equipment' },
+                                        { value: 'scaffolding', label: 'Scaffolding' }
+                                    ]}
+                                    style={{ width: 200 }}
+                                />
+                                <Select
+                                    value={status}
+                                    onChange={handleStatusChange}
+                                    placeholder="Select status"
+                                    data={[
+                                        { value: '', label: 'All Status' },
+                                        { value: 'active', label: 'Active' },
+                                        { value: 'inactive', label: 'Inactive' }
+                                    ]}
+                                    style={{ width: 200 }}
+                                />
+                            </Group>
                                 </Card.Section>
                             </Card>
 

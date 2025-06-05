@@ -63,47 +63,57 @@ const mainNavItems: NavItem[] = [
         icon: ShoppingCart,
         children: [
             {
-                title: 'Enquiry',
-                href: '/sales/enquiry',
+                title: 'Enquiries',
+                href: route('sales.enquiries.index'),
                 icon: FileText,
             },
             {
-                title: 'Quotation',
-                href: '/sales/quotation',
+                title: 'Quotations',
+                href: route('sales.quotations.index'),
                 icon: Receipt,
             },
             {
-                title: 'Billing',
-                href: '/sales/billing',
+                title: 'Sales Orders',
+                href: route('sales.orders.index'),
                 icon: ShoppingCart,
             },
             {
-                title: 'Dispatch',
-                href: '/sales/dispatch',
-                icon: Package,
+                title: 'Sales Bills',
+                href: route('sales.bills.index'),
+                icon: Receipt,
             },
             {
-                title: 'Collection',
-                href: '/sales/collection',
+                title: 'Payments',
+                href: route('sales.payments.index'),
                 icon: Wallet,
             },
         ],
     },
     {
-        title: 'Purchase',
+        title: 'Purchases',
         href: '#',
         icon: Receipt,
         children: [
             {
-                title: 'Intend & PO',
-                href: '/purchase/intend-and-po',
+                title: 'Purchase Intents',
+                href: route('purchases.intents.index'),
                 icon: FileText,
             },
             {
-                title: 'Aproval & Receive',
-                href: '/purchase/aproval-and-receive',
-                icon: FileText,
-            }
+                title: 'Purchase Orders',
+                href: route('purchases.orders.index'),
+                icon: Receipt,
+            },
+            {
+                title: 'Goods Receipt',
+                href: route('purchases.grns.index'),
+                icon: Package,
+            },
+            {
+                title: 'Payments',
+                href: route('purchases.payments.index'),
+                icon: Wallet,
+            },
         ],
     },
     {
