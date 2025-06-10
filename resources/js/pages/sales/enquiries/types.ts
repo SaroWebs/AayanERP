@@ -7,8 +7,30 @@ export interface Enquiry {
     enquiry_no: string;
     client: { id: number; name: string };
     client_id: number;
+    client_detail_id: number;
+    contact_person_id: number | null;
+    referred_by: number | null;
     subject: string;
     description: string;
+    type: 'equipment' | 'scaffolding' | 'both';
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    source: 'website' | 'email' | 'phone' | 'referral' | 'walk_in' | 'other';
+    equipment_id: number | null;
+    quantity: number;
+    nature_of_work: 'soil' | 'rock' | 'limestone' | 'coal' | 'sand' | 'gravel' | 'construction' | 'demolition' | 'mining' | 'quarry' | 'other';
+    duration: number | null;
+    duration_unit: 'hours' | 'days' | 'months' | 'years';
+    deployment_state: string;
+    location: string;
+    site_details: string;
+    enquiry_date: string;
+    required_date: string | null;
+    valid_until: string | null;
+    estimated_value: number | null;
+    currency: string;
+    special_requirements: string;
+    terms_conditions: string;
+    notes: string;
     status: string;
     approval_status: string;
     created_at: string;
@@ -24,10 +46,44 @@ export interface EnquiryFilters {
     search?: string;
 }
 
-export interface FormValues extends Record<string, FormDataConvertible> {
-    client_id: number;
+export interface FormValues {
+    // Client Information
+    client_detail_id: string;
+    contact_person_id: number | null;
+    referred_by: number | null;
+    
+    // Basic Information
     subject: string;
     description: string;
+    type: 'equipment' | 'scaffolding' | 'both';
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    source: 'website' | 'email' | 'phone' | 'referral' | 'walk_in' | 'other';
+    
+    // Equipment Details
+    equipment_id: string | null;
+    quantity: number;
+    nature_of_work: 'soil' | 'rock' | 'limestone' | 'coal' | 'sand' | 'gravel' | 'construction' | 'demolition' | 'mining' | 'quarry' | 'other';
+    duration: number | null;
+    duration_unit: 'hours' | 'days' | 'months' | 'years';
+    
+    // Location Details
+    deployment_state: string;
+    location: string;
+    site_details: string;
+    
+    // Dates
+    enquiry_date: Date;
+    required_date: Date | null;
+    valid_until: Date | null;
+    
+    // Financial Details
+    estimated_value: number | null;
+    currency: string;
+    
+    // Additional Details
+    special_requirements: string;
+    terms_conditions: string;
+    notes: string;
 }
 
 export const statusColors: Record<string, { color: string; label: string }> = {
@@ -36,6 +92,7 @@ export const statusColors: Record<string, { color: string; label: string }> = {
     approved: { color: 'green', label: 'Approved' },
     rejected: { color: 'red', label: 'Rejected' },
     cancelled: { color: 'gray', label: 'Cancelled' },
+    converted : { color: 'teal', label: 'Converted' },
 };
 
 export const approvalStatusColors: Record<string, { color: string; label: string }> = {

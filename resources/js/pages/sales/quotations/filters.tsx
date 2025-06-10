@@ -1,23 +1,7 @@
 import { router } from '@inertiajs/react';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { CalendarIcon, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Paper, Select, TextInput, Button, Group, Stack, Text, ActionIcon } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { Search, X } from 'lucide-react';
 
 interface Filters {
     status?: string;
@@ -61,130 +45,71 @@ export function QuotationFilters({ filters }: Props) {
     };
 
     return (
-        <Card className="mb-4 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Status</label>
-                    <Select
-                        value={filters.status}
-                        onValueChange={(value) => handleFilter('status', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {statusOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Approval Status</label>
-                    <Select
-                        value={filters.approval_status}
-                        onValueChange={(value) => handleFilter('approval_status', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select approval status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {approvalStatusOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">From Date</label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className={cn(
-                                    'w-full justify-start text-left font-normal',
-                                    !filters.from_date && 'text-muted-foreground'
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filters.from_date ? (
-                                    format(new Date(filters.from_date), 'PPP')
-                                ) : (
-                                    <span>Pick a date</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={filters.from_date ? new Date(filters.from_date) : undefined}
-                                onSelect={(date) =>
-                                    handleFilter('from_date', date?.toISOString())
-                                }
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">To Date</label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className={cn(
-                                    'w-full justify-start text-left font-normal',
-                                    !filters.to_date && 'text-muted-foreground'
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filters.to_date ? (
-                                    format(new Date(filters.to_date), 'PPP')
-                                ) : (
-                                    <span>Pick a date</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={filters.to_date ? new Date(filters.to_date) : undefined}
-                                onSelect={(date) =>
-                                    handleFilter('to_date', date?.toISOString())
-                                }
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Search</label>
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Search by quotation no..."
-                            value={filters.search}
-                            onChange={(e) => handleFilter('search', e.target.value)}
-                            className="flex-1"
+        <Paper shadow="xs" p="md" withBorder className="mb-4">
+            <Stack>
+                <Group grow>
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>Status</Text>
+                        <Select
+                            placeholder="Select status"
+                            value={filters.status}
+                            onChange={(value) => handleFilter('status', value || undefined)}
+                            data={statusOptions}
+                            clearable
                         />
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={clearFilters}
-                            title="Clear filters"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </Card>
+                    </Stack>
+
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>Approval Status</Text>
+                        <Select
+                            placeholder="Select approval status"
+                            value={filters.approval_status}
+                            onChange={(value) => handleFilter('approval_status', value || undefined)}
+                            data={approvalStatusOptions}
+                            clearable
+                        />
+                    </Stack>
+
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>From Date</Text>
+                        <DatePickerInput
+                            label="From Date"
+                            placeholder="Pick a date"
+                            value={filters.from_date}
+                            onChange={(date) => handleFilter('from_date', date || undefined)}
+                            clearable
+                        />
+                    </Stack>
+
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>To Date</Text>
+                        <DatePickerInput
+                            placeholder="Pick a date"
+                            value={filters.to_date ? new Date(filters.to_date) : null}
+                            onChange={(date) => handleFilter('to_date', date || undefined)}
+                            clearable
+                        />
+                    </Stack>
+                </Group>
+
+                <Group>
+                    <TextInput
+                        placeholder="Search by quotation no..."
+                        value={filters.search}
+                        onChange={(e) => handleFilter('search', e.target.value)}
+                        leftSection={<Search size={16} />}
+                        style={{ flex: 1 }}
+                    />
+                    <ActionIcon
+                        variant="light"
+                        color="gray"
+                        onClick={clearFilters}
+                        title="Clear filters"
+                    >
+                        <X size={16} />
+                    </ActionIcon>
+                </Group>
+            </Stack>
+        </Paper>
     );
 } 

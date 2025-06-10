@@ -1,11 +1,14 @@
-import { Head } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import { PageProps } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DataTable } from '@/components/ui/data-table';
-import { Button } from '@/components/ui/button';
+import { Paper, Title, Button, Group, Stack, Container } from '@mantine/core';
+import { DataTable } from 'mantine-datatable';
 import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { columns } from './columns';
 import { QuotationFilters } from './filters';
+import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem } from '@/types';
+import { notifications } from '@mantine/notifications';
 
 interface Quotation {
     id: number;
@@ -27,6 +30,9 @@ interface Props extends PageProps {
     quotations: {
         data: Quotation[];
         links: any[];
+        total: number;
+        per_page: number;
+        current_page: number;
     };
     filters: {
         status?: string;
@@ -38,36 +44,93 @@ interface Props extends PageProps {
     };
 }
 
+type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
+
 export default function Index({ quotations, filters }: Props) {
+    const handlePageChange = (page: number) => {
+        router.get(
+            route('sales.quotations.index'),
+            { ...filters, page },
+            { preserveState: true, preserveScroll: true }
+        );
+    };
+
+    const handleAction = (quotation: Quotation, action: QuotationAction) => {
+        switch (action) {
+            case 'submit':
+                router.put(route('sales.quotations.submit', quotation.id), {}, {
+                    onSuccess: () => notifications.show({ message: 'Quotation submitted for review', color: 'green' })
+                });
+                break;
+            case 'approve':
+                router.put(route('sales.quotations.approve', quotation.id), {}, {
+                    onSuccess: () => notifications.show({ message: 'Quotation approved', color: 'green' })
+                });
+                break;
+            case 'reject':
+                router.put(route('sales.quotations.reject', quotation.id), {}, {
+                    onSuccess: () => notifications.show({ message: 'Quotation rejected', color: 'red' })
+                });
+                break;
+            case 'convert':
+                router.post(route('sales.quotations.convert', quotation.id), {}, {
+                    onSuccess: () => notifications.show({ message: 'Converted to sales order', color: 'green' })
+                });
+                break;
+            case 'cancel':
+                router.put(route('sales.quotations.cancel', quotation.id), {}, {
+                    onSuccess: () => notifications.show({ message: 'Quotation cancelled', color: 'red' })
+                });
+                break;
+        }
+    };
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Quotations',
+            href: '/sales/quotations',
+        },
+    ];
+
     return (
-        <>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Quotations" />
 
-            <div className="container mx-auto py-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-semibold">Quotations</h1>
-                    <Button asChild>
-                        <Link href={route('sales.quotations.create')}>
-                            <Plus className="mr-2 h-4 w-4" />
+            <Container size="xl" py="xl">
+                <Stack gap="md">
+                    <Group justify="space-between">
+                        <Title order={2}>Quotations</Title>
+                        <Button
+                            component={Link}
+                            href={route('sales.quotations.create')}
+                            leftSection={<Plus size={16} />}
+                        >
                             New Quotation
-                        </Link>
-                    </Button>
-                </div>
+                        </Button>
+                    </Group>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Quotation List</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <QuotationFilters filters={filters} />
-                        <DataTable
-                            columns={columns}
-                            data={quotations.data}
-                            links={quotations.links}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-        </>
+                    <Paper p="md">
+                        <Stack gap="md">
+                            <QuotationFilters filters={filters} />
+                            <DataTable
+                                columns={columns(handleAction)}
+                                records={quotations.data}
+                                totalRecords={quotations.total}
+                                recordsPerPage={quotations.per_page}
+                                page={quotations.current_page}
+                                onPageChange={handlePageChange}
+                                withTableBorder
+                                borderColor="gray.3"
+                                striped
+                                highlightOnHover
+                                withColumnBorders
+                                verticalAlign="top"
+                                pinLastColumn
+                            />
+                        </Stack>
+                    </Paper>
+                </Stack>
+            </Container>
+        </AppLayout>
     );
 } 

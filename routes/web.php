@@ -178,18 +178,20 @@ Route::middleware(['auth'])->group(function () {
         // Enquiries
         Route::controller(EnquiryController::class)->group(function () {
             Route::get('enquiries', 'index')->name('enquiries.index');
-            Route::get('data/enquiries', 'paginatedList')->name('enquiries.data');
-            Route::post('data/enquiries', 'store')->name('enquiries.store');
-            Route::get('enquiries/{enquiry}', 'show')->name('enquiries.show');
-            Route::put('data/enquiries/{enquiry}', 'update')->name('enquiries.update');
-            Route::delete('data/enquiries/{enquiry}', 'destroy')->name('enquiries.destroy');
+            Route::get('enquiries/data', 'data')->name('enquiries.data');
+            Route::get('enquiries/get-equipment-list', 'getEquipment')->name('enquiries.equipment');
+            
+            // CRUD routes
+            Route::post('enquiries', 'store')->name('enquiries.store');
+            Route::put('enquiries/{enquiry}', 'update')->name('enquiries.update');
+            Route::delete('enquiries/{enquiry}', 'destroy')->name('enquiries.destroy');
             
             // Workflow actions
-            Route::post('data/enquiries/{enquiry}/submit', 'submitForReview')->name('enquiries.submit');
-            Route::post('data/enquiries/{enquiry}/approve', 'approve')->name('enquiries.approve');
-            Route::post('data/enquiries/{enquiry}/reject', 'reject')->name('enquiries.reject');
-            Route::post('data/enquiries/{enquiry}/convert', 'convertToQuotation')->name('enquiries.convert');
-            Route::post('data/enquiries/{enquiry}/cancel', 'cancel')->name('enquiries.cancel');
+            Route::post('enquiries/{enquiry}/submit', 'submitForReview')->name('enquiries.submit');
+            Route::post('enquiries/{enquiry}/approve', 'approve')->name('enquiries.approve');
+            Route::post('enquiries/{enquiry}/reject', 'reject')->name('enquiries.reject');
+            Route::post('enquiries/{enquiry}/convert', 'convertToQuotation')->name('enquiries.convert');
+            Route::post('enquiries/{enquiry}/cancel', 'cancel')->name('enquiries.cancel');
         });
 
         // Quotations

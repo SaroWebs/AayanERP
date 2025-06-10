@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Enquiry;
 use App\Models\ClientDetail;
+use App\Models\Equipment;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class EnquiryController extends Controller
 {
@@ -18,49 +20,91 @@ class EnquiryController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Enquiry::with(['client', 'creator', 'approver'])
-            ->latest();
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by approval status
-        if ($request->has('approval_status')) {
-            $query->where('approval_status', $request->approval_status);
-        }
-
-        // Filter by client
-        if ($request->has('client_id')) {
-            $query->where('client_id', $request->client_id);
-        }
-
-        // Filter by date range
-        if ($request->has('from_date')) {
-            $query->where('enquiry_date', '>=', $request->from_date);
-        }
-        if ($request->has('to_date')) {
-            $query->where('enquiry_date', '<=', $request->to_date);
-        }
-
-        // Search by enquiry number or subject
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('enquiry_no', 'like', "%{$search}%")
-                    ->orWhere('subject', 'like', "%{$search}%");
-            });
-        }
-
-        $enquiries = $query->paginate(10)->withQueryString();
         $clients = ClientDetail::where('status', 'active')->get();
-
+        
+        // Get initial data
+        $query = Enquiry::with(['client', 'creator'])
+            ->latest();
+            
+        $enquiries = $query->paginate(10);
+        
         return Inertia::render('sales/enquiries/index', [
-            'enquiries' => $enquiries,
-            'clients' => $clients,
-            'filters' => $request->only(['status', 'approval_status', 'client_id', 'from_date', 'to_date', 'search'])
+            'initialEnquiries' => $enquiries,
+            'initialFilters' => [],
+            'initialClients' => $clients
         ]);
+    }
+
+    /**
+     * Get paginated list of enquiries for axios requests.
+     */
+    public function data(Request $request)
+    {
+        try {
+            Log::info('Enquiry data request received', [
+                'params' => $request->all(),
+                'headers' => $request->headers->all()
+            ]);
+
+            $query = Enquiry::with(['client', 'creator'])
+                ->latest();
+
+            // Filter by status
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter by approval status
+            if ($request->filled('approval_status')) {
+                $query->where('approval_status', $request->approval_status);
+            }
+
+            // Filter by client
+            if ($request->filled('client_detail_id')) {
+                $query->where('client_detail_id', $request->client_detail_id);
+            }
+
+            // Filter by date range
+            if ($request->filled('from_date')) {
+                $query->where('enquiry_date', '>=', $request->from_date);
+            }
+            if ($request->filled('to_date')) {
+                $query->where('enquiry_date', '<=', $request->to_date);
+            }
+
+            // Search by enquiry number or subject
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('enquiry_no', 'like', "%{$search}%")
+                        ->orWhere('subject', 'like', "%{$search}%");
+                });
+            }
+
+            $enquiries = $query->paginate(10)->withQueryString();
+            $clients = ClientDetail::where('status', 'active')->get();
+
+            Log::info('Enquiry data response', [
+                'total_enquiries' => $enquiries->total(),
+                'current_page' => $enquiries->currentPage(),
+                'total_clients' => $clients->count()
+            ]);
+
+            return response()->json([
+                'data' => $enquiries,
+                'filters' => $request->only(['status', 'approval_status', 'client_detail_id', 'from_date', 'to_date', 'search']),
+                'clients' => $clients
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in enquiry data endpoint', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to load enquiries: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -80,14 +124,41 @@ class EnquiryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
+            // Client Information
+            'client_detail_id' => ['required', 'exists:client_details,id'],
+            'contact_person_id' => ['nullable', 'exists:client_contacts,id'],
+            'referred_by' => ['nullable', 'string', 'max:255'],
+
+            // Basic Information
             'subject' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'description' => ['required', 'string'],
+            'type' => ['required', Rule::in(['equipment', 'scaffolding', 'both'])],
+            'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'source' => ['required', Rule::in(['website', 'email', 'phone', 'referral', 'walk_in', 'other'])],
+
+            // Equipment Details
+            'equipment_id' => ['nullable', 'exists:equipment,id'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'nature_of_work' => ['nullable', Rule::in(['soil', 'rock', 'limestone', 'coal', 'sand', 'gravel', 'construction', 'demolition', 'mining', 'quarry', 'other'])],
+            'duration' => ['nullable', 'integer', 'min:1'],
+            'duration_unit' => ['nullable', Rule::in(['hours', 'days', 'months', 'years'])],
+
+            // Location Details
+            'deployment_state' => ['nullable', 'string', 'max:2'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'site_details' => ['nullable', 'string'],
+
+            // Dates
             'enquiry_date' => ['required', 'date'],
             'required_date' => ['nullable', 'date', 'after_or_equal:enquiry_date'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
-            'source' => ['required', Rule::in(['email', 'phone', 'website', 'walk_in', 'other'])],
-            'specifications' => ['nullable', 'string'],
+            'valid_until' => ['nullable', 'date', 'after_or_equal:enquiry_date'],
+
+            // Financial Details
+            'estimated_value' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'max:3'],
+
+            // Additional Details
+            'special_requirements' => ['nullable', 'string'],
             'terms_conditions' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'document' => ['nullable', 'file', 'max:10240'], // 10MB max
@@ -112,11 +183,27 @@ class EnquiryController extends Controller
 
             DB::commit();
 
-            return redirect()->route('enquiries.show', $enquiry)
-                ->with('success', 'Enquiry created successfully.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Enquiry created successfully',
+                'data' => [
+                    'enquiry' => $enquiry->load(['client', 'creator']),
+                    'redirect_url' => route('sales.enquiries.show', $enquiry)
+                ]
+            ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to create enquiry: ' . $e->getMessage());
+            Log::error('Failed to create enquiry', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $request->except(['document'])
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create enquiry: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -125,7 +212,7 @@ class EnquiryController extends Controller
      */
     public function show(Enquiry $enquiry)
     {
-        $enquiry->load(['client', 'creator', 'approver', 'quotations']);
+        $enquiry->load(['client', 'creator', 'quotations']);
         return Inertia::render('sales/enquiries/show', [
             'enquiry' => $enquiry
         ]);
@@ -157,7 +244,7 @@ class EnquiryController extends Controller
         }
 
         $validated = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
+            'client_detail_id' => ['required', 'exists:client_details,id'],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'enquiry_date' => ['required', 'date'],
@@ -353,5 +440,38 @@ class EnquiryController extends Controller
         }
 
         return "{$prefix}{$year}{$month}{$newNumber}";
+    }
+
+    /**
+     * Get equipment data for the form.
+     */
+    public function getEquipment()
+    {
+        try {
+            $equipment = Equipment::where('status', 'active')
+                ->select('id', 'name', 'model')
+                ->orderBy('name')
+                ->get()
+                ->map(fn($item) => [
+                    'value' => (string) $item->id,
+                    'label' => $item->name,
+                    'model' => $item->model
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $equipment
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch equipment data', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch equipment data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

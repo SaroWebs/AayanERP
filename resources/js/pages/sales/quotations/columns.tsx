@@ -1,15 +1,8 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { DataTableColumn } from 'mantine-datatable';
+import { Badge, ActionIcon, Menu } from '@mantine/core';
+import { Eye, Edit, MoreHorizontal, Send, Check, X, FileText, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { Link } from '@inertiajs/react';
-import { MoreHorizontal, Eye } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { formatDate } from '@/lib/utils';
 
 interface Quotation {
     id: number;
@@ -27,139 +20,140 @@ interface Quotation {
     };
 }
 
-const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800',
-    pending_review: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    cancelled: 'bg-gray-100 text-gray-800',
+type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
+
+const statusColors: Record<string, { color: string; label: string }> = {
+    draft: { color: 'gray', label: 'DRAFT' },
+    pending_review: { color: 'yellow', label: 'PENDING REVIEW' },
+    approved: { color: 'green', label: 'APPROVED' },
+    rejected: { color: 'red', label: 'REJECTED' },
+    cancelled: { color: 'gray', label: 'CANCELLED' },
 };
 
-const approvalStatusColors: Record<string, string> = {
-    not_required: 'bg-gray-100 text-gray-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
+const approvalStatusColors: Record<string, { color: string; label: string }> = {
+    not_required: { color: 'gray', label: 'NOT REQUIRED' },
+    pending: { color: 'yellow', label: 'PENDING' },
+    approved: { color: 'green', label: 'APPROVED' },
+    rejected: { color: 'red', label: 'REJECTED' },
 };
 
-export const columns: ColumnDef<Quotation>[] = [
+export const columns = (
+    handleAction: (quotation: Quotation, action: QuotationAction) => void
+): DataTableColumn<Quotation>[] => [
     {
-        accessorKey: 'quotation_no',
-        header: 'Quotation No.',
+        accessor: 'quotation_no',
+        title: 'Quotation No.',
     },
     {
-        accessorKey: 'client.name',
-        header: 'Client',
+        accessor: 'client.name',
+        title: 'Client',
     },
     {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ row }) => {
-            const status = row.getValue('status') as string;
+        accessor: 'status',
+        title: 'Status',
+        render: (quotation) => {
+            const status = statusColors[quotation.status];
             return (
-                <Badge variant="secondary" className={statusColors[status]}>
-                    {status.replace('_', ' ').toUpperCase()}
+                <Badge color={status.color} variant="light">
+                    {status.label}
                 </Badge>
             );
         },
     },
     {
-        accessorKey: 'approval_status',
-        header: 'Approval Status',
-        cell: ({ row }) => {
-            const status = row.getValue('approval_status') as string;
+        accessor: 'approval_status',
+        title: 'Approval Status',
+        render: (quotation) => {
+            const status = approvalStatusColors[quotation.approval_status];
             return (
-                <Badge variant="secondary" className={approvalStatusColors[status]}>
-                    {status.replace('_', ' ').toUpperCase()}
+                <Badge color={status.color} variant="light">
+                    {status.label}
                 </Badge>
             );
         },
     },
     {
-        accessorKey: 'created_by.name',
-        header: 'Created By',
+        accessor: 'created_by.name',
+        title: 'Created By',
     },
     {
-        accessorKey: 'created_at',
-        header: 'Created At',
-        cell: ({ row }) => formatDate(row.getValue('created_at')),
+        accessor: 'created_at',
+        title: 'Created At',
+        render: (quotation) => format(new Date(quotation.created_at), 'dd MMM yyyy HH:mm'),
     },
     {
-        id: 'actions',
-        cell: ({ row }) => {
-            const quotation = row.original;
-
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                            <Link href={route('sales.quotations.show', quotation.id)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                            </Link>
-                        </DropdownMenuItem>
-                        {quotation.status === 'draft' && (
-                            <DropdownMenuItem asChild>
-                                <Link href={route('sales.quotations.edit', quotation.id)}>
-                                    Edit
-                                </Link>
-                            </DropdownMenuItem>
-                        )}
-                        {quotation.status === 'draft' && (
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    // Handle submit for review
-                                }}
+        accessor: 'actions',
+        title: 'Actions',
+        textAlign: 'right',
+        render: (quotation) => (
+            <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                    <ActionIcon>
+                        <MoreHorizontal size={16} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<Eye size={16} />}
+                        component={Link}
+                        href={route('sales.quotations.show', quotation.id)}
+                    >
+                        View Details
+                    </Menu.Item>
+                    {quotation.status === 'draft' && (
+                        <>
+                            <Menu.Item
+                                leftSection={<Edit size={16} />}
+                                component={Link}
+                                href={route('sales.quotations.edit', quotation.id)}
+                            >
+                                Edit
+                            </Menu.Item>
+                            <Menu.Item
+                                leftSection={<Send size={16} />}
+                                onClick={() => handleAction(quotation, 'submit')}
                             >
                                 Submit for Review
-                            </DropdownMenuItem>
-                        )}
-                        {quotation.approval_status === 'pending' && (
-                            <>
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        // Handle approve
-                                    }}
-                                >
-                                    Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        // Handle reject
-                                    }}
-                                >
-                                    Reject
-                                </DropdownMenuItem>
-                            </>
-                        )}
-                        {quotation.status === 'approved' && (
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    // Handle convert to sales order
-                                }}
+                            </Menu.Item>
+                        </>
+                    )}
+                    {quotation.approval_status === 'pending' && (
+                        <>
+                            <Menu.Item
+                                leftSection={<Check size={16} />}
+                                onClick={() => handleAction(quotation, 'approve')}
+                                c="green"
                             >
-                                Convert to Sales Order
-                            </DropdownMenuItem>
-                        )}
-                        {['draft', 'pending_review'].includes(quotation.status) && (
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    // Handle cancel
-                                }}
-                                className="text-red-600"
+                                Approve
+                            </Menu.Item>
+                            <Menu.Item
+                                leftSection={<X size={16} />}
+                                onClick={() => handleAction(quotation, 'reject')}
+                                c="red"
                             >
-                                Cancel
-                            </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            );
-        },
+                                Reject
+                            </Menu.Item>
+                        </>
+                    )}
+                    {quotation.status === 'approved' && (
+                        <Menu.Item
+                            leftSection={<FileText size={16} />}
+                            onClick={() => handleAction(quotation, 'convert')}
+                        >
+                            Convert to Sales Order
+                        </Menu.Item>
+                    )}
+                    {['draft', 'pending_review'].includes(quotation.status) && (
+                        <Menu.Item
+                            leftSection={<Trash2 size={16} />}
+                            onClick={() => handleAction(quotation, 'cancel')}
+                            c="red"
+                        >
+                            Cancel
+                        </Menu.Item>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+        ),
     },
 ]; 
