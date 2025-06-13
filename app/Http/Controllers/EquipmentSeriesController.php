@@ -16,7 +16,7 @@ class EquipmentSeriesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = EquipmentSeries::query();
+        $query = EquipmentSeries::withTrashed();
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -104,10 +104,16 @@ class EquipmentSeriesController extends Controller
     public function restore($id)
     {
         $series = EquipmentSeries::withTrashed()->findOrFail($id);
-        $series->restore();
+        
+        if ($series->trashed()) {
+            $series->restore();
+            return redirect()
+                ->route('equipment.series.index')
+                ->with('success', 'Equipment series restored successfully.');
+        }
 
         return redirect()
             ->route('equipment.series.index')
-            ->with('success', 'Equipment series restored successfully.');
+            ->with('error', 'Series is not deleted.');
     }
 }

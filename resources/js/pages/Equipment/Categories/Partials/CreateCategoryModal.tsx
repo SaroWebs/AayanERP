@@ -1,14 +1,26 @@
 import { useForm } from '@inertiajs/react';
 import { Modal, TextInput, Select, Button, Stack, Grid, Textarea, Group, NumberInput, ActionIcon, Paper, Text } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { slugify } from '@/lib/utils';
 import { Plus, Trash } from 'lucide-react';
 
 interface Category {
     id: number;
     name: string;
+    slug: string;
+    description: string | null;
+    hsn: string | null;
+    status: 'active' | 'inactive';
     sort_order: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    parent: Category | null;
+    children: Category[];
     parent_id: number | null;
+    technical_requirements: any[] | null;
+    application_areas: any[] | null;
+    quality_standards: any[] | null;
 }
 
 interface Props {
@@ -77,35 +89,40 @@ function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' 
 }
 
 export default function CreateCategoryModal({ opened, onClose, categories }: Props) {
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const form = useForm({
         name: '',
         slug: '',
         description: '',
         status: 'active',
         sort_order: 0,
         parent_id: '',
-        technical_requirements: [] as string[],
-        application_areas: [] as string[],
-        quality_standards: [] as string[],
+        technical_requirements: [''],
+        application_areas: [''],
+        quality_standards: [''],
     });
 
     useEffect(() => {
-        if (data.name) {
-            setData('slug', slugify(data.name));
+        if (form.data.name) {
+            form.setData('slug', slugify(form.data.name));
         }
-    }, [data.name]);
+    }, [form.data.name]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(route('equipment.categories.store'), {
+        form.post(route('equipment.categories.store'), {
             onSuccess: () => {
-                reset();
+                form.reset();
                 onClose();
             },
         });
     };
 
-    const parentCategories = categories.filter(cat => !cat.parent_id);
+    const parentCategories = categories
+        .filter(cat => !cat.parent_id && !cat.deleted_at) // Filter out deleted categories and only show top-level categories
+        .map(cat => ({
+            value: cat.id.toString(),
+            label: cat.name
+        }));
 
     return (
         <Modal
@@ -114,16 +131,24 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
             title="Create Category"
             size="xl"
         >
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                form.submit('post', route('equipment.categories.store'), {
+                    onSuccess: () => {
+                        form.reset();
+                        onClose();
+                    },
+                });
+            }}>
                 <Stack gap="md">
                     <Grid>
                         <Grid.Col span={6}>
                             <TextInput
                                 label="Name"
                                 id="name"
-                                value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
-                                error={errors.name}
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                error={form.errors.name}
                                 required
                             />
                         </Grid.Col>
@@ -131,9 +156,9 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                             <TextInput
                                 label="Slug"
                                 id="slug"
-                                value={data.slug}
-                                onChange={(e) => setData('slug', e.target.value)}
-                                error={errors.slug}
+                                value={form.data.slug}
+                                onChange={(e) => form.setData('slug', e.target.value)}
+                                error={form.errors.slug}
                                 required
                             />
                         </Grid.Col>
@@ -141,24 +166,21 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                             <Textarea
                                 label="Description"
                                 id="description"
-                                value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
-                                error={errors.description}
+                                value={form.data.description}
+                                onChange={(e) => form.setData('description', e.target.value)}
+                                error={form.errors.description}
                             />
                         </Grid.Col>
                         <Grid.Col span={6}>
                             <Select
                                 label="Parent Category"
                                 id="parent_id"
-                                value={data.parent_id}
-                                onChange={(value) => setData('parent_id', value || '')}
-                                error={errors.parent_id}
+                                value={form.data.parent_id}
+                                onChange={(value) => form.setData('parent_id', value || '')}
+                                error={form.errors.parent_id}
                                 data={[
                                     { value: '', label: 'None' },
-                                    ...parentCategories.map(cat => ({
-                                        value: cat.id.toString(),
-                                        label: cat.name
-                                    }))
+                                    ...parentCategories
                                 ]}
                                 clearable
                             />
@@ -167,9 +189,9 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                             <NumberInput
                                 label="Sort Order"
                                 id="sort_order"
-                                value={data.sort_order}
-                                onChange={(value: string | number) => setData('sort_order', Number(value) || 0)}
-                                error={errors.sort_order}
+                                value={form.data.sort_order}
+                                onChange={(value: string | number) => form.setData('sort_order', Number(value) || 0)}
+                                error={form.errors.sort_order}
                                 min={0}
                                 required
                             />
@@ -178,9 +200,9 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                             <Select
                                 label="Status"
                                 id="status"
-                                value={data.status}
-                                onChange={(value) => setData('status', value as 'active' | 'inactive')}
-                                error={errors.status}
+                                value={form.data.status}
+                                onChange={(value) => form.setData('status', value as 'active' | 'inactive')}
+                                error={form.errors.status}
                                 data={[
                                     { value: 'active', label: 'Active' },
                                     { value: 'inactive', label: 'Inactive' }
@@ -191,27 +213,27 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                         <Grid.Col span={12}>
                             <ArrayInput
                                 label="Technical Requirements"
-                                value={data.technical_requirements}
-                                onChange={(value) => setData('technical_requirements', value)}
-                                error={errors.technical_requirements}
+                                value={form.data.technical_requirements}
+                                onChange={(value) => form.setData('technical_requirements', value)}
+                                error={form.errors.technical_requirements}
                                 placeholder="Enter technical requirement"
                             />
                         </Grid.Col>
                         <Grid.Col span={12}>
                             <ArrayInput
                                 label="Application Areas"
-                                value={data.application_areas}
-                                onChange={(value) => setData('application_areas', value)}
-                                error={errors.application_areas}
+                                value={form.data.application_areas}
+                                onChange={(value) => form.setData('application_areas', value)}
+                                error={form.errors.application_areas}
                                 placeholder="Enter application area"
                             />
                         </Grid.Col>
                         <Grid.Col span={12}>
                             <ArrayInput
                                 label="Quality Standards"
-                                value={data.quality_standards}
-                                onChange={(value) => setData('quality_standards', value)}
-                                error={errors.quality_standards}
+                                value={form.data.quality_standards}
+                                onChange={(value) => form.setData('quality_standards', value)}
+                                error={form.errors.quality_standards}
                                 placeholder="Enter quality standard"
                             />
                         </Grid.Col>
@@ -221,7 +243,7 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
                         <Button variant="light" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" loading={processing}>
+                        <Button type="submit" loading={form.processing}>
                             Create
                         </Button>
                     </Group>

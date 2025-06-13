@@ -27,13 +27,24 @@ class ItemController extends Controller
         $query = Item::query();
 
         if ($request->has('applicable_for')) {
-            $query->where('applicable_for', $request->applicable_for);
+            $query->applicableFor($request->applicable_for);
         }
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
         } else {
             $query->active();
+        }
+
+        if ($request->has('stock_status')) {
+            switch ($request->stock_status) {
+                case 'low':
+                    $query->lowStock();
+                    break;
+                case 'needs_reorder':
+                    $query->needsReorder();
+                    break;
+            }
         }
 
         if ($request->has('search')) {
@@ -44,9 +55,16 @@ class ItemController extends Controller
             });
         }
 
-        $items = $query->latest()
+        $items = $query->ordered()
+            ->latest()
             ->paginate(10)
             ->withQueryString();
+
+        // Add stock status to each item
+        $items->getCollection()->transform(function ($item) {
+            $item->stock_status = $item->getStockLevelStatus();
+            return $item;
+        });
 
         return response()->json($items);
     }
@@ -55,29 +73,36 @@ class ItemController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:items',
-            'code' => 'required|string|max:50|unique:items',
-            'description_1' => 'nullable|string',
-            'description_2' => 'nullable|string',
-            'applicable_for' => ['required', Rule::in(['all', 'equipment', 'scaffolding'])],
-            'hsn' => 'nullable|string|max:50',
-            'unit' => ['nullable', Rule::in(['set', 'nos', 'rmt', 'sqm', 'ltr', 'na'])],
-            'minimum_stock' => 'required|integer|min:0',
-            'current_stock' => 'required|integer|min:0',
-            'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
-            'reorder_point' => 'nullable|integer|min:0',
-            'sort_order' => 'integer|min:0',
-            'status' => ['required', Rule::in(['active', 'inactive'])],
-        ]);
+        $validated = $request->validate(Item::$rules);
 
         $validated['slug'] = Str::slug($validated['name']);
 
-        Item::create($validated);
+        try {
+            DB::beginTransaction();
 
-        return redirect()
-            ->route('equipment.items.index')
-            ->with('success', 'Item created successfully.');
+            $item = Item::create($validated);
+
+            // Create initial stock movement if current_stock > 0
+            if ($validated['current_stock'] > 0) {
+                $item->stockMovements()->create([
+                    'type' => 'in',
+                    'quantity' => $validated['current_stock'],
+                    'notes' => 'Initial stock',
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('equipment.items.index')
+                ->with('success', 'Item created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create item: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -105,29 +130,44 @@ class ItemController extends Controller
      */
     public function update(Request $request, Item $item)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('items')->ignore($item)],
-            'code' => ['required', 'string', 'max:50', Rule::unique('items')->ignore($item)],
-            'description_1' => 'nullable|string',
-            'description_2' => 'nullable|string',
-            'applicable_for' => ['required', Rule::in(['all', 'equipment', 'scaffolding'])],
-            'hsn' => 'nullable|string|max:50',
-            'unit' => ['nullable', Rule::in(['set', 'nos', 'rmt', 'sqm', 'ltr', 'na'])],
-            'minimum_stock' => 'required|integer|min:0',
-            'current_stock' => 'required|integer|min:0',
-            'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
-            'reorder_point' => 'nullable|integer|min:0',
-            'sort_order' => 'integer|min:0',
-            'status' => ['required', Rule::in(['active', 'inactive'])],
-        ]);
+        $rules = Item::$rules;
+        $rules['code'] = ['required', 'string', 'max:50', Rule::unique('items')->ignore($item)];
+        $rules['name'] = ['required', 'string', 'max:255', Rule::unique('items')->ignore($item)];
+
+        $validated = $request->validate($rules);
 
         $validated['slug'] = Str::slug($validated['name']);
 
-        $item->update($validated);
+        try {
+            DB::beginTransaction();
 
-        return redirect()
-            ->route('equipment.items.index')
-            ->with('success', 'Item updated successfully.');
+            // Calculate stock difference
+            $stockDifference = $validated['current_stock'] - $item->current_stock;
+
+            // Update item
+            $item->update($validated);
+
+            // Create stock movement if stock changed
+            if ($stockDifference !== 0) {
+                $item->stockMovements()->create([
+                    'type' => $stockDifference > 0 ? 'in' : 'out',
+                    'quantity' => abs($stockDifference),
+                    'notes' => 'Stock adjustment',
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('equipment.items.index')
+                ->with('success', 'Item updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update item: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -203,17 +243,14 @@ class ItemController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            // Update item's current stock
-            $newStock = $validated['type'] === 'in'
-                ? $item->current_stock + $validated['quantity']
-                : $item->current_stock - $validated['quantity'];
+            // Update stock using model methods
+            $success = $validated['type'] === 'in'
+                ? $item->addStock($validated['quantity'])
+                : $item->removeStock($validated['quantity']);
 
-            // Prevent negative stock
-            if ($newStock < 0) {
-                throw new \Exception('Stock cannot go below zero.');
+            if (!$success) {
+                throw new \Exception('Failed to update stock level.');
             }
-
-            $item->update(['current_stock' => $newStock]);
 
             DB::commit();
 
@@ -232,17 +269,15 @@ class ItemController extends Controller
         try {
             DB::beginTransaction();
 
-            // Update item's current stock
-            $newStock = $movement->type === 'in'
-                ? $item->current_stock - $movement->quantity
-                : $item->current_stock + $movement->quantity;
+            // Update stock using model methods
+            $success = $movement->type === 'in'
+                ? $item->removeStock($movement->quantity)
+                : $item->addStock($movement->quantity);
 
-            // Prevent negative stock
-            if ($newStock < 0) {
-                throw new \Exception('Cannot delete movement: would result in negative stock.');
+            if (!$success) {
+                throw new \Exception('Failed to update stock level.');
             }
 
-            $item->update(['current_stock' => $newStock]);
             $movement->delete();
 
             DB::commit();

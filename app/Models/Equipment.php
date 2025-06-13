@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Equipment extends Model
 {
@@ -79,8 +80,8 @@ class Equipment extends Model
         'application_type' => 'string',
         'technical_specifications' => 'json',
         'material_safety_data' => 'json',
-        'installation_guidelines' => 'text',
-        'maintenance_requirements' => 'text',
+        'installation_guidelines' => 'string',
+        'maintenance_requirements' => 'string',
         'quality_certifications' => 'json',
         'storage_conditions' => 'json',
         'batch_number' => 'string',
@@ -159,4 +160,5 @@ class Equipment extends Model
     {
         return $this->next_maintenance_date && $this->next_maintenance_date->isPast();
     }
+
 }

@@ -1,6 +1,5 @@
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { PageProps } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import axios from 'axios';
 import {
@@ -19,29 +18,28 @@ import {
     Divider
 } from '@mantine/core';
 import { DataTable, DataTableColumn, DataTableColumnTextAlign } from 'mantine-datatable';
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, RotateCcw } from 'lucide-react';
 import { useDisclosure } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
 import CreateEquipmentModal from './Partials/CreateEquipmentModal';
 import EditEquipmentModal from './Partials/EditEquipmentModal';
-
-interface CategoryType {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
+import { PageProps } from '@/types/index.d';
 
 interface Category {
     id: number;
     name: string;
-    category_type_id: number;
-    categoryType: CategoryType;
+    slug: string;
+    description: string | null;
+    status: string;
+    sort_order: number;
+    parent_id: number | null;
 }
 
 interface Series {
     id: number;
     name: string;
-    code: string;
+    slug: string;
+    description: string | null;
+    status: 'active' | 'inactive';
 }
 
 interface Equipment {
@@ -71,11 +69,29 @@ interface Equipment {
     equipment_series_id: number;
     created_at: string;
     updated_at: string;
+    deleted_at: string | null;
     category: Category;
     equipment_series: Series;
+    temperature_rating: string | null;
+    chemical_composition: any | null;
+    application_type: string | null;
+    technical_specifications: any | null;
+    material_safety_data: any | null;
+    installation_guidelines: string | null;
+    maintenance_requirements: string | null;
+    quality_certifications: any | null;
+    storage_conditions: any | null;
+    batch_number: string | null;
+    manufacturing_date: string | null;
+    expiry_date: string | null;
+    physical_properties: any | null;
+    dimensional_specifications: any | null;
+    visual_inspection_criteria: any | null;
+    series: Series;
 }
 
 interface Props extends PageProps {
+    auth: any;
     series: Series[];
     filters: {
         category_id?: string;
@@ -86,12 +102,9 @@ interface Props extends PageProps {
 }
 
 export default function Index({ auth, series, filters }: Props) {
-    const [variant, setVariant] = useState<'equipment' | 'scaffolding' | ''>('');
-    const [categoryTypeId, setCategoryTypeId] = useState('');
-    const [categoryId, setCategoryId] = useState(filters.category_id || '');
     const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
-    const [categoryTypes, setCategoryTypes] = useState<CategoryType[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string>(filters.category_id || '');
     const [equipment, setEquipment] = useState<{
         data: Equipment[];
         current_page: number;
@@ -104,9 +117,20 @@ export default function Index({ auth, series, filters }: Props) {
         links: []
     });
     const [loading, setLoading] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<Equipment | null>(null);
+    const [pendingRestore, setPendingRestore] = useState<Equipment | null>(null);
+    const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+    const [restoreConfirmModalOpen, setRestoreConfirmModalOpen] = useState(false);
 
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false);
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
+
+    // Load categories on component mount
+    useEffect(() => {
+        axios.get(route('equipment.categories.data')).then(response => {
+            setCategories(response.data);
+        });
+    }, []);
 
     const loadEquipment = async (params: {
         page?: number;
@@ -117,19 +141,17 @@ export default function Index({ auth, series, filters }: Props) {
     } = {}) => {
         try {
             setLoading(true);
-            console.log('Loading equipment with params:', params);
             const response = await axios.get(route('equipment.equipment.data'), {
                 params: {
                     page: params.page || 1,
-                    category_id: params.category_id || categoryId,
+                    category_id: params.category_id,
                     series_id: params.series_id || filters.series_id,
                     status: params.status || filters.status,
                     search: params.search || filters.search,
+                    with_deleted: 'true',
                 }
             });
-            console.log('Equipment data received:', response.data);
             setEquipment(response.data);
-            console.info(response.data);
         } catch (error) {
             console.error('Error loading equipment:', error);
         } finally {
@@ -139,73 +161,43 @@ export default function Index({ auth, series, filters }: Props) {
 
     // Load equipment initially and when filters change
     useEffect(() => {
-        loadEquipment();
-    }, [categoryId, filters.series_id, filters.status, filters.search]);
-
-    // Load category types when variant changes
-    useEffect(() => {
-        if (variant) {
-            axios.get(route('equipment.category-types.data'), {
-                params: { variant }
-            }).then(response => {
-                setCategoryTypes(response.data);
-                setCategoryTypeId(''); // Reset category type when variant changes
-                setCategoryId(''); // Reset category when variant changes
-            });
-        } else {
-            setCategoryTypes([]);
-            setCategoryTypeId('');
-            setCategoryId('');
-        }
-    }, [variant]);
-
-    // Load categories when category type changes
-    useEffect(() => {
-        if (categoryTypeId) {
-            axios.get(route('equipment.categories.data'), {
-                params: {
-                    variant,
-                    category_type_id: categoryTypeId
-                }
-            }).then(response => {
-                setCategories(response.data);
-                setCategoryId(''); // Reset category when category type changes
-            });
-        } else {
-            setCategories([]);
-            setCategoryId('');
-        }
-    }, [categoryTypeId, variant]);
-
-    const handleVariantChange = (value: string | null) => {
-        setVariant(value as 'equipment' | 'scaffolding' | '');
-    };
-
-    const handleCategoryTypeChange = (value: string | null) => {
-        setCategoryTypeId(value || '');
-    };
+        loadEquipment({ category_id: selectedCategory || undefined });
+    }, [selectedCategory, filters.series_id, filters.status, filters.search]);
 
     const handleCategoryChange = (value: string | null) => {
-        setCategoryId(value || '');
+        setSelectedCategory(value || '');
     };
 
-    const handleDelete = (id: number) => {
-        modals.openConfirmModal({
-            title: 'Delete Equipment',
-            children: (
-                <Text size="sm">
-                    Are you sure you want to delete this equipment? This action cannot be undone.
-                </Text>
-            ),
-            labels: { confirm: 'Delete', cancel: 'Cancel' },
-            confirmProps: { color: 'red' },
-            onConfirm: async () => {
-                try {
-                    await axios.delete(route('equipment.equipment.destroy', id));
-                    loadEquipment(); // Reload equipment after deletion
-                } catch (error) {
-                    console.error('Error deleting equipment:', error);
-                }
+    const handleDelete = (equipment: Equipment) => {
+        setPendingDelete(equipment);
+        setDeleteConfirmModalOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+
+        router.delete(route('equipment.equipment.destroy', pendingDelete.id), {
+            onSuccess: () => {
+                setDeleteConfirmModalOpen(false);
+                setPendingDelete(null);
+                loadEquipment();
+            },
+        });
+    };
+
+    const handleRestore = (equipment: Equipment) => {
+        setPendingRestore(equipment);
+        setRestoreConfirmModalOpen(true);
+    };
+
+    const confirmRestore = () => {
+        if (!pendingRestore) return;
+
+        router.post(route('equipment.equipment.restore', pendingRestore.id), {}, {
+            onSuccess: () => {
+                setRestoreConfirmModalOpen(false);
+                setPendingRestore(null);
+                loadEquipment();
             },
         });
     };
@@ -249,6 +241,10 @@ export default function Index({ auth, series, filters }: Props) {
         }
     };
 
+    function getDeletedColor(deleted_at: string | null) {
+        if (deleted_at) return 'red';
+        return 'green';
+    }
 
     const breadcrumbs = [
         { title: 'Equipment', href: '#' },
@@ -261,7 +257,12 @@ export default function Index({ auth, series, filters }: Props) {
             title: 'Name',
             render: (record) => (
                 <Box>
-                    <Text fw={500}>{record.name}</Text>
+                    <Group gap="xs">
+                        <Text fw={500}>{record.name}</Text>
+                        {record.deleted_at && (
+                            <Badge color="red" variant="light">Deleted</Badge>
+                        )}
+                    </Group>
                     {record.details && (
                         <Text size="xs" c="dimmed" lineClamp={2}>
                             {record.details}
@@ -282,7 +283,7 @@ export default function Index({ auth, series, filters }: Props) {
             accessor: 'category',
             title: 'Category',
             render: (record) => (
-                <Badge color={getCategoryColor(record.category?.categoryType?.variant)}>
+                <Badge>
                     {record.category.name}
                 </Badge>
             ),
@@ -296,9 +297,14 @@ export default function Index({ auth, series, filters }: Props) {
             accessor: 'status',
             title: 'Status',
             render: (record) => (
-                <Badge color={getStatusColor(record.status)}>
-                    {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                </Badge>
+                <Group>
+                    {!record.deleted_at && (
+                        <Badge color={getStatusColor(record.status)}>{record.status}</Badge>
+                    )}
+                    {record.deleted_at && (
+                        <Badge color="red">Deleted</Badge>
+                    )}
+                </Group>
             ),
         },
         {
@@ -316,24 +322,38 @@ export default function Index({ auth, series, filters }: Props) {
             textAlign: 'right' as DataTableColumnTextAlign,
             render: (record) => (
                 <Group gap={4} justify="flex-end">
-                    <Tooltip label="Edit">
-                        <ActionIcon
-                            variant="light"
-                            color="blue"
-                            onClick={() => handleEdit(record)}
-                        >
-                            <Pencil size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete">
-                        <ActionIcon
-                            variant="light"
-                            color="red"
-                            onClick={() => handleDelete(record.id)}
-                        >
-                            <Trash size={16} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {record.deleted_at ? (
+                        <Tooltip label="Restore">
+                            <ActionIcon
+                                variant="light"
+                                color="green"
+                                onClick={() => handleRestore(record)}
+                            >
+                                <RotateCcw size={16} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : (
+                        <>
+                            <Tooltip label="Edit">
+                                <ActionIcon
+                                    variant="light"
+                                    color="blue"
+                                    onClick={() => handleEdit(record)}
+                                >
+                                    <Pencil size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete">
+                                <ActionIcon
+                                    variant="light"
+                                    color="red"
+                                    onClick={() => handleDelete(record)}
+                                >
+                                    <Trash size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
+                    )}
                 </Group>
             ),
         },
@@ -363,32 +383,7 @@ export default function Index({ auth, series, filters }: Props) {
                                 <Card.Section p="md">
                                     <Group justify='start'>
                                         <Select
-                                            value={variant}
-                                            onChange={handleVariantChange}
-                                            placeholder="Select variant"
-                                            data={[
-                                                { value: '', label: 'All Variants' },
-                                                { value: 'equipment', label: 'Equipment' },
-                                                { value: 'scaffolding', label: 'Scaffolding' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
-                                        <Select
-                                            value={categoryTypeId}
-                                            onChange={handleCategoryTypeChange}
-                                            placeholder="Select category type"
-                                            data={[
-                                                { value: '', label: 'All Category Types' },
-                                                ...categoryTypes.map((type) => ({
-                                                    value: type.id.toString(),
-                                                    label: type.name
-                                                }))
-                                            ]}
-                                            style={{ width: 200 }}
-                                            disabled={!variant}
-                                        />
-                                        <Select
-                                            value={categoryId}
+                                            value={selectedCategory}
                                             onChange={handleCategoryChange}
                                             placeholder="Select category"
                                             data={[
@@ -399,7 +394,6 @@ export default function Index({ auth, series, filters }: Props) {
                                                 }))
                                             ]}
                                             style={{ width: 200 }}
-                                            disabled={!categoryTypeId}
                                         />
                                     </Group>
                                 </Card.Section>
@@ -427,6 +421,72 @@ export default function Index({ auth, series, filters }: Props) {
                     </Card.Section>
                 </Card>
             </Box>
+
+            <Modal
+                opened={deleteConfirmModalOpen}
+                onClose={() => {
+                    setDeleteConfirmModalOpen(false);
+                    setPendingDelete(null);
+                }}
+                title="Confirm Delete"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to delete this equipment? This action cannot be undone.
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setDeleteConfirmModalOpen(false);
+                                setPendingDelete(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="red"
+                            onClick={confirmDelete}
+                        >
+                            Delete
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={restoreConfirmModalOpen}
+                onClose={() => {
+                    setRestoreConfirmModalOpen(false);
+                    setPendingRestore(null);
+                }}
+                title="Confirm Restore"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to restore this equipment? This will make it available again.
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setRestoreConfirmModalOpen(false);
+                                setPendingRestore(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="green"
+                            onClick={confirmRestore}
+                        >
+                            Restore
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
 
             <CreateEquipmentModal
                 opened={createModalOpened}

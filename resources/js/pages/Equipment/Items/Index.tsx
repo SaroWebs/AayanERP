@@ -44,12 +44,14 @@ interface Item {
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
+    stock_status?: 'low' | 'normal' | 'excess';
 }
 
 interface Props extends PageProps {
     filters?: {
         applicable_for?: string;
         status?: string;
+        stock_status?: string;
         search?: string;
     };
 }
@@ -71,6 +73,7 @@ export default function Index({ auth, filters = {} }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [applicableFor, setApplicableFor] = useState(filters.applicable_for || '');
     const [status, setStatus] = useState(filters.status || '');
+    const [stockStatus, setStockStatus] = useState(filters.stock_status || '');
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false);
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
 
@@ -84,40 +87,34 @@ export default function Index({ auth, filters = {} }: Props) {
         search?: string;
         applicable_for?: string;
         status?: string;
+        stock_status?: string;
     } = {}) => {
         try {
             setLoading(true);
-            console.log('Loading items with params:', params);
             
-            // Build params object only with non-empty values
-            const requestParams: Record<string, string | number> = {};
+            const requestParams: Record<string, string | number> = {
+                page: params.page || 1
+            };
             
-            // Always include page
-            requestParams.page = params.page || 1;
-            
-            // Only include search if it has a value
-            const searchValue = params.search !== undefined ? params.search : search;
-            if (searchValue) {
-                requestParams.search = searchValue;
+            if (params.search !== undefined ? params.search : search) {
+                requestParams.search = params.search !== undefined ? params.search : search;
             }
             
-            // Only include applicable_for if it has a value
-            const applicableForValue = params.applicable_for !== undefined ? params.applicable_for : applicableFor;
-            if (applicableForValue) {
-                requestParams.applicable_for = applicableForValue;
+            if (params.applicable_for !== undefined ? params.applicable_for : applicableFor) {
+                requestParams.applicable_for = params.applicable_for !== undefined ? params.applicable_for : applicableFor;
             }
             
-            // Only include status if it has a value
-            const statusValue = params.status !== undefined ? params.status : status;
-            if (statusValue) {
-                requestParams.status = statusValue;
+            if (params.status !== undefined ? params.status : status) {
+                requestParams.status = params.status !== undefined ? params.status : status;
             }
 
-            console.log('Request params:', requestParams);
+            if (params.stock_status !== undefined ? params.stock_status : stockStatus) {
+                requestParams.stock_status = params.stock_status !== undefined ? params.stock_status : stockStatus;
+            }
+
             const response = await axios.get(route('equipment.items.data'), {
                 params: requestParams
             });
-            console.log('Response data:', response.data);
             setItems(response.data);
         } catch (error) {
             console.error('Error loading items:', error);
@@ -138,7 +135,7 @@ export default function Index({ auth, filters = {} }: Props) {
         }, 300); // Debounce search
 
         return () => clearTimeout(timeoutId);
-    }, [search, applicableFor, status]);
+    }, [search, applicableFor, status, stockStatus]);
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -150,6 +147,10 @@ export default function Index({ auth, filters = {} }: Props) {
 
     const handleStatusChange = (value: string | null) => {
         setStatus(value || '');
+    };
+
+    const handleStockStatusChange = (value: string | null) => {
+        setStockStatus(value || '');
     };
 
     const handleEdit = (item: Item) => {
@@ -190,10 +191,20 @@ export default function Index({ auth, filters = {} }: Props) {
         }
     };
 
-    const getStockStatus = (current: number, min: number, max: number | null) => {
-        if (current <= min) return { color: 'red', label: 'Low Stock' };
-        if (max !== null && current >= max) return { color: 'yellow', label: 'Overstocked' };
-        return { color: 'green', label: 'In Stock' };
+    const getStockStatusColor = (status: string) => {
+        switch (status) {
+            case 'low': return 'red';
+            case 'excess': return 'yellow';
+            default: return 'green';
+        }
+    };
+
+    const getStockStatusLabel = (status: string) => {
+        switch (status) {
+            case 'low': return 'Low Stock';
+            case 'excess': return 'Excess Stock';
+            default: return 'Normal Stock';
+        }
     };
 
     const columns: DataTableColumn<Item>[] = [
@@ -231,18 +242,17 @@ export default function Index({ auth, filters = {} }: Props) {
         },
         {
             accessor: 'current_stock',
-            title: 'Stock',
-            render: (record) => {
-                const stockStatus = getStockStatus(record.current_stock || 0, record.minimum_stock, record.maximum_stock);
-                return (
-                    <Group gap="xs">
-                        <Text>{record.current_stock || 0}</Text>
-                        <Badge color={stockStatus.color}>
-                            {stockStatus.label}
+            title: 'Current Stock',
+            render: (record) => (
+                <Group gap="xs">
+                    <Text>{record.current_stock}</Text>
+                    {record.stock_status && (
+                        <Badge color={getStockStatusColor(record.stock_status)}>
+                            {getStockStatusLabel(record.stock_status)}
                         </Badge>
-                    </Group>
-                );
-            },
+                    )}
+                </Group>
+            ),
         },
         {
             accessor: 'hsn',
@@ -318,37 +328,49 @@ export default function Index({ auth, filters = {} }: Props) {
                         <Stack gap="md">
                             <Card>
                                 <Card.Section p="md">
-                            <Group>
-                                <TextInput
-                                    placeholder="Search items..."
-                                    value={search}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    style={{ maxWidth: 300 }}
-                                />
-                                <Select
-                                    value={applicableFor}
-                                    onChange={handleApplicableForChange}
-                                    placeholder="Select type"
-                                    data={[
-                                        { value: '', label: 'All Types' },
-                                        { value: 'all', label: 'All' },
-                                        { value: 'equipment', label: 'Equipment' },
-                                        { value: 'scaffolding', label: 'Scaffolding' }
-                                    ]}
-                                    style={{ width: 200 }}
-                                />
-                                <Select
-                                    value={status}
-                                    onChange={handleStatusChange}
-                                    placeholder="Select status"
-                                    data={[
-                                        { value: '', label: 'All Status' },
-                                        { value: 'active', label: 'Active' },
-                                        { value: 'inactive', label: 'Inactive' }
-                                    ]}
-                                    style={{ width: 200 }}
-                                />
-                            </Group>
+                                    <Group>
+                                        <TextInput
+                                            placeholder="Search items..."
+                                            value={search}
+                                            onChange={(e) => handleSearch(e.target.value)}
+                                            style={{ maxWidth: 300 }}
+                                        />
+                                        <Select
+                                            value={applicableFor}
+                                            onChange={handleApplicableForChange}
+                                            placeholder="Select type"
+                                            data={[
+                                                { value: '', label: 'All Types' },
+                                                { value: 'all', label: 'All' },
+                                                { value: 'equipment', label: 'Equipment' },
+                                                { value: 'scaffolding', label: 'Scaffolding' }
+                                            ]}
+                                            style={{ width: 200 }}
+                                        />
+                                        <Select
+                                            value={status}
+                                            onChange={handleStatusChange}
+                                            placeholder="Select status"
+                                            data={[
+                                                { value: '', label: 'All Status' },
+                                                { value: 'active', label: 'Active' },
+                                                { value: 'inactive', label: 'Inactive' }
+                                            ]}
+                                            style={{ width: 200 }}
+                                        />
+                                        <Select
+                                            value={stockStatus}
+                                            onChange={handleStockStatusChange}
+                                            placeholder="Stock Status"
+                                            data={[
+                                                { value: '', label: 'All Stock Status' },
+                                                { value: 'low', label: 'Low Stock' },
+                                                { value: 'normal', label: 'Normal Stock' },
+                                                { value: 'excess', label: 'Excess Stock' }
+                                            ]}
+                                            style={{ width: 200 }}
+                                        />
+                                    </Group>
                                 </Card.Section>
                             </Card>
 

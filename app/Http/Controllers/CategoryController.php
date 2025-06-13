@@ -12,12 +12,10 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Cache::remember('categories.all', 3600, function () {
-            return Category::withTrashed()
-                ->with(['parent', 'children'])
-                ->orderBy('sort_order')
-                ->get();
-        });
+        $categories = Category::withTrashed()
+            ->with(['parent', 'children'])
+            ->orderBy('sort_order')
+            ->get();
 
         return Inertia::render('Equipment/Categories/Index', [
             'categories' => $categories,
@@ -206,8 +204,10 @@ class CategoryController extends Controller
         return redirect()->back()->with('success', 'Category deleted successfully.');
     }
 
-    public function restore(Category $category)
+    public function restore($id)
     {
+        $category = Category::withTrashed()->findOrFail($id);
+        
         if ($category->trashed()) {
             $category->restore();
             return back()->with('success', 'Category restored successfully.');

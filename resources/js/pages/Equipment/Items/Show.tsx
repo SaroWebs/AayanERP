@@ -55,6 +55,7 @@ interface Item {
     maximum_stock: number | null;
     reorder_point: number | null;
     stock_movements: StockMovement[];
+    stock_status?: 'low' | 'excess' | 'normal';
 }
 
 interface Props extends PageProps {
@@ -134,9 +135,23 @@ export default function Show({ auth, item: initialItem }: Props) {
         openDeleteDialog();
     };
 
-    const getStockStatus = (current: number, min: number, max: number | null) => {
-        if (current <= min) return { color: 'red', label: 'Low Stock' };
-        if (max !== null && current >= max) return { color: 'yellow', label: 'Overstocked' };
+    const getStockStatus = (item: Item) => {
+        if (item.stock_status) {
+            return {
+                color: item.stock_status === 'low' ? 'red' : 
+                       item.stock_status === 'excess' ? 'yellow' : 'green',
+                label: item.stock_status === 'low' ? 'Low Stock' :
+                       item.stock_status === 'excess' ? 'Excess Stock' : 'Normal Stock'
+            };
+        }
+        
+        // Fallback to old logic if stock_status is not available
+        if (item.current_stock <= item.minimum_stock) {
+            return { color: 'red', label: 'Low Stock' };
+        }
+        if (item.maximum_stock !== null && item.current_stock >= item.maximum_stock) {
+            return { color: 'yellow', label: 'Overstocked' };
+        }
         return { color: 'green', label: 'In Stock' };
     };
 
@@ -241,8 +256,8 @@ export default function Show({ auth, item: initialItem }: Props) {
                                             <Text size="sm" c="dimmed">Current Stock</Text>
                                             <Group gap="xs">
                                                 <Text fw={500}>{item.current_stock}</Text>
-                                                <Badge color={getStockStatus(item.current_stock, item.minimum_stock, item.maximum_stock).color}>
-                                                    {getStockStatus(item.current_stock, item.minimum_stock, item.maximum_stock).label}
+                                                <Badge color={getStockStatus(item).color}>
+                                                    {getStockStatus(item).label}
                                                 </Badge>
                                             </Group>
                                         </Box>
@@ -256,7 +271,7 @@ export default function Show({ auth, item: initialItem }: Props) {
                                             <Text size="sm" c="dimmed">Minimum Stock</Text>
                                             <Text fw={500}>{item.minimum_stock}</Text>
                                         </Box>
-                                        {item.maximum_stock && (
+                                        {item.maximum_stock !== null && (
                                             <>
                                                 <Divider orientation="vertical" />
                                                 <Box>
@@ -265,7 +280,7 @@ export default function Show({ auth, item: initialItem }: Props) {
                                                 </Box>
                                             </>
                                         )}
-                                        {item.reorder_point && (
+                                        {item.reorder_point !== null && (
                                             <>
                                                 <Divider orientation="vertical" />
                                                 <Box>

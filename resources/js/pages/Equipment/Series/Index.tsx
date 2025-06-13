@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { PageProps } from '@/types';
+import type { PageProps } from '@/types/index.d';
 import AppLayout from '@/layouts/app-layout';
 import {
     Card,
@@ -14,9 +14,10 @@ import {
     ActionIcon,
     Text,
     Pagination,
-    Box
+    Box,
+    Modal
 } from '@mantine/core';
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, RotateCcw } from 'lucide-react';
 import CreateSeriesModal from './Partials/CreateSeriesModal';
 import EditSeriesModal from './Partials/EditSeriesModal';
 
@@ -28,10 +29,12 @@ interface Series {
     status: 'active' | 'inactive';
     created_at: string;
     updated_at: string;
+    deleted_at: string | null;
     equipment_count: number;
 }
 
 interface Props extends PageProps {
+    auth: any;
     series: {
         data: Series[];
         links: any[];
@@ -50,6 +53,10 @@ export default function Index({ auth, series, filters }: Props) {
     const [createModalOpened, setCreateModalOpened] = useState(false);
     const [editModalOpened, setEditModalOpened] = useState(false);
     const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
+    const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+    const [restoreConfirmModalOpen, setRestoreConfirmModalOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<Series | null>(null);
+    const [pendingRestore, setPendingRestore] = useState<Series | null>(null);
 
     const breadcrumbs = [
         { title: 'Equipment', href: '#' },
@@ -74,10 +81,36 @@ export default function Index({ auth, series, filters }: Props) {
         );
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('Are you sure you want to delete this series?')) {
-            router.delete(route('equipment.series.destroy', id));
-        }
+    const handleDelete = (series: Series) => {
+        setPendingDelete(series);
+        setDeleteConfirmModalOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        
+        router.delete(route('equipment.series.destroy', pendingDelete.id), {
+            onSuccess: () => {
+                setDeleteConfirmModalOpen(false);
+                setPendingDelete(null);
+            },
+        });
+    };
+
+    const handleRestore = (series: Series) => {
+        setPendingRestore(series);
+        setRestoreConfirmModalOpen(true);
+    };
+
+    const confirmRestore = () => {
+        if (!pendingRestore) return;
+        
+        router.post(route('equipment.series.restore', pendingRestore.id), {}, {
+            onSuccess: () => {
+                setRestoreConfirmModalOpen(false);
+                setPendingRestore(null);
+            },
+        });
     };
 
     const handleEdit = (series: Series) => {
@@ -144,7 +177,12 @@ export default function Index({ auth, series, filters }: Props) {
                                     {series.data.map((item) => (
                                         <Table.Tr key={item.id}>
                                             <Table.Td>
-                                                <Text fw={500}>{item.name}</Text>
+                                                <Group gap="xs">
+                                                    <Text fw={500}>{item.name}</Text>
+                                                    {item.deleted_at && (
+                                                        <Badge color="red" variant="light">Deleted</Badge>
+                                                    )}
+                                                </Group>
                                                 <Text size="xs" c="dimmed">{item.slug}</Text>
                                             </Table.Td>
                                             <Table.Td>
@@ -166,22 +204,35 @@ export default function Index({ auth, series, filters }: Props) {
                                             </Table.Td>
                                             <Table.Td>
                                                 <Group justify="flex-end" gap="xs">
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="blue"
-                                                        onClick={() => handleEdit(item)}
-                                                        title="Edit Series"
-                                                    >
-                                                        <Pencil size={16} />
-                                                    </ActionIcon>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="red"
-                                                        onClick={() => handleDelete(item.id)}
-                                                        title="Delete Series"
-                                                    >
-                                                        <Trash size={16} />
-                                                    </ActionIcon>
+                                                    {item.deleted_at ? (
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="green"
+                                                            onClick={() => handleRestore(item)}
+                                                            title="Restore Series"
+                                                        >
+                                                            <RotateCcw size={16} />
+                                                        </ActionIcon>
+                                                    ) : (
+                                                        <>
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="blue"
+                                                                onClick={() => handleEdit(item)}
+                                                                title="Edit Series"
+                                                            >
+                                                                <Pencil size={16} />
+                                                            </ActionIcon>
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="red"
+                                                                onClick={() => handleDelete(item)}
+                                                                title="Delete Series"
+                                                            >
+                                                                <Trash size={16} />
+                                                            </ActionIcon>
+                                                        </>
+                                                    )}
                                                 </Group>
                                             </Table.Td>
                                         </Table.Tr>
@@ -222,6 +273,72 @@ export default function Index({ auth, series, filters }: Props) {
                     series={selectedSeries}
                 />
             )}
+
+            <Modal
+                opened={deleteConfirmModalOpen}
+                onClose={() => {
+                    setDeleteConfirmModalOpen(false);
+                    setPendingDelete(null);
+                }}
+                title="Confirm Delete"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to delete this series? This action cannot be undone.
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setDeleteConfirmModalOpen(false);
+                                setPendingDelete(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="red"
+                            onClick={confirmDelete}
+                        >
+                            Delete
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={restoreConfirmModalOpen}
+                onClose={() => {
+                    setRestoreConfirmModalOpen(false);
+                    setPendingRestore(null);
+                }}
+                title="Confirm Restore"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to restore this series? This will make it available again.
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setRestoreConfirmModalOpen(false);
+                                setPendingRestore(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="green"
+                            onClick={confirmRestore}
+                        >
+                            Restore
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </AppLayout>
     );
 } 

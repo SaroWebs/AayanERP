@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Equipment;
-use App\Models\Category;
 use App\Models\EquipmentSeries;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -17,7 +15,7 @@ class EquipmentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Equipment::query()->with(['category.categoryType', 'series']);
+        $query = Equipment::query()->with(['category', 'series']);
 
         if ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -61,11 +59,14 @@ class EquipmentController extends Controller
     {
         try {
             $validated = $request->validate([
+                // Common details
                 'name' => 'required|string|max:255',
                 'category_id' => 'required|exists:categories,id',
                 'equipment_series_id' => 'required|exists:equipment_series,id',
                 'details' => 'nullable|string',
-                'rental_rate' => 'nullable|numeric|min:0',
+                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+
+                // Equipment Details
                 'make' => 'nullable|string|max:255',
                 'model' => 'nullable|string|max:255',
                 'serial_no' => 'nullable|string|max:255|unique:equipment',
@@ -75,16 +76,53 @@ class EquipmentController extends Controller
                 'stock_unit' => 'nullable|string|max:255',
                 'unit_weight' => 'nullable|string|max:255',
                 'rental_unit' => 'nullable|string|max:255',
+
+                // Other Details
                 'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-                'condition' => ['required', Rule::in(['new', 'good', 'fair', 'poor'])],
+                'condition' => ['nullable', Rule::in(['new', 'good', 'fair', 'poor'])],
                 'purchase_date' => 'nullable|date',
-                'purchase_price' => 'nullable|numeric|min:0',
+                'purchase_price' => 'nullable|numeric|min:0|decimal:0,2',
                 'warranty_expiry' => 'nullable|date',
                 'last_maintenance_date' => 'nullable|date',
                 'next_maintenance_date' => 'nullable|date',
                 'location' => 'nullable|string|max:255',
                 'notes' => 'nullable|string',
+
+                // Refractory-specific fields
+                'temperature_rating' => 'nullable|string|max:255',
+                'chemical_composition' => 'nullable|json',
+                'application_type' => 'nullable|string|max:255',
+                'technical_specifications' => 'nullable|json',
+                'material_safety_data' => 'nullable|json',
+                'installation_guidelines' => 'nullable|string',
+                'maintenance_requirements' => 'nullable|string',
+                'quality_certifications' => 'nullable|json',
+                'storage_conditions' => 'nullable|json',
+                'batch_number' => 'nullable|string|max:255',
+                'manufacturing_date' => 'nullable|date',
+                'expiry_date' => 'nullable|date',
+                'physical_properties' => 'nullable|json',
+                'dimensional_specifications' => 'nullable|json',
+                'visual_inspection_criteria' => 'nullable|json',
             ]);
+
+            // Handle JSON fields
+            $jsonFields = [
+                'chemical_composition',
+                'technical_specifications',
+                'material_safety_data',
+                'quality_certifications',
+                'storage_conditions',
+                'physical_properties',
+                'dimensional_specifications',
+                'visual_inspection_criteria'
+            ];
+
+            foreach ($jsonFields as $field) {
+                if (isset($validated[$field]) && is_string($validated[$field])) {
+                    $validated[$field] = json_decode($validated[$field], true);
+                }
+            }
 
             $equipment = Equipment::create($validated);
 
@@ -92,7 +130,7 @@ class EquipmentController extends Controller
                 'status' => 'success',
                 'message' => 'Equipment created successfully.',
                 'data' => $equipment
-            ], 200);
+            ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -116,11 +154,14 @@ class EquipmentController extends Controller
     {
         try {
             $validated = $request->validate([
+                // Common details
                 'name' => 'required|string|max:255',
                 'category_id' => 'required|exists:categories,id',
                 'equipment_series_id' => 'required|exists:equipment_series,id',
                 'details' => 'nullable|string',
-                'rental_rate' => 'nullable|numeric|min:0',
+                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+
+                // Equipment Details
                 'make' => 'nullable|string|max:255',
                 'model' => 'nullable|string|max:255',
                 'serial_no' => ['nullable', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
@@ -130,16 +171,53 @@ class EquipmentController extends Controller
                 'stock_unit' => 'nullable|string|max:255',
                 'unit_weight' => 'nullable|string|max:255',
                 'rental_unit' => 'nullable|string|max:255',
+
+                // Other Details
                 'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-                'condition' => ['required', Rule::in(['new', 'good', 'fair', 'poor'])],
+                'condition' => ['nullable', Rule::in(['new', 'good', 'fair', 'poor'])],
                 'purchase_date' => 'nullable|date',
-                'purchase_price' => 'nullable|numeric|min:0',
+                'purchase_price' => 'nullable|numeric|min:0|decimal:0,2',
                 'warranty_expiry' => 'nullable|date',
                 'last_maintenance_date' => 'nullable|date',
                 'next_maintenance_date' => 'nullable|date',
                 'location' => 'nullable|string|max:255',
                 'notes' => 'nullable|string',
+
+                // Refractory-specific fields
+                'temperature_rating' => 'nullable|string|max:255',
+                'chemical_composition' => 'nullable|json',
+                'application_type' => 'nullable|string|max:255',
+                'technical_specifications' => 'nullable|json',
+                'material_safety_data' => 'nullable|json',
+                'installation_guidelines' => 'nullable|string',
+                'maintenance_requirements' => 'nullable|string',
+                'quality_certifications' => 'nullable|json',
+                'storage_conditions' => 'nullable|json',
+                'batch_number' => 'nullable|string|max:255',
+                'manufacturing_date' => 'nullable|date',
+                'expiry_date' => 'nullable|date',
+                'physical_properties' => 'nullable|json',
+                'dimensional_specifications' => 'nullable|json',
+                'visual_inspection_criteria' => 'nullable|json',
             ]);
+
+            // Handle JSON fields
+            $jsonFields = [
+                'chemical_composition',
+                'technical_specifications',
+                'material_safety_data',
+                'quality_certifications',
+                'storage_conditions',
+                'physical_properties',
+                'dimensional_specifications',
+                'visual_inspection_criteria'
+            ];
+
+            foreach ($jsonFields as $field) {
+                if (isset($validated[$field]) && is_string($validated[$field])) {
+                    $validated[$field] = json_decode($validated[$field], true);
+                }
+            }
 
             $equipment->update($validated);
 
@@ -169,15 +247,13 @@ class EquipmentController extends Controller
      */
     public function destroy(Equipment $equipment)
     {
-        if ($equipment->maintenanceRecords()->exists()) {
-            return back()->with('error', 'Cannot delete equipment with associated maintenance records.');
-        }
-
+        $equipment->status = 'retired';
+        $equipment->save();
         $equipment->delete();
 
         return redirect()
             ->route('equipment.equipment.index')
-            ->with('success', 'Equipment deleted successfully.');
+            ->with('success', 'Equipment soft deleted successfully.');
     }
 
     /**
@@ -226,7 +302,7 @@ class EquipmentController extends Controller
     public function data(Request $request)
     {
         try {
-            $query = Equipment::query()->with(['category.categoryType', 'equipmentSeries']);
+            $query = Equipment::query()->withTrashed()->with(['category', 'equipmentSeries']);
 
             // Filter by category
             if ($request->filled('category_id')) {
@@ -241,8 +317,6 @@ class EquipmentController extends Controller
             // Filter by status
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
-            } else {
-                $query->active(); // Only show active by default
             }
 
             // Search functionality

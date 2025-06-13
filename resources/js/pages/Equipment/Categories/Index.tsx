@@ -58,7 +58,6 @@ export default function Index({ auth, categories }: Props) {
     const [pendingRestore, setPendingRestore] = useState<Category | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-    const [showDeleted, setShowDeleted] = useState(false);
 
     const form = useForm({
         status: '',
@@ -132,9 +131,7 @@ export default function Index({ auth, categories }: Props) {
                     (category.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
                 
                 const matchesStatus = statusFilter === 'all' || category.status === statusFilter;
-                const matchesDeleted = showDeleted ? category.deleted_at !== null : category.deleted_at === null;
-                
-                return matchesSearch && matchesStatus && matchesDeleted;
+                return matchesSearch && matchesStatus;
             })
             .sort((a, b) => {
                 const aValue = a.sort_order;
@@ -142,7 +139,7 @@ export default function Index({ auth, categories }: Props) {
                 
                 return aValue - bValue;
             });
-    }, [categories, searchQuery, statusFilter, showDeleted]);
+    }, [categories, searchQuery, statusFilter]);
 
     const categoryColumns: DataTableColumn<Category>[] = [
         { 
@@ -192,6 +189,7 @@ export default function Index({ auth, categories }: Props) {
                     onChange={(event) => handleStatusChange(record, event.currentTarget.checked ? 'active' : 'inactive')}
                     color="green"
                     size="md"
+                    disabled={record.deleted_at !== null}
                 />
             )
         },
@@ -200,7 +198,18 @@ export default function Index({ auth, categories }: Props) {
             title: 'Actions',
             render: (record: Category) => (
                 <Group gap="xs">
-                    {!record.deleted_at ? (
+                    {record.deleted_at ? (
+                        <Tooltip label="Restore Category">
+                            <Button
+                                variant="light"
+                                color="green"
+                                size="xs"
+                                onClick={() => handleRestoreCategory(record)}
+                            >
+                                <RotateCcw size={14} />
+                            </Button>
+                        </Tooltip>
+                    ) : (
                         <>
                             <Tooltip label="Edit Category">
                                 <Button
@@ -222,17 +231,6 @@ export default function Index({ auth, categories }: Props) {
                                 </Button>
                             </Tooltip>
                         </>
-                    ) : (
-                        <Tooltip label="Restore Category">
-                            <Button
-                                variant="light"
-                                color="green"
-                                size="xs"
-                                onClick={() => handleRestoreCategory(record)}
-                            >
-                                <RotateCcw size={14} />
-                            </Button>
-                        </Tooltip>
                     )}
                 </Group>
             )
@@ -279,11 +277,6 @@ export default function Index({ auth, categories }: Props) {
                                         { value: 'inactive', label: 'Inactive' },
                                     ]}
                                     leftSection={<Filter size={14} />}
-                                />
-                                <Switch
-                                    label="Show Deleted"
-                                    checked={showDeleted}
-                                    onChange={(event) => setShowDeleted(event.currentTarget.checked)}
                                 />
                             </Group>
                             <DataTable

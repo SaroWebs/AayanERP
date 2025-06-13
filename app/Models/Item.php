@@ -25,11 +25,38 @@ class Item extends Model
     ];
 
     /**
+     * Validation rules for the model.
+     */
+    public static $rules = [
+        'name' => 'required|string|max:255',
+        'code' => 'required|string|max:50|unique:items',
+        'description_1' => 'nullable|string',
+        'description_2' => 'nullable|string',
+        'applicable_for' => 'required|in:all,equipment,scaffolding',
+        'hsn' => 'nullable|string|max:50',
+        'unit' => 'nullable|in:set,nos,rmt,sqm,ltr,na',
+        'minimum_stock' => 'required|integer|min:0',
+        'current_stock' => 'required|integer|min:0',
+        'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
+        'reorder_point' => 'nullable|integer|min:0',
+        'sort_order' => 'integer|min:0',
+        'status' => 'required|in:active,inactive',
+    ];
+
+    /**
      * Get the stock movements for the item.
      */
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    /**
+     * Get the last stock movement for the item.
+     */
+    public function lastStockMovement()
+    {
+        return $this->stockMovements()->latest()->first();
     }
 
     /**
@@ -57,10 +84,95 @@ class Item extends Model
     }
 
     /**
+     * Scope a query to filter items that need reordering.
+     */
+    public function scopeNeedsReorder($query)
+    {
+        return $query->whereRaw('current_stock <= reorder_point');
+    }
+
+    /**
+     * Scope a query to filter items with low stock.
+     */
+    public function scopeLowStock($query)
+    {
+        return $query->whereRaw('current_stock <= minimum_stock');
+    }
+
+    /**
      * Check if item needs reordering.
      */
     public function needsReorder(): bool
     {
         return $this->current_stock <= $this->reorder_point;
+    }
+
+    /**
+     * Check if item has low stock.
+     */
+    public function hasLowStock(): bool
+    {
+        return $this->current_stock <= $this->minimum_stock;
+    }
+
+    /**
+     * Check if item has excess stock.
+     */
+    public function hasExcessStock(): bool
+    {
+        return $this->maximum_stock !== null && $this->current_stock > $this->maximum_stock;
+    }
+
+    /**
+     * Get the stock level status.
+     */
+    public function getStockLevelStatus(): string
+    {
+        if ($this->hasLowStock()) {
+            return 'low';
+        }
+        if ($this->hasExcessStock()) {
+            return 'excess';
+        }
+        return 'normal';
+    }
+
+    /**
+     * Add stock to the item.
+     */
+    public function addStock(int $quantity): bool
+    {
+        if ($quantity <= 0) {
+            return false;
+        }
+
+        $this->current_stock += $quantity;
+        return $this->save();
+    }
+
+    /**
+     * Remove stock from the item.
+     */
+    public function removeStock(int $quantity): bool
+    {
+        if ($quantity <= 0 || $this->current_stock < $quantity) {
+            return false;
+        }
+
+        $this->current_stock -= $quantity;
+        return $this->save();
+    }
+
+    /**
+     * Set the current stock level.
+     */
+    public function setStock(int $quantity): bool
+    {
+        if ($quantity < 0) {
+            return false;
+        }
+
+        $this->current_stock = $quantity;
+        return $this->save();
     }
 }
