@@ -60,7 +60,7 @@ interface FormData {
     [key: string]: FormDataConvertible;
 }
 
-export default function CreateItemModal({ opened, onClose, loadData }: Props) {
+export default function CreateRefractoryProductModal({ opened, onClose, loadData }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm<FormData>({
         // Basic Information
         name: '',

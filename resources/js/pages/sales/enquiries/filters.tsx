@@ -1,117 +1,175 @@
-import { Paper, Grid, Select, TextInput, Button, Group, Stack } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { X } from 'lucide-react';
-import { EnquiryFilters as Filters } from './types';
+import { useState } from 'react';
+import { 
+    Paper, 
+    Group, 
+    TextInput, 
+    Select, 
+    MultiSelect, 
+    Button, 
+    Stack,
+    NumberInput,
+    ActionIcon,
+    Tooltip
+} from '@mantine/core';
+import { DatePickerInput, DatesRangeValue } from '@mantine/dates';
+import { Filter, X } from 'lucide-react';
+import { EnquiryFilters, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS, ENQUIRY_SOURCE_LABELS, NATURE_OF_WORK_LABELS } from './types';
 
-interface Props {
-    filters: Filters;
-    clients?: Array<{ id: number; name: string }>;
-    onChange: (filters: Filters) => void;
+interface FiltersProps {
+    filters: EnquiryFilters;
+    onFiltersChange: (filters: EnquiryFilters) => void;
+    onReset: () => void;
+    users: Array<{ id: number; name: string }>;
+    clients: Array<{ id: number; name: string }>;
 }
 
-export function EnquiryFilters({ filters, clients, onChange }: Props) {
-    const handleFilterChange = (key: keyof Filters, value: any) => {
-        onChange({
-            ...filters,
-            [key]: value,
-        });
+export function Filters({ filters, onFiltersChange, onReset, users, clients }: FiltersProps) {
+    const [showFilters, setShowFilters] = useState(false);
+
+    const handleFilterChange = (key: keyof EnquiryFilters, value: any) => {
+        onFiltersChange({ ...filters, [key]: value });
     };
 
-    const handleClearFilters = () => {
-        onChange({
-            status: undefined,
-            approval_status: undefined,
-            client_id: undefined,
-            from_date: null,
-            to_date: null,
-            search: undefined,
-        });
+    const toggleFilters = () => {
+        setShowFilters(!showFilters);
+        if (showFilters) {
+            onReset();
+        }
     };
 
     return (
-        <Paper withBorder p="md">
-            <Stack gap="md">
-                <Grid>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <Select
-                            label="Status"
-                            placeholder="Select status"
-                            data={[
-                                { value: 'draft', label: 'Draft' },
-                                { value: 'pending_review', label: 'Pending Review' },
-                                { value: 'approved', label: 'Approved' },
-                                { value: 'rejected', label: 'Rejected' },
-                                { value: 'cancelled', label: 'Cancelled' },
-                            ]}
-                            value={filters.status}
-                            onChange={(value) => handleFilterChange('status', value)}
-                            clearable
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <Select
-                            label="Approval Status"
-                            placeholder="Select approval status"
-                            data={[
-                                { value: 'not_required', label: 'Not Required' },
-                                { value: 'pending', label: 'Pending' },
-                                { value: 'approved', label: 'Approved' },
-                                { value: 'rejected', label: 'Rejected' },
-                            ]}
-                            value={filters.approval_status}
-                            onChange={(value) => handleFilterChange('approval_status', value)}
-                            clearable
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <Select
-                            label="Client"
-                            placeholder="Select client"
-                            data={clients?.map(client => ({ value: client.id.toString(), label: client.name })) || []}
-                            value={filters.client_id?.toString()}
-                            onChange={(value) => handleFilterChange('client_id', value ? parseInt(value) : undefined)}
-                            searchable
-                            clearable
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <TextInput
-                            label="Search"
-                            placeholder="Search enquiries..."
-                            value={filters.search || ''}
-                            onChange={(e) => handleFilterChange('search', e.target.value)}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <DatePickerInput
-                            label="From Date"
-                            placeholder="Select date"
-                            value={filters.from_date}
-                            onChange={(value) => handleFilterChange('from_date', value)}
-                            clearable
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                        <DatePickerInput
-                            label="To Date"
-                            placeholder="Select date"
-                            value={filters.to_date}
-                            onChange={(value) => handleFilterChange('to_date', value)}
-                            clearable
-                        />
-                    </Grid.Col>
-                </Grid>
-
-                <Group justify="flex-end">
-                    <Button
-                        variant="light"
+        <Paper withBorder p="md" radius="md">
+            <Group justify="space-between" mb="md">
+                <Group>
+                    <TextInput
+                        placeholder="Search enquiries..."
+                        value={filters.search || ''}
+                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                        style={{ width: 300 }}
+                    />
+                    <Tooltip label={showFilters ? "Hide Filters" : "Show Filters"}>
+                        <ActionIcon 
+                            variant={showFilters ? "filled" : "light"} 
+                            color="blue" 
+                            onClick={toggleFilters}
+                        >
+                            <Filter size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                {showFilters && (
+                    <Button 
+                        variant="subtle" 
+                        color="red" 
                         leftSection={<X size={16} />}
-                        onClick={handleClearFilters}
+                        onClick={onReset}
                     >
                         Clear Filters
                     </Button>
+                )}
+            </Group>
+
+            {showFilters && (
+                <Stack>
+                    <Group grow>
+                        <MultiSelect
+                            label="Status"
+                            placeholder="Select statuses"
+                            data={Object.entries(ENQUIRY_STATUS_COLORS).map(([value, color]) => ({
+                                value,
+                                label: value.split('_').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                ).join(' '),
+                                color
+                            }))}
+                            value={filters.status || []}
+                            onChange={(value) => handleFilterChange('status', value)}
+                            clearable
+                        />
+                        <MultiSelect
+                            label="Priority"
+                            placeholder="Select priorities"
+                            data={Object.entries(ENQUIRY_PRIORITY_COLORS).map(([value, color]) => ({
+                                value,
+                                label: value.charAt(0).toUpperCase() + value.slice(1),
+                                color
+                            }))}
+                            value={filters.priority || []}
+                            onChange={(value) => handleFilterChange('priority', value)}
+                            clearable
+                        />
+                        <MultiSelect
+                            label="Type"
+                            placeholder="Select types"
+                            data={Object.entries(ENQUIRY_TYPE_LABELS).map(([value, label]) => ({
+                                value,
+                                label
+                            }))}
+                            value={filters.type || []}
+                            onChange={(value) => handleFilterChange('type', value)}
+                            clearable
+                        />
+                    </Group>
+
+                    <Group grow>
+                        <MultiSelect
+                            label="Source"
+                            placeholder="Select sources"
+                            data={Object.entries(ENQUIRY_SOURCE_LABELS).map(([value, label]) => ({
+                                value,
+                                label
+                            }))}
+                            value={filters.source || []}
+                            onChange={(value) => handleFilterChange('source', value)}
+                            clearable
+                        />
+                        <MultiSelect
+                            label="Nature of Work"
+                            placeholder="Select nature of work"
+                            data={Object.entries(NATURE_OF_WORK_LABELS).map(([value, label]) => ({
+                                value,
+                                label
+                            }))}
+                            value={filters.nature_of_work || []}
+                            onChange={(value) => handleFilterChange('nature_of_work', value)}
+                            clearable
+                        />
+                        <Select
+                            label="Assigned To"
+                            placeholder="Select user"
+                            data={users.map(user => ({
+                                value: user.id.toString(),
+                                label: user.name
+                            }))}
+                            value={filters.assigned_to?.toString()}
+                            onChange={(value) => handleFilterChange('assigned_to', value ? parseInt(value) : undefined)}
+                            clearable
+                        />
+                    </Group>
+
+                    <Group grow>
+                        <Select
+                            label="Client"
+                            placeholder="Select client"
+                            data={clients.map(client => ({
+                                value: client.id.toString(),
+                                label: client.name
+                            }))}
+                            value={filters.client_id?.toString()}
+                            onChange={(value) => handleFilterChange('client_id', value ? parseInt(value) : undefined)}
+                            clearable
+                        />
+                        <DatePickerInput
+                            type="range"
+                            label="Date Range"
+                            placeholder="Select date range"
+                            value={filters.date_range}
+                            onChange={(value: DatesRangeValue) => handleFilterChange('date_range', value)}
+                            clearable
+                        />
                 </Group>
             </Stack>
+            )}
         </Paper>
     );
 } 

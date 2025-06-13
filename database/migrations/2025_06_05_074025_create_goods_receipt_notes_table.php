@@ -84,6 +84,25 @@ return new class extends Migration
             $table->string('inspection_report_path')->nullable();
             $table->string('return_document_path')->nullable();
             
+            // Refractory-specific quality check fields
+            $table->json('temperature_resistance_test')->nullable();
+            $table->json('chemical_composition_test')->nullable();
+            $table->json('physical_properties_test')->nullable();
+            $table->json('dimensional_accuracy_test')->nullable();
+            $table->json('visual_inspection_results')->nullable();
+            $table->json('quality_certification_verification')->nullable();
+            $table->json('batch_consistency_check')->nullable();
+            $table->json('storage_condition_verification')->nullable();
+            
+            // Test Environment Details
+            $table->decimal('test_temperature', 10, 2)->nullable();
+            $table->decimal('test_pressure', 10, 2)->nullable();
+            $table->integer('test_duration')->nullable();
+            $table->string('test_environment')->nullable();
+            $table->string('test_equipment_used')->nullable();
+            $table->string('test_operator')->nullable();
+            $table->text('test_remarks')->nullable();
+            
             // Soft deletes for data retention
             $table->softDeletes();
             $table->timestamps();

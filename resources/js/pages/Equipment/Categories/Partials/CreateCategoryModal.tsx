@@ -1,69 +1,99 @@
 import { useForm } from '@inertiajs/react';
-import { Modal, TextInput, Select, Button, Stack, Grid, Textarea, Group } from '@mantine/core';
+import { Modal, TextInput, Select, Button, Stack, Grid, Textarea, Group, NumberInput, ActionIcon, Paper, Text } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { slugify } from '@/lib/utils';
-
-interface CategoryType {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-    status: 'active' | 'inactive';
-}
+import { Plus, Trash } from 'lucide-react';
 
 interface Category {
+    id: number;
+    name: string;
     sort_order: number;
+    parent_id: number | null;
 }
 
 interface Props {
     opened: boolean;
     onClose: () => void;
-    categoryTypes: CategoryType[];
     categories: Category[];
 }
 
-export default function CreateCategoryModal({ opened, onClose, categoryTypes, categories }: Props) {
-    const [filteredCategoryTypes, setFilteredCategoryTypes] = useState<CategoryType[]>([]);
+interface ArrayInputProps {
+    label: string;
+    value: string[];
+    onChange: (value: string[]) => void;
+    error?: string;
+    placeholder?: string;
+}
 
+function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' }: ArrayInputProps) {
+    const [newItem, setNewItem] = useState('');
+
+    const handleAdd = () => {
+        if (newItem.trim()) {
+            onChange([...value, newItem.trim()]);
+            setNewItem('');
+        }
+    };
+
+    const handleRemove = (index: number) => {
+        onChange(value.filter((_, i) => i !== index));
+    };
+
+    return (
+        <Stack gap="xs">
+            <Text size="sm" fw={500}>{label}</Text>
+            <Group gap="xs">
+                <TextInput
+                    placeholder={placeholder}
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    style={{ flex: 1 }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAdd();
+                        }
+                    }}
+                />
+                <ActionIcon variant="light" color="blue" onClick={handleAdd}>
+                    <Plus size={16} />
+                </ActionIcon>
+            </Group>
+            {error && <Text size="xs" c="red">{error}</Text>}
+            <Stack gap="xs">
+                {value.map((item, index) => (
+                    <Paper key={index} p="xs" withBorder>
+                        <Group justify="space-between">
+                            <Text size="sm">{item}</Text>
+                            <ActionIcon variant="light" color="red" onClick={() => handleRemove(index)}>
+                                <Trash size={16} />
+                            </ActionIcon>
+                        </Group>
+                    </Paper>
+                ))}
+            </Stack>
+        </Stack>
+    );
+}
+
+export default function CreateCategoryModal({ opened, onClose, categories }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         slug: '',
         description: '',
-        category_type_id: '',
-        hsn: '',
-        status: 'active' as 'active' | 'inactive',
-        variant: 'equipment' as 'equipment' | 'scaffolding',
+        status: 'active',
         sort_order: 0,
+        parent_id: '',
+        technical_requirements: [] as string[],
+        application_areas: [] as string[],
+        quality_standards: [] as string[],
     });
 
     useEffect(() => {
-        // Filter category types based on selected variant and active status
-        const filtered = categoryTypes.filter(type => 
-            type.variant === data.variant && 
-            type.status === 'active'
-        );
-        setFilteredCategoryTypes(filtered);
-        
-        // Reset category type when variant changes or if selected type becomes inactive
-        if (data.category_type_id) {
-            const selectedType = categoryTypes.find(type => type.id === Number(data.category_type_id));
-            if (selectedType?.variant !== data.variant || selectedType?.status !== 'active') {
-                setData('category_type_id', '');
-            }
-        }
-    }, [data.variant, categoryTypes]);
-
-    useEffect(() => {
-        // Auto-generate slug from name
         if (data.name) {
             setData('slug', slugify(data.name));
         }
     }, [data.name]);
-
-    useEffect(() => {
-        // Calculate next sort order whenever categories change
-        const maxSortOrder = Math.max(...categories.map(cat => cat.sort_order), 0);
-        setData('sort_order', maxSortOrder + 1);
-    }, [categories]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,6 +104,8 @@ export default function CreateCategoryModal({ opened, onClose, categoryTypes, ca
             },
         });
     };
+
+    const parentCategories = categories.filter(cat => !cat.parent_id);
 
     return (
         <Modal
@@ -105,42 +137,41 @@ export default function CreateCategoryModal({ opened, onClose, categoryTypes, ca
                                 required
                             />
                         </Grid.Col>
+                        <Grid.Col span={12}>
+                            <Textarea
+                                label="Description"
+                                id="description"
+                                value={data.description}
+                                onChange={(e) => setData('description', e.target.value)}
+                                error={errors.description}
+                            />
+                        </Grid.Col>
                         <Grid.Col span={6}>
                             <Select
-                                label="Variant"
-                                id="variant"
-                                value={data.variant}
-                                onChange={(value) => setData('variant', value as 'equipment' | 'scaffolding')}
-                                error={errors.variant}
+                                label="Parent Category"
+                                id="parent_id"
+                                value={data.parent_id}
+                                onChange={(value) => setData('parent_id', value || '')}
+                                error={errors.parent_id}
                                 data={[
-                                    { value: 'equipment', label: 'Equipment' },
-                                    { value: 'scaffolding', label: 'Scaffolding' }
+                                    { value: '', label: 'None' },
+                                    ...parentCategories.map(cat => ({
+                                        value: cat.id.toString(),
+                                        label: cat.name
+                                    }))
                                 ]}
-                                required
+                                clearable
                             />
                         </Grid.Col>
                         <Grid.Col span={6}>
-                            <Select
-                                label="Category Type"
-                                id="category_type_id"
-                                value={data.category_type_id}
-                                onChange={(value) => setData('category_type_id', value || '')}
-                                error={errors.category_type_id}
-                                data={filteredCategoryTypes.map(type => ({
-                                    value: type.id.toString(),
-                                    label: type.name
-                                }))}
-                                disabled={!data.variant}
+                            <NumberInput
+                                label="Sort Order"
+                                id="sort_order"
+                                value={data.sort_order}
+                                onChange={(value: string | number) => setData('sort_order', Number(value) || 0)}
+                                error={errors.sort_order}
+                                min={0}
                                 required
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <TextInput
-                                label="HSN"
-                                id="hsn"
-                                value={data.hsn}
-                                onChange={(e) => setData('hsn', e.target.value)}
-                                error={errors.hsn}
                             />
                         </Grid.Col>
                         <Grid.Col span={6}>
@@ -158,13 +189,30 @@ export default function CreateCategoryModal({ opened, onClose, categoryTypes, ca
                             />
                         </Grid.Col>
                         <Grid.Col span={12}>
-                            <Textarea
-                                label="Description"
-                                id="description"
-                                value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
-                                error={errors.description}
-                                minRows={3}
+                            <ArrayInput
+                                label="Technical Requirements"
+                                value={data.technical_requirements}
+                                onChange={(value) => setData('technical_requirements', value)}
+                                error={errors.technical_requirements}
+                                placeholder="Enter technical requirement"
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <ArrayInput
+                                label="Application Areas"
+                                value={data.application_areas}
+                                onChange={(value) => setData('application_areas', value)}
+                                error={errors.application_areas}
+                                placeholder="Enter application area"
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <ArrayInput
+                                label="Quality Standards"
+                                value={data.quality_standards}
+                                onChange={(value) => setData('quality_standards', value)}
+                                error={errors.quality_standards}
+                                placeholder="Enter quality standard"
                             />
                         </Grid.Col>
                     </Grid>
@@ -174,7 +222,7 @@ export default function CreateCategoryModal({ opened, onClose, categoryTypes, ca
                             Cancel
                         </Button>
                         <Button type="submit" loading={processing}>
-                            Create Category
+                            Create
                         </Button>
                     </Group>
                 </Stack>

@@ -35,6 +35,21 @@ class Equipment extends Model
         'next_maintenance_date',
         'location',
         'notes',
+        'temperature_rating',
+        'chemical_composition',
+        'application_type',
+        'technical_specifications',
+        'material_safety_data',
+        'installation_guidelines',
+        'maintenance_requirements',
+        'quality_certifications',
+        'storage_conditions',
+        'batch_number',
+        'manufacturing_date',
+        'expiry_date',
+        'physical_properties',
+        'dimensional_specifications',
+        'visual_inspection_criteria',
     ];
 
     protected $casts = [
@@ -59,6 +74,21 @@ class Equipment extends Model
         'next_maintenance_date' => 'date',
         'location' => 'string',
         'notes' => 'string',
+        'temperature_rating' => 'string',
+        'chemical_composition' => 'json',
+        'application_type' => 'string',
+        'technical_specifications' => 'json',
+        'material_safety_data' => 'json',
+        'installation_guidelines' => 'text',
+        'maintenance_requirements' => 'text',
+        'quality_certifications' => 'json',
+        'storage_conditions' => 'json',
+        'batch_number' => 'string',
+        'manufacturing_date' => 'date',
+        'expiry_date' => 'date',
+        'physical_properties' => 'json',
+        'dimensional_specifications' => 'json',
+        'visual_inspection_criteria' => 'json',
     ];
 
     /**

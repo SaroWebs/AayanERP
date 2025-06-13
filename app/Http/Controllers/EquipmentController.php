@@ -273,4 +273,25 @@ class EquipmentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get a simple list of equipment for dropdowns.
+     */
+    public function getEquipment()
+    {
+        try {
+            $equipment = Equipment::select('id', 'name')
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json($equipment);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch equipment list',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

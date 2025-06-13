@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
-import { PageProps } from '@/types';
+import { Head, router, useForm } from '@inertiajs/react';
+import type { PageProps } from '@/types/index.d';
 import AppLayout from '@/layouts/app-layout';
 import { 
     Card, 
@@ -8,66 +8,59 @@ import {
     Stack,
     Text,
     Box,
-    Tabs,
     Badge,
     Switch,
     Modal,
+    TextInput,
+    Select,
+    ActionIcon,
+    Tooltip,
 } from '@mantine/core';
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, Search, Filter, ArrowDownNarrowWide, ArrowDownWideNarrow, Trash, RotateCcw } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { DataTable, DataTableColumn } from 'mantine-datatable';
 import CreateCategoryModal from './Partials/CreateCategoryModal';
 import EditCategoryModal from './Partials/EditCategoryModal';
-import CreateCategoryTypeModal from './Partials/CreateCategoryTypeModal';
-import EditCategoryTypeModal from './Partials/EditCategoryTypeModal';
 
 interface Category {
     id: number;
     name: string;
     slug: string;
     description: string | null;
-    category_type_id: number;
     hsn: string | null;
     status: 'active' | 'inactive';
     sort_order: number;
     created_at: string;
     updated_at: string;
-    category_type: CategoryType;
+    deleted_at: string | null;
+    parent: Category | null;
+    children: Category[];
+    parent_id: number | null;
+    technical_requirements: any[] | null;
+    application_areas: any[] | null;
+    quality_standards: any[] | null;
 }
 
-interface CategoryType {
-    id: number;
-    name: string;
-    slug: string;
-    description: string | null;
-    variant: 'equipment' | 'scaffolding';
-    status: 'active' | 'inactive';
-    created_at: string;
-    updated_at: string;
-}
 
 interface Props extends PageProps {
     categories: Category[];
-    categoryTypes: CategoryType[];
 }
 
-export default function Index({ auth, categories, categoryTypes }: Props) {
+export default function Index({ auth, categories }: Props) {
     const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false);
     const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
-    const [createCategoryTypeModalOpen, setCreateCategoryTypeModalOpen] = useState(false);
-    const [editCategoryTypeModalOpen, setEditCategoryTypeModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-    const [selectedCategoryType, setSelectedCategoryType] = useState<CategoryType | null>(null);
     const [statusConfirmModalOpen, setStatusConfirmModalOpen] = useState(false);
+    const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+    const [restoreConfirmModalOpen, setRestoreConfirmModalOpen] = useState(false);
     const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ id: number; status: 'active' | 'inactive' } | null>(null);
-    const [pendingCategoryStatusUpdate, setPendingCategoryStatusUpdate] = useState<{ id: number; status: 'active' | 'inactive' } | null>(null);
-    const [categoryStatusConfirmModalOpen, setCategoryStatusConfirmModalOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+    const [pendingRestore, setPendingRestore] = useState<Category | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [showDeleted, setShowDeleted] = useState(false);
 
     const form = useForm({
-        status: '',
-    });
-
-    const categoryForm = useForm({
         status: '',
     });
 
@@ -81,21 +74,16 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
         setEditCategoryModalOpen(true);
     };
 
-    const handleEditCategoryType = (categoryType: CategoryType) => {
-        setSelectedCategoryType(categoryType);
-        setEditCategoryTypeModalOpen(true);
-    };
-
-    const handleStatusChange = (categoryType: CategoryType, newStatus: 'active' | 'inactive') => {
+    const handleStatusChange = (category: Category, newStatus: 'active' | 'inactive') => {
         form.setData('status', newStatus);
-        setPendingStatusUpdate({ id: categoryType.id, status: newStatus });
+        setPendingStatusUpdate({ id: category.id, status: newStatus });
         setStatusConfirmModalOpen(true);
     };
 
     const confirmStatusUpdate = () => {
         if (!pendingStatusUpdate) return;
         
-        form.put(route('equipment.category-types.status.update', pendingStatusUpdate.id), {
+        form.put(route('equipment.categories.status.update', pendingStatusUpdate.id), {
             onSuccess: () => {
                 setStatusConfirmModalOpen(false);
                 setPendingStatusUpdate(null);
@@ -103,77 +91,102 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
         });
     };
 
-    const handleCategoryStatusChange = (category: Category, newStatus: 'active' | 'inactive') => {
-        categoryForm.setData('status', newStatus);
-        setPendingCategoryStatusUpdate({ id: category.id, status: newStatus });
-        setCategoryStatusConfirmModalOpen(true);
+    const handleDeleteCategory = (category: Category) => {
+        setPendingDelete(category);
+        setDeleteConfirmModalOpen(true);
     };
 
-    const confirmCategoryStatusUpdate = () => {
-        if (!pendingCategoryStatusUpdate) return;
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
         
-        categoryForm.put(route('equipment.categories.status.update', pendingCategoryStatusUpdate.id), {
+        router.delete(route('equipment.categories.destroy', pendingDelete.id), {
             onSuccess: () => {
-                setCategoryStatusConfirmModalOpen(false);
-                setPendingCategoryStatusUpdate(null);
+                setDeleteConfirmModalOpen(false);
+                setPendingDelete(null);
             },
         });
     };
 
+    const handleRestoreCategory = (category: Category) => {
+        setPendingRestore(category);
+        setRestoreConfirmModalOpen(true);
+    };
+
+    const confirmRestore = () => {
+        if (!pendingRestore) return;
+        
+        router.put(route('equipment.categories.restore', pendingRestore.id), {}, {
+            onSuccess: () => {
+                setRestoreConfirmModalOpen(false);
+                setPendingRestore(null);
+            },
+        });
+    };
+
+    const filteredCategories = useMemo(() => {
+        return categories
+            .filter(category => {
+                const matchesSearch = 
+                    category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    category.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (category.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+                
+                const matchesStatus = statusFilter === 'all' || category.status === statusFilter;
+                const matchesDeleted = showDeleted ? category.deleted_at !== null : category.deleted_at === null;
+                
+                return matchesSearch && matchesStatus && matchesDeleted;
+            })
+            .sort((a, b) => {
+                const aValue = a.sort_order;
+                const bValue = b.sort_order;
+                
+                return aValue - bValue;
+            });
+    }, [categories, searchQuery, statusFilter, showDeleted]);
+
     const categoryColumns: DataTableColumn<Category>[] = [
-        { accessor: 'name', title: 'Name' },
-        { accessor: 'slug', title: 'Slug' },
         { 
-            accessor: 'category_type.name',
-            title: 'Category Type'
-        },
-        { 
-            accessor: 'status',
-            title: 'Status',
-            render: (record: Category) => (
-                <Switch
-                    checked={record.status === 'active'}
-                    onChange={(event) => handleCategoryStatusChange(record, event.currentTarget.checked ? 'active' : 'inactive')}
-                    color="green"
-                    size="md"
-                />
-            )
-        },
-        {
-            accessor: 'actions',
-            title: 'Actions',
+            accessor: 'name', 
+            title: (
+                <Group gap="xs">
+                    Name
+                </Group>
+            ),
             render: (record: Category) => (
                 <Group gap="xs">
-                    <Button
-                        variant="light"
-                        size="xs"
-                        onClick={() => handleEditCategory(record)}
-                    >
-                        Edit
-                    </Button>
+                    {record.parent && (
+                        <Text size="sm" c="dimmed">↳</Text>
+                    )}
+                    <Group gap="xs">
+                        <Text>{record.name}</Text>
+                        {record.deleted_at && (
+                            <Badge color="red" variant="light">Deleted</Badge>
+                        )}
+                    </Group>
                 </Group>
-            )
-        }
-    ];
-
-    const categoryTypeColumns: DataTableColumn<CategoryType>[] = [
-        { accessor: 'name', title: 'Name' },
-        { accessor: 'slug', title: 'Slug' },
-        { 
-            accessor: 'variant',
-            title: 'Variant',
-            render: (record: CategoryType) => (
-                <Badge
-                    color={record.variant === 'equipment' ? 'blue' : 'green'}
-                >
-                    {record.variant}
-                </Badge>
             )
         },
         { 
+            accessor: 'slug', 
+            title: (
+                <Group gap="xs">
+                    Slug
+                </Group>
+            )
+        },
+        { 
+            accessor: 'parent',
+            title: 'Parent Category',
+            render: (record: Category) => record.parent?.name || '-'
+        },
+        { 
             accessor: 'status',
-            title: 'Status',
-            render: (record: CategoryType) => (
+            title: (
+                <Group gap="xs">
+                    Status
+                </Group>
+            ),
+            render: (record: Category) => (
                 <Switch
                     checked={record.status === 'active'}
                     onChange={(event) => handleStatusChange(record, event.currentTarget.checked ? 'active' : 'inactive')}
@@ -185,15 +198,42 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
         {
             accessor: 'actions',
             title: 'Actions',
-            render: (record: CategoryType) => (
+            render: (record: Category) => (
                 <Group gap="xs">
-                    <Button
-                        variant="light"
-                        size="xs"
-                        onClick={() => handleEditCategoryType(record)}
-                    >
-                        Edit
-                    </Button>
+                    {!record.deleted_at ? (
+                        <>
+                            <Tooltip label="Edit Category">
+                                <Button
+                                    variant="light"
+                                    size="xs"
+                                    onClick={() => handleEditCategory(record)}
+                                >
+                                    Edit
+                                </Button>
+                            </Tooltip>
+                            <Tooltip label="Delete Category">
+                                <Button
+                                    variant="light"
+                                    color="red"
+                                    size="xs"
+                                    onClick={() => handleDeleteCategory(record)}
+                                >
+                                    <Trash size={14} />
+                                </Button>
+                            </Tooltip>
+                        </>
+                    ) : (
+                        <Tooltip label="Restore Category">
+                            <Button
+                                variant="light"
+                                color="green"
+                                size="xs"
+                                onClick={() => handleRestoreCategory(record)}
+                            >
+                                <RotateCcw size={14} />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </Group>
             )
         }
@@ -204,66 +244,66 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             <Head title="Categories" />
 
             <Box py="xl">
-                    <Card>
+                <Card>
                     <Card.Section p="md">
                         <Group justify="space-between">
                             <Text fw={500} size="xl">Categories</Text>
                             <Group>
-                            <Button
-                                    leftSection={<Plus size={16} />}
-                                    onClick={() => setCreateCategoryModalOpen(true)}
-                            >
-                                Add Category
-                            </Button>
                                 <Button
                                     leftSection={<Plus size={16} />}
-                                    onClick={() => setCreateCategoryTypeModalOpen(true)}
+                                    onClick={() => setCreateCategoryModalOpen(true)}
                                 >
-                                    Add Category Type
+                                    Add Category
                                 </Button>
                             </Group>
                         </Group>
                     </Card.Section>
 
                     <Card.Section p="md">
-                        <Tabs defaultValue="categories">
-                            <Tabs.List>
-                                <Tabs.Tab value="categories">Categories</Tabs.Tab>
-                                <Tabs.Tab value="category-types">Category Types</Tabs.Tab>
-                            </Tabs.List>
-
-                            <Tabs.Panel value="categories" pt="md">
-                                <DataTable
-                                    borderRadius="sm"
-                                    withTableBorder
-                                    withColumnBorders
-                                    striped
-                                    highlightOnHover
-                                    records={categories}
-                                    columns={categoryColumns}
+                        <Stack gap="md">
+                            <Group>
+                                <TextInput
+                                    placeholder="Search categories..."
+                                    leftSection={<Search size={14} />}
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                                    style={{ flex: 1 }}
                                 />
-                            </Tabs.Panel>
-
-                            <Tabs.Panel value="category-types" pt="md">
-                                <DataTable
-                                    borderRadius="sm"
-                                    withTableBorder
-                                    withColumnBorders
-                                    striped
-                                    highlightOnHover
-                                    records={categoryTypes}
-                                    columns={categoryTypeColumns}
+                                <Select
+                                    placeholder="Filter by status"
+                                    value={statusFilter}
+                                    onChange={(value) => setStatusFilter(value as 'all' | 'active' | 'inactive')}
+                                    data={[
+                                        { value: 'all', label: 'All Status' },
+                                        { value: 'active', label: 'Active' },
+                                        { value: 'inactive', label: 'Inactive' },
+                                    ]}
+                                    leftSection={<Filter size={14} />}
                                 />
-                            </Tabs.Panel>
-                        </Tabs>
+                                <Switch
+                                    label="Show Deleted"
+                                    checked={showDeleted}
+                                    onChange={(event) => setShowDeleted(event.currentTarget.checked)}
+                                />
+                            </Group>
+                            <DataTable
+                                borderRadius="sm"
+                                withTableBorder
+                                withColumnBorders
+                                striped
+                                highlightOnHover
+                                records={filteredCategories}
+                                columns={categoryColumns}
+                                noRecordsText="No categories found"
+                            />
+                        </Stack>
                     </Card.Section>
-                    </Card>
+                </Card>
             </Box>
 
             <CreateCategoryModal
                 opened={createCategoryModalOpen}
                 onClose={() => setCreateCategoryModalOpen(false)}
-                categoryTypes={categoryTypes}
                 categories={categories}
             />
 
@@ -274,21 +314,7 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
                     setSelectedCategory(null);
                 }}
                 category={selectedCategory}
-                categoryTypes={categoryTypes}
-            />
-
-            <CreateCategoryTypeModal
-                opened={createCategoryTypeModalOpen}
-                onClose={() => setCreateCategoryTypeModalOpen(false)}
-            />
-
-            <EditCategoryTypeModal
-                opened={editCategoryTypeModalOpen}
-                onClose={() => {
-                    setEditCategoryTypeModalOpen(false);
-                    setSelectedCategoryType(null);
-                }}
-                categoryType={selectedCategoryType}
+                categories={categories}
             />
 
             <Modal
@@ -302,7 +328,7 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             >
                 <Stack>
                     <Text>
-                        Are you sure you want to {pendingStatusUpdate?.status === 'active' ? 'activate' : 'deactivate'} this category type?
+                        Are you sure you want to {pendingStatusUpdate?.status === 'active' ? 'activate' : 'deactivate'} this category?
                     </Text>
                     <Group justify="flex-end">
                         <Button
@@ -325,33 +351,66 @@ export default function Index({ auth, categories, categoryTypes }: Props) {
             </Modal>
 
             <Modal
-                opened={categoryStatusConfirmModalOpen}
+                opened={deleteConfirmModalOpen}
                 onClose={() => {
-                    setCategoryStatusConfirmModalOpen(false);
-                    setPendingCategoryStatusUpdate(null);
+                    setDeleteConfirmModalOpen(false);
+                    setPendingDelete(null);
                 }}
-                title="Confirm Status Change"
+                title="Confirm Delete"
                 size="sm"
             >
                 <Stack>
                     <Text>
-                        Are you sure you want to {pendingCategoryStatusUpdate?.status === 'active' ? 'activate' : 'deactivate'} this category?
+                        Are you sure you want to delete this category? This action cannot be undone.
                     </Text>
                     <Group justify="flex-end">
                         <Button
                             variant="light"
                             onClick={() => {
-                                setCategoryStatusConfirmModalOpen(false);
-                                setPendingCategoryStatusUpdate(null);
+                                setDeleteConfirmModalOpen(false);
+                                setPendingDelete(null);
                             }}
                         >
                             Cancel
                         </Button>
                         <Button
-                            color={pendingCategoryStatusUpdate?.status === 'active' ? 'green' : 'red'}
-                            onClick={confirmCategoryStatusUpdate}
+                            color="red"
+                            onClick={confirmDelete}
                         >
-                            Confirm
+                            Delete
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={restoreConfirmModalOpen}
+                onClose={() => {
+                    setRestoreConfirmModalOpen(false);
+                    setPendingRestore(null);
+                }}
+                title="Confirm Restore"
+                size="sm"
+            >
+                <Stack>
+                    <Text>
+                        Are you sure you want to restore this category? This will make it available again.
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setRestoreConfirmModalOpen(false);
+                                setPendingRestore(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="green"
+                            onClick={confirmRestore}
+                        >
+                            Restore
                         </Button>
                     </Group>
                 </Stack>

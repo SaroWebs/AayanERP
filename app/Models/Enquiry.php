@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class Enquiry extends Model
 {
@@ -16,12 +17,22 @@ class Enquiry extends Model
 
     protected $casts = [
         'enquiry_date' => 'date',
-        'follow_up_date' => 'date',
+        'required_date' => 'date',
+        'valid_until' => 'date',
         'converted_date' => 'date',
+        'next_follow_up_date' => 'date',
+        'approved_at' => 'datetime',
+        'estimated_value' => 'decimal:2',
+        'quantity' => 'integer',
+        'duration' => 'integer',
         'type' => 'string',
         'status' => 'string',
         'priority' => 'string',
         'source' => 'string',
+        'nature_of_work' => 'string',
+        'duration_unit' => 'string',
+        'approval_status' => 'string',
+        'currency' => 'string'
     ];
 
     /**
@@ -65,6 +76,30 @@ class Enquiry extends Model
     }
 
     /**
+     * Get the equipment for the enquiry.
+     */
+    public function equipment(): BelongsTo
+    {
+        return $this->belongsTo(Equipment::class, 'equipment_id');
+    }
+
+    /**
+     * Get the employee that referred the enquiry.
+     */
+    public function referrer(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'referred_by');
+    }
+
+    /**
+     * Get the user that approved the enquiry.
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
      * Scope a query to only include active enquiries.
      */
     public function scopeActive($query)
@@ -86,5 +121,286 @@ class Enquiry extends Model
     public function scopePendingFollowUp($query)
     {
         return $query->where('status', 'pending_follow_up');
+    }
+
+    /**
+     * Scope a query to only include enquiries requiring approval.
+     */
+    public function scopePendingApproval(Builder $query): Builder
+    {
+        return $query->where('approval_status', 'pending');
+    }
+
+    /**
+     * Scope a query to only include enquiries by status.
+     */
+    public function scopeByStatus(Builder $query, string|array $status): Builder
+    {
+        return $query->whereIn('status', (array) $status);
+    }
+
+    /**
+     * Scope a query to only include enquiries by priority.
+     */
+    public function scopeByPriority(Builder $query, string|array $priority): Builder
+    {
+        return $query->whereIn('priority', (array) $priority);
+    }
+
+    /**
+     * Scope a query to only include enquiries by type.
+     */
+    public function scopeByType(Builder $query, string|array $type): Builder
+    {
+        return $query->whereIn('type', (array) $type);
+    }
+
+    /**
+     * Scope a query to only include enquiries by source.
+     */
+    public function scopeBySource(Builder $query, string|array $source): Builder
+    {
+        return $query->whereIn('source', (array) $source);
+    }
+
+    /**
+     * Scope a query to only include enquiries by nature of work.
+     */
+    public function scopeByNatureOfWork(Builder $query, string|array $nature): Builder
+    {
+        return $query->whereIn('nature_of_work', (array) $nature);
+    }
+
+    /**
+     * Scope a query to only include enquiries assigned to a user.
+     */
+    public function scopeAssignedTo(Builder $query, int $userId): Builder
+    {
+        return $query->where('assigned_to', $userId);
+    }
+
+    /**
+     * Scope a query to only include enquiries created by a user.
+     */
+    public function scopeCreatedBy(Builder $query, int $userId): Builder
+    {
+        return $query->where('created_by', $userId);
+    }
+
+    /**
+     * Scope a query to only include enquiries for a client.
+     */
+    public function scopeForClient(Builder $query, int $clientId): Builder
+    {
+        return $query->where('client_detail_id', $clientId);
+    }
+
+    /**
+     * Scope a query to only include enquiries within a date range.
+     */
+    public function scopeDateRange(Builder $query, string $startDate, string $endDate): Builder
+    {
+        return $query->whereBetween('enquiry_date', [$startDate, $endDate]);
+    }
+
+    /**
+     * Check if the enquiry can be edited.
+     */
+    public function canBeEdited(): bool
+    {
+        return !in_array($this->status, ['converted', 'lost', 'cancelled']);
+    }
+
+    /**
+     * Check if the enquiry can be deleted.
+     */
+    public function canBeDeleted(): bool
+    {
+        return !in_array($this->status, ['converted', 'lost', 'cancelled']);
+    }
+
+    /**
+     * Check if the enquiry requires approval.
+     */
+    public function requiresApproval(): bool
+    {
+        return $this->approval_status === 'pending';
+    }
+
+    /**
+     * Check if the enquiry is approved.
+     */
+    public function isApproved(): bool
+    {
+        return $this->approval_status === 'approved';
+    }
+
+    /**
+     * Check if the enquiry is converted.
+     */
+    public function isConverted(): bool
+    {
+        return $this->status === 'converted';
+    }
+
+    /**
+     * Get the formatted estimated value with currency.
+     */
+    public function getFormattedEstimatedValueAttribute(): string
+    {
+        if (!$this->estimated_value) return '-';
+        return $this->currency . ' ' . number_format($this->estimated_value, 2);
+    }
+
+    /**
+     * Get the formatted duration.
+     */
+    public function getFormattedDurationAttribute(): string
+    {
+        if (!$this->duration) return '-';
+        return $this->duration . ' ' . $this->duration_unit;
+    }
+
+    /**
+     * Get the formatted status with color.
+     */
+    public function getStatusWithColorAttribute(): array
+    {
+        return match($this->status) {
+            'new' => ['label' => 'New', 'color' => 'blue'],
+            'pending_follow_up' => ['label' => 'Pending Follow-up', 'color' => 'yellow'],
+            'in_progress' => ['label' => 'In Progress', 'color' => 'orange'],
+            'quoted' => ['label' => 'Quoted', 'color' => 'purple'],
+            'converted' => ['label' => 'Converted', 'color' => 'green'],
+            'lost' => ['label' => 'Lost', 'color' => 'red'],
+            'cancelled' => ['label' => 'Cancelled', 'color' => 'gray'],
+            default => ['label' => ucfirst($this->status), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the formatted priority with color.
+     */
+    public function getPriorityWithColorAttribute(): array
+    {
+        return match($this->priority) {
+            'low' => ['label' => 'Low', 'color' => 'green'],
+            'medium' => ['label' => 'Medium', 'color' => 'yellow'],
+            'high' => ['label' => 'High', 'color' => 'orange'],
+            'urgent' => ['label' => 'Urgent', 'color' => 'red'],
+            default => ['label' => ucfirst($this->priority), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the formatted type with color.
+     */
+    public function getTypeWithColorAttribute(): array
+    {
+        return match($this->type) {
+            'sales' => ['label' => 'Sales', 'color' => 'blue'],
+            'service' => ['label' => 'Service', 'color' => 'green'],
+            'rental' => ['label' => 'Rental', 'color' => 'purple'],
+            'spare_parts' => ['label' => 'Spare Parts', 'color' => 'orange'],
+            default => ['label' => ucfirst($this->type), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the formatted source with color.
+     */
+    public function getSourceWithColorAttribute(): array
+    {
+        return match($this->source) {
+            'website' => ['label' => 'Website', 'color' => 'blue'],
+            'referral' => ['label' => 'Referral', 'color' => 'green'],
+            'direct' => ['label' => 'Direct', 'color' => 'purple'],
+            'social_media' => ['label' => 'Social Media', 'color' => 'pink'],
+            'other' => ['label' => 'Other', 'color' => 'gray'],
+            default => ['label' => ucfirst($this->source), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the formatted nature of work with color.
+     */
+    public function getNatureOfWorkWithColorAttribute(): array
+    {
+        return match($this->nature_of_work) {
+            'new_installation' => ['label' => 'New Installation', 'color' => 'blue'],
+            'maintenance' => ['label' => 'Maintenance', 'color' => 'green'],
+            'repair' => ['label' => 'Repair', 'color' => 'orange'],
+            'upgrade' => ['label' => 'Upgrade', 'color' => 'purple'],
+            'consultation' => ['label' => 'Consultation', 'color' => 'cyan'],
+            default => ['label' => ucfirst($this->nature_of_work), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the formatted approval status with color.
+     */
+    public function getApprovalStatusWithColorAttribute(): array
+    {
+        return match($this->approval_status) {
+            'pending' => ['label' => 'Pending', 'color' => 'yellow'],
+            'approved' => ['label' => 'Approved', 'color' => 'green'],
+            'rejected' => ['label' => 'Rejected', 'color' => 'red'],
+            'not_required' => ['label' => 'Not Required', 'color' => 'gray'],
+            default => ['label' => ucfirst($this->approval_status), 'color' => 'gray']
+        };
+    }
+
+    /**
+     * Get the next follow-up date in a human-readable format.
+     */
+    public function getNextFollowUpDateFormattedAttribute(): string
+    {
+        if (!$this->next_follow_up_date) return '-';
+        return $this->next_follow_up_date->format('M d, Y');
+    }
+
+    /**
+     * Get the enquiry date in a human-readable format.
+     */
+    public function getEnquiryDateFormattedAttribute(): string
+    {
+        if (!$this->enquiry_date) return '-';
+        return $this->enquiry_date->format('M d, Y');
+    }
+
+    /**
+     * Get the required date in a human-readable format.
+     */
+    public function getRequiredDateFormattedAttribute(): string
+    {
+        if (!$this->required_date) return '-';
+        return $this->required_date->format('M d, Y');
+    }
+
+    /**
+     * Get the valid until date in a human-readable format.
+     */
+    public function getValidUntilFormattedAttribute(): string
+    {
+        if (!$this->valid_until) return '-';
+        return $this->valid_until->format('M d, Y');
+    }
+
+    /**
+     * Get the converted date in a human-readable format.
+     */
+    public function getConvertedDateFormattedAttribute(): string
+    {
+        if (!$this->converted_date) return '-';
+        return $this->converted_date->format('M d, Y');
+    }
+
+    /**
+     * Get the approved at date in a human-readable format.
+     */
+    public function getApprovedAtFormattedAttribute(): string
+    {
+        if (!$this->approved_at) return '-';
+        return $this->approved_at->format('M d, Y H:i');
     }
 }

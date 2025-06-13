@@ -1,101 +1,223 @@
-import { Head, router } from '@inertiajs/react';
-import { BreadcrumbItem, PageProps } from '@/types';
-import { Container, Title, Button, Group, Paper, Stack, LoadingOverlay } from '@mantine/core';
+import { useState, useCallback, useMemo } from 'react';
+import {
+    Container,
+    Title,
+    Group,
+    Button,
+    Paper,
+    LoadingOverlay,
+    Stack,
+    Text,
+    Modal,
+    ActionIcon,
+    Tooltip,
+    TextInput
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { Plus, RefreshCw, Edit, UserPlus, Trash, Search } from 'lucide-react';
 import { DataTable } from 'mantine-datatable';
-import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { columns } from './columns';
-import { EnquiryFilters } from './filters';
-import { EnquiryActionModal } from './EnquiryActionModal';
-import { AddNew } from './partials/AddNew';
-import { EditItem } from './partials/EditItem';
-import { Enquiry, EnquiryAction, EnquiryFilters as Filters } from './types';
-import AppLayout from '@/layouts/app-layout';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
+import { Enquiry } from './types';
+import { createColumns } from './columns';
+import { EnquiryActionModal } from './EnquiryActionModal';
+import { modals } from '@mantine/modals';
+import { Head, usePage } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem, PageProps } from '@/types';
 
-interface EnquiriesResponse {
-    data: Enquiry[];
-    links: any[];
-    total: number;
-    per_page: number;
-    current_page: number;
-}
-
-interface Props extends PageProps {
-    initialEnquiries: EnquiriesResponse;
-    initialFilters: Filters;
-    initialClients: Array<{ id: number; name: string }>;
-}
-
-export default function Index({ initialEnquiries, initialFilters, initialClients }: Props) {
-    const [enquiries, setEnquiries] = useState<EnquiriesResponse>(initialEnquiries);
-    const [filters, setFilters] = useState<Filters>(initialFilters);
-    const [clients, setClients] = useState<Array<{ id: number; name: string }>>(initialClients);
-    const [loading, setLoading] = useState(false);
-
+export default function EnquiriesPage() {
+    const { auth } = usePage<PageProps>().props;
     const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
-    const [actionModalOpen, setActionModalOpen] = useState(false);
-    const [action, setAction] = useState<EnquiryAction | null>(null);
-    const [addModalOpen, setAddModalOpen] = useState(false);
-    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [action, setAction] = useState<'view' | 'edit' | 'create' | 'assign'>('view');
+    const [opened, { open, close }] = useDisclosure(false);
+    const queryClient = useQueryClient();
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
 
-    const handleAction = (enquiry: Enquiry, action: EnquiryAction) => {
-        if (action === 'create') {
-            setAddModalOpen(true);
-            return;
+    // Fetch enquiries with search and pagination
+    const { data, isLoading, refetch } = useQuery({
+        queryKey: ['enquiries', search, page],
+        queryFn: async () => {
+            const { data } = await axios.get('/sales/enquiries/data', {
+                params: { search, page }
+            });
+            console.log('API Response:', data); // Debug log
+            return data;
         }
-        if (action === 'edit') {
-            setSelectedEnquiry(enquiry);
-            setEditModalOpen(true);
-            return;
+    });
+
+    // Debug logs
+    console.log('Data:', data);
+    console.log('Enquiries:', data?.data);
+    console.log('Total:', data?.total);
+    console.log('Per Page:', data?.per_page);
+
+    const enquiries = data?.data ?? [];
+    const totalRecords = data?.total ?? 0;
+    const recordsPerPage = data?.per_page ?? 10;
+
+    // Fetch users for assignment
+    const { data: users = [] } = useQuery({
+        queryKey: ['users'],
+        queryFn: async () => {
+            const { data } = await axios.get('/data/config/users');
+            return data;
         }
-        setSelectedEnquiry(enquiry);
-        setAction(action);
-        setActionModalOpen(true);
-    };
+    });
 
-    const closeActionModal = () => {
-        setActionModalOpen(false);
-        setSelectedEnquiry(null);
-        setAction(null);
-    };
 
-    const handlePageChange = (page: number) => {
-        loadData(page);
-    };
-
-    const handleFiltersChange = (newFilters: Filters) => {
-        setFilters(newFilters);
-        loadData(1);
-    };
-
-    const loadData = async (page: number = 1) => {
-        setLoading(true);
-        try {
-            const params = { ...filters, page };
-            const response = await axios.get(route('sales.enquiries.data'), { params });
-            
-            if (response.data.data) {
-                setEnquiries(response.data.data);
-            }
-            if (response.data.filters) {
-                setFilters(response.data.filters);
-            }
-            if (response.data.clients) {
-                setClients(response.data.clients);
-            }
-        } catch (error) {
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: async (id: number) => {
+            await axios.delete(`/sales/enquiries/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: 'Enquiry deleted successfully',
+                color: 'green'
+            });
+        },
+        onError: (error) => {
             notifications.show({
                 title: 'Error',
-                message: 'Failed to load enquiries',
-                color: 'red',
+                message: error.message || 'Failed to delete enquiry',
+                color: 'red'
             });
-            console.error('Error loading enquiries:', error);
-        } finally {
-            setLoading(false);
         }
-    };
+    });
+
+    // Status change mutation
+    const statusMutation = useMutation({
+        mutationFn: async ({ id, status }: { id: number; status: Enquiry['status'] }) => {
+            const endpoint = status === 'pending_review' ? 'submit' :
+                status === 'approved' ? 'approve' :
+                    status === 'converted' ? 'convert' :
+                        status === 'cancelled' ? 'cancel' : 'update';
+            await axios.post(`/sales/enquiries/${id}/${endpoint}`, { status });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: 'Status updated successfully',
+                color: 'green'
+            });
+        },
+        onError: (error) => {
+            notifications.show({
+                title: 'Error',
+                message: error.message || 'Failed to update status',
+                color: 'red'
+            });
+        }
+    });
+
+    // Priority change mutation
+    const priorityMutation = useMutation({
+        mutationFn: async ({ id, priority }: { id: number; priority: Enquiry['priority'] }) => {
+            await axios.put(`/sales/enquiries/${id}`, { priority });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: 'Priority updated successfully',
+                color: 'green'
+            });
+        },
+        onError: (error) => {
+            notifications.show({
+                title: 'Error',
+                message: error.message || 'Failed to update priority',
+                color: 'red'
+            });
+        }
+    });
+
+    // Assign mutation
+    const assignMutation = useMutation({
+        mutationFn: async ({ id, userId }: { id: number; userId: number }) => {
+            await axios.post(`/sales/enquiries/${id}/assign`, { assigned_to: userId });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: 'Enquiry assigned successfully',
+                color: 'green'
+            });
+            close();
+        },
+        onError: (error) => {
+            notifications.show({
+                title: 'Error',
+                message: error.message || 'Failed to assign enquiry',
+                color: 'red'
+            });
+        }
+    });
+
+    const handleView = useCallback((enquiry: Enquiry) => {
+        setSelectedEnquiry(enquiry);
+        setAction('view');
+        open();
+    }, [open]);
+
+    const handleEdit = useCallback((enquiry: Enquiry) => {
+        setSelectedEnquiry(enquiry);
+        setAction('edit');
+        open();
+    }, [open]);
+
+    const handleCreate = useCallback(() => {
+        setSelectedEnquiry(null);
+        setAction('create');
+        open();
+    }, [open]);
+
+    const handleAssign = useCallback((enquiry: Enquiry) => {
+        setSelectedEnquiry(enquiry);
+        setAction('assign');
+        open();
+    }, [open]);
+
+    const handleDelete = useCallback((enquiry: Enquiry) => {
+        modals.openConfirmModal({
+            title: 'Delete Enquiry',
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this enquiry? This action cannot be undone.
+                </Text>
+            ),
+            labels: { confirm: 'Delete', cancel: 'Cancel' },
+            confirmProps: { color: 'red' },
+            onConfirm: () => deleteMutation.mutate(enquiry.id)
+        });
+    }, [deleteMutation]);
+
+    const handleApprove = useCallback((enquiry: Enquiry) => {
+        statusMutation.mutate({ id: enquiry.id, status: 'approved' });
+    }, [statusMutation]);
+
+    const handleAssignSubmit = useCallback((userId: number) => {
+        if (selectedEnquiry) {
+            assignMutation.mutate({ id: selectedEnquiry.id, userId });
+        }
+    }, [selectedEnquiry, assignMutation]);
+
+    const columns = useMemo(() => createColumns({
+        onView: handleView,
+        onEdit: handleEdit,
+        onDelete: handleDelete,
+        onAssign: handleAssign,
+        onStatusChange: (enquiry, status) => statusMutation.mutate({ id: enquiry.id, status }),
+        onApprove: handleApprove,
+        currentUserId: auth.user.id
+    }), [handleView, handleEdit, handleDelete, handleAssign, statusMutation, handleApprove, auth.user.id]);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -104,78 +226,79 @@ export default function Index({ initialEnquiries, initialFilters, initialClients
         },
     ];
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Enquiries" />
-
-            <Container size="xl" py="xl">
-                <Stack gap="md">
-                    <Group justify="space-between">
+            <Container size="xl" className='w-full m-4'>
+                <Stack>
+                    <Group justify="space-between" align="center">
                         <Title order={2}>Enquiries</Title>
+                        <Group>
+                            <TextInput
+                                placeholder="Search enquiries..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                leftSection={<Search size={16} />}
+                                style={{ width: 300 }}
+                            />
+                            <Tooltip label="Refresh">
+                                <ActionIcon
+                                    variant="light"
+                                    color="blue"
+                                    onClick={() => refetch()}
+                                    loading={isLoading}
+                                >
+                                    <RefreshCw size={16} />
+                                </ActionIcon>
+                            </Tooltip>
                         <Button
                             leftSection={<Plus size={16} />}
-                            onClick={() => handleAction({} as Enquiry, 'create')}
+                                onClick={handleCreate}
                         >
                             New Enquiry
                         </Button>
+                        </Group>
                     </Group>
 
-                    <Paper p="md" pos="relative">
-                        <LoadingOverlay visible={loading} />
-                        {enquiries?.data ?
-                            <Stack gap="md">
-                                <EnquiryFilters
-                                    filters={filters}
-                                    clients={clients}
-                                    onChange={handleFiltersChange}
-                                />
-                                <DataTable
-                                    columns={columns(handleAction)}
-                                    records={enquiries.data}
-                                    totalRecords={enquiries.total}
-                                    recordsPerPage={enquiries.per_page}
-                                    page={enquiries.current_page}
-                                    onPageChange={handlePageChange}
-                                    withTableBorder
-                                    borderColor="gray.3"
-                                    striped
-                                    highlightOnHover
-                                    withColumnBorders
-                                    verticalAlign="top"
-                                    pinLastColumn
-                                />
-                            </Stack>
-                            : null
-                        }
+                    <Paper pos="relative" withBorder>
+                        <LoadingOverlay visible={isLoading} />
+                            <DataTable
+                            columns={columns}
+                            records={enquiries}
+                            withColumnBorders
+                                striped
+                                highlightOnHover
+                            totalRecords={totalRecords}
+                            recordsPerPage={recordsPerPage}
+                            page={page}
+                            onPageChange={setPage}
+                            paginationSize="sm"
+                            paginationText={({ from, to, totalRecords }) => 
+                                `Showing ${from} to ${to} of ${totalRecords} entries`
+                            }
+                        />
                     </Paper>
                 </Stack>
 
+                <Modal
+                    opened={opened}
+                    onClose={close}
+                    title={
+                        action === 'view' ? 'View Enquiry' :
+                            action === 'edit' ? 'Edit Enquiry' :
+                                action === 'create' ? 'Create Enquiry' :
+                                    'Assign Enquiry'
+                    }
+                    size="xl"
+                >
                 <EnquiryActionModal
-                    opened={actionModalOpen}
-                    onClose={closeActionModal}
-                    enquiry={selectedEnquiry}
                     action={action}
-                />
-
-                <AddNew
-                    opened={addModalOpen}
-                    onClose={() => setAddModalOpen(false)}
-                    clients={clients}
-                />
-
-                <EditItem
-                    opened={editModalOpen}
-                    onClose={() => {
-                        setEditModalOpen(false);
-                        setSelectedEnquiry(null);
-                    }}
                     enquiry={selectedEnquiry}
-                    clients={clients}
+                    onClose={close}
+                    onAssign={handleAssignSubmit}
+                    users={users}
                 />
+                </Modal>
             </Container>
         </AppLayout>
     );

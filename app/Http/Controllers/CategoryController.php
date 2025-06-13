@@ -3,100 +3,182 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\CategoryType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class CategoryController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Equipment/Categories/Index', [
-            'categories' => Category::with('categoryType')->get(),
-            'categoryTypes' => CategoryType::all(),
-        ]);
-    }
+        $categories = Cache::remember('categories.all', 3600, function () {
+            return Category::withTrashed()
+                ->with(['parent', 'children'])
+                ->orderBy('sort_order')
+                ->get();
+        });
 
-    public function indexTypes()
-    {
-        return Inertia::render('Equipment/CategoryTypes/Index', [
-            'categoryTypes' => CategoryType::with('categories')->get(),
+        return Inertia::render('Equipment/Categories/Index', [
+            'categories' => $categories,
         ]);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:categories',
-            'description' => 'nullable|string',
-            'category_type_id' => 'required|exists:category_types,id',
-            'hsn' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
-            'sort_order' => 'required|integer|min:0',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'slug' => 'required|string|max:255|unique:categories',
+                'description' => 'nullable|string',
+                'status' => 'required|in:active,inactive',
+                'sort_order' => 'required|integer|min:0',
+                'parent_id' => [
+                    'nullable',
+                    'exists:categories,id',
+                    function ($attribute, $value, $fail) {
+                        if ($value && Category::find($value)->hasChildren()) {
+                            $fail('Cannot set a category with children as parent.');
+                        }
+                    },
+                ],
+                'technical_requirements' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Technical requirements must be an array.');
+                            return;
+                        }
+                        foreach ($value as $key => $req) {
+                            if (!isset($req['name']) || !isset($req['value'])) {
+                                $fail('Each technical requirement must have a name and value.');
+                            }
+                        }
+                    },
+                ],
+                'application_areas' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Application areas must be an array.');
+                            return;
+                        }
+                        foreach ($value as $area) {
+                            if (!is_string($area)) {
+                                $fail('Each application area must be a string.');
+                            }
+                        }
+                    },
+                ],
+                'quality_standards' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Quality standards must be an array.');
+                            return;
+                        }
+                        foreach ($value as $standard) {
+                            if (!isset($standard['name']) || !isset($standard['value'])) {
+                                $fail('Each quality standard must have a name and value.');
+                            }
+                        }
+                    },
+                ],
+            ]);
 
-        Category::create($validated);
+            $category = Category::create($validated);
+            Cache::forget('categories.all');
 
-        return redirect()->back();
-    }
-
-    public function storeType(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:category_types',
-            'description' => 'nullable|string',
-            'variant' => 'required|in:equipment,scaffolding',
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        CategoryType::create($validated);
-
-        return redirect()->back();
+            return redirect()->back()->with('success', 'Category created successfully.');
+            
+        } catch (\Exception $e) {
+            Log::error('Category creation failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to create category. Please try again.');
+        }
     }
 
     public function update(Request $request, Category $category)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:categories,slug,' . $category->id,
-            'description' => 'nullable|string',
-            'category_type_id' => 'required|exists:category_types,id',
-            'hsn' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
-            'sort_order' => 'required|integer|min:0',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'slug' => 'required|string|max:255|unique:categories,slug,' . $category->id,
+                'description' => 'nullable|string',
+                'status' => 'required|in:active,inactive',
+                'sort_order' => 'required|integer|min:0',
+                'parent_id' => [
+                    'nullable',
+                    'exists:categories,id',
+                    function ($attribute, $value, $fail) use ($category) {
+                        if ($value === $category->id) {
+                            $fail('A category cannot be its own parent.');
+                        }
+                        if ($value && $category->children()->where('id', $value)->exists()) {
+                            $fail('Cannot set a child category as parent.');
+                        }
+                        if ($value && Category::find($value)->hasChildren()) {
+                            $fail('Cannot set a category with children as parent.');
+                        }
+                    },
+                ],
+                'technical_requirements' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Technical requirements must be an array.');
+                            return;
+                        }
+                        foreach ($value as $key => $req) {
+                            if (!isset($req['name']) || !isset($req['value'])) {
+                                $fail('Each technical requirement must have a name and value.');
+                            }
+                        }
+                    },
+                ],
+                'application_areas' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Application areas must be an array.');
+                            return;
+                        }
+                        foreach ($value as $area) {
+                            if (!is_string($area)) {
+                                $fail('Each application area must be a string.');
+                            }
+                        }
+                    },
+                ],
+                'quality_standards' => [
+                    'nullable',
+                    'array',
+                    function ($attribute, $value, $fail) {
+                        if (!is_array($value)) {
+                            $fail('Quality standards must be an array.');
+                            return;
+                        }
+                        foreach ($value as $standard) {
+                            if (!isset($standard['name']) || !isset($standard['value'])) {
+                                $fail('Each quality standard must have a name and value.');
+                            }
+                        }
+                    },
+                ],
+            ]);
 
-        $category->update($validated);
+            $category->update($validated);
+            Cache::forget('categories.all');
 
-        return redirect()->back();
-    }
-
-    public function updateType(Request $request, CategoryType $categoryType)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:category_types,slug,' . $categoryType->id,
-            'description' => 'nullable|string',
-            'variant' => 'required|in:equipment,scaffolding',
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        $categoryType->update($validated);
-
-        return redirect()->back();
-    }
-
-    public function updateTypeStatus(Request $request, CategoryType $categoryType)
-    {
-        $validated = $request->validate([
-            'status' => 'required|in:active,inactive',
-        ]);
-
-        $categoryType->update($validated);
-
-        return redirect()->back();
+            return redirect()->back()->with('success', 'Category updated successfully.');
+        } catch (\Exception $e) {
+            Log::error('Category update failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to update category. Please try again.');
+        }
     }
 
     public function updateStatus(Request $request, Category $category)
@@ -107,7 +189,7 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Category status updated successfully.');
     }
 
     public function destroy(Category $category)
@@ -116,67 +198,59 @@ class CategoryController extends Controller
             return back()->with('error', 'Cannot delete category with associated equipment.');
         }
 
-        $category->delete();
-        return redirect()->back();
-    }
-
-    public function destroyType(CategoryType $categoryType)
-    {
-        if ($categoryType->categories()->exists()) {
-            return back()->with('error', 'Cannot delete category type with associated categories.');
+        if ($category->children()->exists()) {
+            return back()->with('error', 'Cannot delete category with child categories. Please reassign or delete child categories first.');
         }
 
-        $categoryType->delete();
-        return redirect()->back();
+        $category->delete();
+        return redirect()->back()->with('success', 'Category deleted successfully.');
     }
 
-    public function restore($id)
+    public function restore(Category $category)
     {
-        $category = Category::withTrashed()->findOrFail($id);
-        $category->restore();
-        return redirect()->back();
-    }
+        if ($category->trashed()) {
+            $category->restore();
+            return back()->with('success', 'Category restored successfully.');
+        }
 
-    public function restoreType($id)
-    {
-        $categoryType = CategoryType::withTrashed()->findOrFail($id);
-        $categoryType->restore();
-        return redirect()->back();
+        return back()->with('error', 'Category is not deleted.');
     }
 
     public function getCategories(Request $request)
     {
-        $query = Category::query()->with('categoryType');
+        $query = Category::query()->with(['parent', 'children']);
 
-        if ($request->has('variant')) {
-            $query->whereHas('categoryType', function ($q) use ($request) {
-                $q->where('variant', $request->variant);
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        } else {
+            $query->active();
+        }
+
+        if ($request->has('parent_id')) {
+            $query->where('parent_id', $request->parent_id);
+        }
+
+        if ($request->has('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('description', 'like', "%{$request->search}%");
             });
         }
 
-        if ($request->has('category_type_id')) {
-            $query->where('category_type_id', $request->category_type_id);
-        }
-
-        $query->active();
-
-        $categories = $query->get();
+        $categories = $query->orderBy('sort_order')->get();
 
         return response()->json($categories);
     }
 
-    public function getCategoryTypes(Request $request)
+    public function getCategoryTree()
     {
-        $query = CategoryType::query();
+        $categories = Category::with(['children' => function ($query) {
+            $query->orderBy('sort_order');
+        }])
+        ->whereNull('parent_id')
+        ->orderBy('sort_order')
+        ->get();
 
-        if ($request->has('variant')) {
-            $query->where('variant', $request->variant);
-        }
-
-        $query->active();
-
-        $categoryTypes = $query->get();
-
-        return response()->json($categoryTypes);
+        return response()->json($categories);
     }
 } 

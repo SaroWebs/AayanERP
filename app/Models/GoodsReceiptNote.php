@@ -30,6 +30,39 @@ class GoodsReceiptNote extends Model
         'accepted_items' => 'integer',
         'rejected_items' => 'integer',
         'returned_items' => 'integer',
+        'temperature_resistance_test' => 'json',
+        'chemical_composition_test' => 'json',
+        'physical_properties_test' => 'json',
+        'dimensional_accuracy_test' => 'json',
+        'visual_inspection_results' => 'json',
+        'quality_certification_verification' => 'json',
+        'batch_consistency_check' => 'json',
+        'storage_condition_verification' => 'json',
+        'test_temperature' => 'decimal:2',
+        'test_pressure' => 'decimal:2',
+        'test_duration' => 'integer',
+        'test_environment' => 'string',
+        'test_equipment_used' => 'string',
+        'test_operator' => 'string',
+        'test_remarks' => 'text',
+    ];
+
+    protected $fillable = [
+        'temperature_resistance_test',
+        'chemical_composition_test',
+        'physical_properties_test',
+        'dimensional_accuracy_test',
+        'visual_inspection_results',
+        'quality_certification_verification',
+        'batch_consistency_check',
+        'storage_condition_verification',
+        'test_temperature',
+        'test_pressure',
+        'test_duration',
+        'test_environment',
+        'test_equipment_used',
+        'test_operator',
+        'test_remarks',
     ];
 
     /**
@@ -118,5 +151,83 @@ class GoodsReceiptNote extends Model
     public function scopeAccepted($query)
     {
         return $query->where('status', 'accepted');
+    }
+
+    /**
+     * Scope a query to only include items that passed temperature resistance test.
+     */
+    public function scopePassedTemperatureTest($query)
+    {
+        return $query->whereJsonContains('temperature_resistance_test->passed', true);
+    }
+
+    /**
+     * Scope a query to only include items that passed chemical composition test.
+     */
+    public function scopePassedChemicalTest($query)
+    {
+        return $query->whereJsonContains('chemical_composition_test->passed', true);
+    }
+
+    /**
+     * Scope a query to only include items that passed physical properties test.
+     */
+    public function scopePassedPhysicalTest($query)
+    {
+        return $query->whereJsonContains('physical_properties_test->passed', true);
+    }
+
+    /**
+     * Scope a query to only include items that passed dimensional accuracy test.
+     */
+    public function scopePassedDimensionalTest($query)
+    {
+        return $query->whereJsonContains('dimensional_accuracy_test->passed', true);
+    }
+
+    /**
+     * Scope a query to only include items that passed visual inspection.
+     */
+    public function scopePassedVisualInspection($query)
+    {
+        return $query->whereJsonContains('visual_inspection_results->passed', true);
+    }
+
+    /**
+     * Check if all quality tests have passed.
+     */
+    public function hasPassedAllQualityTests(): bool
+    {
+        return $this->passedTemperatureTest() &&
+            $this->passedChemicalTest() &&
+            $this->passedPhysicalTest() &&
+            $this->passedDimensionalTest() &&
+            $this->passedVisualInspection();
+    }
+
+    /**
+     * Get failed quality tests.
+     */
+    public function getFailedQualityTests(): array
+    {
+        $failedTests = [];
+        
+        if (!$this->passedTemperatureTest()) {
+            $failedTests[] = 'temperature_resistance';
+        }
+        if (!$this->passedChemicalTest()) {
+            $failedTests[] = 'chemical_composition';
+        }
+        if (!$this->passedPhysicalTest()) {
+            $failedTests[] = 'physical_properties';
+        }
+        if (!$this->passedDimensionalTest()) {
+            $failedTests[] = 'dimensional_accuracy';
+        }
+        if (!$this->passedVisualInspection()) {
+            $failedTests[] = 'visual_inspection';
+        }
+
+        return $failedTests;
     }
 }

@@ -14,6 +14,23 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Master',
+        href: '#',
+        icon: LayoutGrid,
+        children:[
+            {
+                title: 'Clients',
+                href: '/master/clients',
+                icon: UserCircle,
+            },
+            {
+                title: 'Vendors',
+                href: '/master/vendors',
+                icon: TruckIcon,
+            },
+        ]
+    },
+    {
         title: 'Equipment',
         href: '#',
         icon: Wrench,
@@ -39,23 +56,6 @@ const mainNavItems: NavItem[] = [
                 icon: Package,
             },
         ],
-    },
-    {
-        title: 'Master',
-        href: '#',
-        icon: LayoutGrid,
-        children:[
-            {
-                title: 'Vendors',
-                href: '/master/vendors',
-                icon: TruckIcon,
-            },
-            {
-                title: 'Clients',
-                href: '/master/clients',
-                icon: UserCircle,
-            },
-        ]
     },
     {
         title: 'Sales',
@@ -152,7 +152,6 @@ const footerNavItems: NavItem[] = [
         title: 'Browse website',
         href: 'http://aayangroup.in/',
         icon: Globe,
-        target: '_blank',
     },
 ];
 

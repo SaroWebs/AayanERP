@@ -2,9 +2,10 @@ import { Modal, Button, TextInput, Select, Textarea, Stack, Group, Grid, NumberI
 import { useForm } from '@mantine/form';
 import { router } from '@inertiajs/react';
 import { notifications } from '@mantine/notifications';
-import { FormValues, Enquiry } from '../types';
+import { Enquiry, EnquiryType, EnquiryPriority, EnquirySource, NatureOfWork, DurationUnit } from '../types';
 import { FormEvent, useEffect, useState } from 'react';
 import axios from 'axios';
+import { DateInput } from '@mantine/dates';
 
 interface Props {
     opened: boolean;
@@ -19,31 +20,52 @@ interface State {
 }
 
 interface Equipment {
-    value: string;
-    label: string;
+    id: number;
+    name: string;
     model: string;
 }
 
-const PRIORITY_OPTIONS = [
+const PRIORITY_OPTIONS: { value: EnquiryPriority; label: string }[] = [
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },
     { value: 'high', label: 'High' },
     { value: 'urgent', label: 'Urgent' },
 ];
 
-const TYPE_OPTIONS = [
+const TYPE_OPTIONS: { value: EnquiryType; label: string }[] = [
     { value: 'equipment', label: 'Equipment' },
     { value: 'scaffolding', label: 'Scaffolding' },
     { value: 'both', label: 'Both' },
 ];
 
-const SOURCE_OPTIONS = [
+const SOURCE_OPTIONS: { value: EnquirySource; label: string }[] = [
     { value: 'website', label: 'Website' },
     { value: 'email', label: 'Email' },
     { value: 'phone', label: 'Phone' },
     { value: 'referral', label: 'Referral' },
     { value: 'walk_in', label: 'Walk In' },
     { value: 'other', label: 'Other' },
+];
+
+const NATURE_OF_WORK_OPTIONS: { value: NatureOfWork; label: string }[] = [
+    { value: 'soil', label: 'Soil' },
+    { value: 'rock', label: 'Rock' },
+    { value: 'limestone', label: 'Limestone' },
+    { value: 'coal', label: 'Coal' },
+    { value: 'sand', label: 'Sand' },
+    { value: 'gravel', label: 'Gravel' },
+    { value: 'construction', label: 'Construction' },
+    { value: 'demolition', label: 'Demolition' },
+    { value: 'mining', label: 'Mining' },
+    { value: 'quarry', label: 'Quarry' },
+    { value: 'other', label: 'Other' },
+];
+
+const DURATION_UNIT_OPTIONS: { value: DurationUnit; label: string }[] = [
+    { value: 'hours', label: 'Hours' },
+    { value: 'days', label: 'Days' },
+    { value: 'months', label: 'Months' },
+    { value: 'years', label: 'Years' },
 ];
 
 export function EditItem({ opened, onClose, enquiry, clients }: Props) {
@@ -91,18 +113,12 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
         loadEquipment();
     }, [opened]);
 
-    useEffect(() => {
-        if (enquiry) {
-            console.log('Enquiry data:', enquiry);
-        }
-    }, [enquiry]);
-
-    const form = useForm<FormValues>({
+    const form = useForm({
         initialValues: {
             // Client Information
-            client_detail_id: enquiry?.client_detail_id?.toString() || '0',
-            contact_person_id: enquiry?.contact_person_id || null,
-            referred_by: enquiry?.referred_by || null,
+            client_detail_id: enquiry?.client_detail_id.toString() || '',
+            contact_person_id: enquiry?.contact_person_id?.toString() || null,
+            referred_by: enquiry?.referred_by?.toString() || null,
 
             // Basic Information
             subject: enquiry?.subject || '',
@@ -124,9 +140,9 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
             site_details: enquiry?.site_details || '',
 
             // Dates
-            enquiry_date: enquiry?.enquiry_date ? new Date(enquiry.enquiry_date) : new Date(),
-            required_date: enquiry?.required_date ? new Date(enquiry.required_date) : null,
-            valid_until: enquiry?.valid_until ? new Date(enquiry.valid_until) : null,
+            enquiry_date: enquiry?.enquiry_date || new Date().toISOString().split('T')[0],
+            required_date: enquiry?.required_date || null,
+            valid_until: enquiry?.valid_until || null,
 
             // Financial Details
             estimated_value: enquiry?.estimated_value || null,
@@ -138,77 +154,24 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
             notes: enquiry?.notes || '',
         },
         validate: {
-            client_detail_id: (value) => (!value || value === '0' ? 'Client is required' : null),
+            client_detail_id: (value) => (!value ? 'Client is required' : null),
             subject: (value) => (!value ? 'Subject is required' : null),
             description: (value) => (!value ? 'Description is required' : null),
             type: (value) => (!value ? 'Type is required' : null),
             priority: (value) => (!value ? 'Priority is required' : null),
             source: (value) => (!value ? 'Source is required' : null),
+            enquiry_date: (value) => (!value ? 'Enquiry date is required' : null),
         },
     });
 
-    useEffect(() => {
-        if (opened) {
-            console.log('Form values:', form.values);
-        }
-    }, [opened, form.values]);
-
-    useEffect(() => {
-        if (enquiry) {
-            form.setValues({
-                client_detail_id: enquiry.client_detail_id.toString(),
-                contact_person_id: enquiry.contact_person_id,
-                referred_by: enquiry.referred_by,
-                subject: enquiry.subject,
-                description: enquiry.description,
-                type: enquiry.type,
-                priority: enquiry.priority,
-                source: enquiry.source,
-                equipment_id: enquiry.equipment_id?.toString() || null,
-                quantity: enquiry.quantity,
-                nature_of_work: enquiry.nature_of_work,
-                duration: enquiry.duration,
-                duration_unit: enquiry.duration_unit,
-                deployment_state: enquiry.deployment_state,
-                location: enquiry.location,
-                site_details: enquiry.site_details,
-                enquiry_date: new Date(enquiry.enquiry_date),
-                required_date: enquiry.required_date ? new Date(enquiry.required_date) : null,
-                valid_until: enquiry.valid_until ? new Date(enquiry.valid_until) : null,
-                estimated_value: enquiry.estimated_value,
-                currency: enquiry.currency,
-                special_requirements: enquiry.special_requirements,
-                terms_conditions: enquiry.terms_conditions,
-                notes: enquiry.notes,
-            });
-        }
-    }, [enquiry]);
-
-    const handleSubmit = async (values: FormValues, event?: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (values: typeof form.values, event?: FormEvent<HTMLFormElement>) => {
         event?.preventDefault();
         if (!enquiry) return;
         
         setIsSubmitting(true);
 
         try {
-            const formData = new FormData();
-            Object.entries(values).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    if (value instanceof Date) {
-                        formData.append(key, value.toISOString());
-                    } else {
-                        formData.append(key, value.toString());
-                    }
-                }
-            });
-
-            const response = await axios.put(route('sales.enquiries.update', enquiry.id), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-            });
+            const response = await axios.put(route('sales.enquiries.update', enquiry.id), values);
 
             if (response.data.success) {
                 notifications.show({
@@ -217,16 +180,17 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                     color: 'green',
                 });
                 onClose();
+                if (response.data.data.redirect_url) {
+                    window.location.href = response.data.data.redirect_url;
+                }
             }
         } catch (error: any) {
             console.error('Error updating enquiry:', error);
-
             if (error.response?.status === 422) {
                 const errors = error.response.data.errors;
                 Object.entries(errors).forEach(([field, messages]) => {
                     form.setFieldError(field, (messages as string[])[0]);
                 });
-
                 notifications.show({
                     title: 'Validation Error',
                     message: 'Please check the form for errors',
@@ -244,18 +208,14 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
         }
     };
 
-    if (!enquiry){
-        return null
-    }else{
-        console.log(enquiry);
-    };
+    if (!enquiry) return null;
 
     return (
         <Modal
             opened={opened}
             onClose={onClose}
-            title={`Edit Enquiry #${enquiry.enquiry_no}`}
-            size="100%"
+            title="Edit Enquiry"
+            size="xl"
             styles={{
                 title: { fontSize: '1.5rem', fontWeight: 600 },
             }}
@@ -268,14 +228,27 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                     <Stack gap="xs">
                         <Title order={4}>Client Information</Title>
                         <Grid>
-                            <Grid.Col span={{ base: 12, md: 4 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Client"
                                     placeholder="Select client"
-                                    data={clients?.map(client => ({ value: client.id.toString(), label: client.name })) || []}
+                                    data={clients?.map(client => ({
+                                        value: client.id?.toString() || '',
+                                        label: client.name || ''
+                                    })).filter(item => item.value && item.label) || []}
                                     searchable
                                     required
                                     {...form.getInputProps('client_detail_id')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <Select
+                                    label="Contact Person"
+                                    placeholder="Select contact person"
+                                    data={[]} // This should be populated based on selected client
+                                    searchable
+                                    clearable
+                                    {...form.getInputProps('contact_person_id')}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -287,7 +260,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                     <Stack gap="xs">
                         <Title order={4}>Basic Information</Title>
                         <Grid>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <TextInput
                                     label="Subject"
                                     placeholder="Enter subject"
@@ -295,7 +268,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     {...form.getInputProps('subject')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Type"
                                     placeholder="Select type"
@@ -304,7 +277,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     {...form.getInputProps('type')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Priority"
                                     placeholder="Select priority"
@@ -313,7 +286,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     {...form.getInputProps('priority')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Source"
                                     placeholder="Select source"
@@ -326,8 +299,8 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                 <Textarea
                                     label="Description"
                                     placeholder="Enter description"
-                                    minRows={3}
                                     required
+                                    minRows={3}
                                     {...form.getInputProps('description')}
                                 />
                             </Grid.Col>
@@ -340,18 +313,20 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                     <Stack gap="xs">
                         <Title order={4}>Equipment Details</Title>
                         <Grid>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Equipment"
                                     placeholder="Select equipment"
-                                    data={equipment}
+                                    data={equipment.map(eq => ({
+                                        value: eq.id?.toString() || '',
+                                        label: eq.name || ''
+                                    }))}
                                     searchable
                                     clearable
-                                    disabled={isLoadingEquipment}
                                     {...form.getInputProps('equipment_id')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 2 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <NumberInput
                                     label="Quantity"
                                     placeholder="Enter quantity"
@@ -359,27 +334,15 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     {...form.getInputProps('quantity')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Nature of Work"
                                     placeholder="Select nature of work"
-                                    data={[
-                                        { value: 'soil', label: 'Soil' },
-                                        { value: 'rock', label: 'Rock' },
-                                        { value: 'limestone', label: 'Limestone' },
-                                        { value: 'coal', label: 'Coal' },
-                                        { value: 'sand', label: 'Sand' },
-                                        { value: 'gravel', label: 'Gravel' },
-                                        { value: 'construction', label: 'Construction' },
-                                        { value: 'demolition', label: 'Demolition' },
-                                        { value: 'mining', label: 'Mining' },
-                                        { value: 'quarry', label: 'Quarry' },
-                                        { value: 'other', label: 'Other' },
-                                    ]}
+                                    data={NATURE_OF_WORK_OPTIONS}
                                     {...form.getInputProps('nature_of_work')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 2 }}>
+                            <Grid.Col span={{ base: 12, md: 3 }}>
                                 <NumberInput
                                     label="Duration"
                                     placeholder="Enter duration"
@@ -387,16 +350,11 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     {...form.getInputProps('duration')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={{ base: 12, md: 2 }}>
+                            <Grid.Col span={{ base: 12, md: 3 }}>
                                 <Select
                                     label="Duration Unit"
                                     placeholder="Select unit"
-                                    data={[
-                                        { value: 'hours', label: 'Hours' },
-                                        { value: 'days', label: 'Days' },
-                                        { value: 'months', label: 'Months' },
-                                        { value: 'years', label: 'Years' },
-                                    ]}
+                                    data={DURATION_UNIT_OPTIONS}
                                     {...form.getInputProps('duration_unit')}
                                 />
                             </Grid.Col>
@@ -411,14 +369,13 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                         <Grid>
                             <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
-                                    label="Deployment State"
+                                    label="State"
                                     placeholder="Select state"
                                     data={states.map(state => ({
-                                        value: state.code,
-                                        label: state.name
+                                        value: state.code || '',
+                                        label: state.name || ''
                                     }))}
                                     searchable
-                                    clearable
                                     {...form.getInputProps('deployment_state')}
                                 />
                             </Grid.Col>
@@ -440,19 +397,107 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                         </Grid>
                     </Stack>
 
+                    <Divider />
+
+                    {/* Dates */}
+                    <Stack gap="xs">
+                        <Title order={4}>Dates</Title>
+                        <Grid>
+                            <Grid.Col span={{ base: 12, md: 4 }}>
+                                <DateInput
+                                    label="Enquiry Date"
+                                    placeholder="Select date"
+                                    required
+                                    valueFormat="YYYY-MM-DD"
+                                    {...form.getInputProps('enquiry_date')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={{ base: 12, md: 4 }}>
+                                <DateInput
+                                    label="Required Date"
+                                    placeholder="Select date"
+                                    clearable
+                                    valueFormat="YYYY-MM-DD"
+                                    {...form.getInputProps('required_date')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={{ base: 12, md: 4 }}>
+                                <DateInput
+                                    label="Valid Until"
+                                    placeholder="Select date"
+                                    clearable
+                                    valueFormat="YYYY-MM-DD"
+                                    {...form.getInputProps('valid_until')}
+                                />
+                            </Grid.Col>
+                        </Grid>
+                    </Stack>
+
+                    <Divider />
+
+                    {/* Financial Details */}
+                    <Stack gap="xs">
+                        <Title order={4}>Financial Details</Title>
+                        <Grid>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <NumberInput
+                                    label="Estimated Value"
+                                    placeholder="Enter value"
+                                    min={0}
+                                    decimalScale={2}
+                                    {...form.getInputProps('estimated_value')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <TextInput
+                                    label="Currency"
+                                    placeholder="Enter currency"
+                                    defaultValue="INR"
+                                    {...form.getInputProps('currency')}
+                                />
+                            </Grid.Col>
+                        </Grid>
+                    </Stack>
+
+                    <Divider />
+
+                    {/* Additional Details */}
+                    <Stack gap="xs">
+                        <Title order={4}>Additional Details</Title>
+                        <Grid>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Special Requirements"
+                                    placeholder="Enter special requirements"
+                                    minRows={2}
+                                    {...form.getInputProps('special_requirements')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Terms & Conditions"
+                                    placeholder="Enter terms and conditions"
+                                    minRows={2}
+                                    {...form.getInputProps('terms_conditions')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Notes"
+                                    placeholder="Enter notes"
+                                    minRows={2}
+                                    {...form.getInputProps('notes')}
+                                />
+                            </Grid.Col>
+                        </Grid>
+                    </Stack>
+
                     <Group justify="flex-end" mt="md">
-                        <Button 
-                            variant="light" 
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                        >
+                        <Button variant="light" onClick={onClose} disabled={isSubmitting}>
                             Cancel
                         </Button>
-                        <Button 
-                            type="submit"
-                            loading={isSubmitting}
-                        >
-                            {isSubmitting ? 'Updating...' : 'Update Enquiry'}
+                        <Button type="submit" loading={isSubmitting}>
+                            Update Enquiry
                         </Button>
                     </Group>
                 </Stack>

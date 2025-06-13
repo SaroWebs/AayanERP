@@ -1,17 +1,66 @@
 import { useForm } from '@inertiajs/react';
-import { Modal, TextInput, Select, Button, Stack, Grid, Textarea, Group } from '@mantine/core';
+import { Modal, TextInput, Select, Button, Stack, Grid, Textarea, Group, NumberInput, ActionIcon, Paper, Text } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { slugify } from '@/lib/utils';
+import { Plus, Trash } from 'lucide-react';
 
-interface CategoryType {
-    id: number;
-    name: string;
-    slug: string;
-    description: string | null;
-    variant: 'equipment' | 'scaffolding';
-    status: 'active' | 'inactive';
-    created_at: string;
-    updated_at: string;
+interface ArrayInputProps {
+    label: string;
+    value: string[];
+    onChange: (value: string[]) => void;
+    error?: string;
+    placeholder?: string;
+}
+
+function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' }: ArrayInputProps) {
+    const [newItem, setNewItem] = useState('');
+
+    const handleAdd = () => {
+        if (newItem.trim()) {
+            onChange([...value, newItem.trim()]);
+            setNewItem('');
+        }
+    };
+
+    const handleRemove = (index: number) => {
+        onChange(value.filter((_, i) => i !== index));
+    };
+
+    return (
+        <Stack gap="xs">
+            <Text size="sm" fw={500}>{label}</Text>
+            <Group gap="xs">
+                <TextInput
+                    placeholder={placeholder}
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    style={{ flex: 1 }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAdd();
+                        }
+                    }}
+                />
+                <ActionIcon variant="light" color="blue" onClick={handleAdd}>
+                    <Plus size={16} />
+                </ActionIcon>
+            </Group>
+            {error && <Text size="xs" c="red">{error}</Text>}
+            <Stack gap="xs">
+                {value.map((item, index) => (
+                    <Paper key={index} p="xs" withBorder>
+                        <Group justify="space-between">
+                            <Text size="sm">{item}</Text>
+                            <ActionIcon variant="light" color="red" onClick={() => handleRemove(index)}>
+                                <Trash size={16} />
+                            </ActionIcon>
+                        </Group>
+                    </Paper>
+                ))}
+            </Stack>
+        </Stack>
+    );
 }
 
 interface Category {
@@ -19,43 +68,50 @@ interface Category {
     name: string;
     slug: string;
     description: string | null;
-    category_type_id: number;
-    hsn: string | null;
     status: 'active' | 'inactive';
     sort_order: number;
+    parent_id: number | null;
+    technical_requirements: string[] | null;
+    application_areas: string[] | null;
+    quality_standards: string[] | null;
     created_at: string;
     updated_at: string;
-    category_type: CategoryType;
+    parent: Category | null;
+    children: Category[];
 }
 
 type FormData = {
     name: string;
     slug: string;
     description: string | null;
-    category_type_id: number;
-    hsn: string | null;
+    parent_id: string;
     status: 'active' | 'inactive';
-    variant: 'equipment' | 'scaffolding';
+    sort_order: number;
+    technical_requirements: string[];
+    application_areas: string[];
+    quality_standards: string[];
 }
 
 interface Props {
     opened: boolean;
     onClose: () => void;
     category: Category | null;
-    categoryTypes: CategoryType[];
+    categories: Category[];
 }
 
-export default function EditCategoryModal({ opened, onClose, category, categoryTypes }: Props) {
-    const [filteredCategoryTypes, setFilteredCategoryTypes] = useState<CategoryType[]>([]);
+export default function EditCategoryModal({ opened, onClose, category, categories }: Props) {
+    const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
 
     const { data, setData, put, processing, errors } = useForm<FormData>({
         name: '',
         slug: '',
         description: null,
-        category_type_id: 0,
-        hsn: null,
+        parent_id: '',
         status: 'active',
-        variant: 'equipment',
+        sort_order: 0,
+        technical_requirements: [],
+        application_areas: [],
+        quality_standards: [],
     });
 
     useEffect(() => {
@@ -64,30 +120,31 @@ export default function EditCategoryModal({ opened, onClose, category, categoryT
                 name: category.name,
                 slug: category.slug,
                 description: category.description,
-                category_type_id: category.category_type_id,
-                hsn: category.hsn,
+                parent_id: category.parent_id?.toString() || '',
                 status: category.status,
-                variant: category.category_type.variant,
+                sort_order: category.sort_order,
+                technical_requirements: category.technical_requirements || [],
+                application_areas: category.application_areas || [],
+                quality_standards: category.quality_standards || [],
             });
         }
     }, [category, setData]);
 
     useEffect(() => {
-        // Filter category types based on selected variant and active status
-        const filtered = categoryTypes.filter(type => 
-            type.variant === data.variant && 
-            type.status === 'active'
+        // Filter categories based on selected parent
+        const filtered = categories.filter(cat => 
+            cat.parent_id === (data.parent_id ? parseInt(data.parent_id) : null)
         );
-        setFilteredCategoryTypes(filtered);
+        setFilteredCategories(filtered);
         
-        // Reset category type when variant changes or if selected type becomes inactive
-        if (data.category_type_id) {
-            const selectedType = categoryTypes.find(type => type.id === data.category_type_id);
-            if (selectedType?.variant !== data.variant || selectedType?.status !== 'active') {
-                setData('category_type_id', 0);
+        // Reset parent when selected parent becomes inactive
+        if (data.parent_id) {
+            const selectedParent = categories.find(cat => cat.id === parseInt(data.parent_id));
+            if (selectedParent?.status !== 'active') {
+                setData('parent_id', '');
             }
         }
-    }, [data.variant, categoryTypes]);
+    }, [data.parent_id, categories]);
 
     useEffect(() => {
         // Auto-generate slug from name
@@ -137,40 +194,17 @@ export default function EditCategoryModal({ opened, onClose, category, categoryT
                         </Grid.Col>
                         <Grid.Col span={6}>
                             <Select
-                                label="Variant"
-                                id="variant"
-                                value={data.variant}
-                                onChange={(value) => setData('variant', value as 'equipment' | 'scaffolding')}
-                                error={errors.variant}
-                                data={[
-                                    { value: 'equipment', label: 'Equipment' },
-                                    { value: 'scaffolding', label: 'Scaffolding' }
-                                ]}
-                                required
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <Select
-                                label="Category Type"
-                                id="category_type_id"
-                                value={data.category_type_id.toString()}
-                                onChange={(value) => value && setData('category_type_id', parseInt(value))}
-                                error={errors.category_type_id}
-                                data={filteredCategoryTypes.map(type => ({
-                                    value: type.id.toString(),
-                                    label: type.name
+                                label="Parent Category"
+                                id="parent_id"
+                                value={data.parent_id}
+                                onChange={(value) => setData('parent_id', value || '')}
+                                error={errors.parent_id}
+                                data={filteredCategories.map(cat => ({
+                                    value: cat.id.toString(),
+                                    label: cat.name
                                 }))}
-                                disabled={!data.variant}
+                                disabled={!data.parent_id}
                                 required
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <TextInput
-                                label="HSN"
-                                id="hsn"
-                                value={data.hsn ?? ''}
-                                onChange={(e) => setData('hsn', e.target.value || null)}
-                                error={errors.hsn}
                             />
                         </Grid.Col>
                         <Grid.Col span={6}>
@@ -187,6 +221,17 @@ export default function EditCategoryModal({ opened, onClose, category, categoryT
                                 required
                             />
                         </Grid.Col>
+                        <Grid.Col span={6}>
+                            <NumberInput
+                                label="Sort Order"
+                                id="sort_order"
+                                value={data.sort_order}
+                                onChange={(value) => setData('sort_order', Number(value))}
+                                error={errors.sort_order}
+                                min={0}
+                                required
+                            />
+                        </Grid.Col>
                         <Grid.Col span={12}>
                             <Textarea
                                 label="Description"
@@ -195,6 +240,33 @@ export default function EditCategoryModal({ opened, onClose, category, categoryT
                                 onChange={(e) => setData('description', e.target.value || null)}
                                 error={errors.description}
                                 minRows={3}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <ArrayInput
+                                label="Technical Requirements"
+                                value={data.technical_requirements}
+                                onChange={(value) => setData('technical_requirements', value)}
+                                error={errors.technical_requirements}
+                                placeholder="Enter technical requirement"
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <ArrayInput
+                                label="Application Areas"
+                                value={data.application_areas}
+                                onChange={(value) => setData('application_areas', value)}
+                                error={errors.application_areas}
+                                placeholder="Enter application area"
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <ArrayInput
+                                label="Quality Standards"
+                                value={data.quality_standards}
+                                onChange={(value) => setData('quality_standards', value)}
+                                error={errors.quality_standards}
+                                placeholder="Enter quality standard"
                             />
                         </Grid.Col>
                     </Grid>

@@ -13,83 +13,66 @@ return new class extends Migration
     {
         Schema::create('purchase_orders', function (Blueprint $table) {
             $table->id();
-            $table->string('po_no')->unique(); // Auto-generated unique PO number
-            $table->foreignId('purchase_intent_id')->nullable()->constrained('purchase_intents')->nullOnDelete();
-            $table->foreignId('vendor_id')->nullable()->constrained('vendors')->cascadeOnDelete();
-            $table->string('supplier_details')->nullable();
-            $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('po_no')->unique();
+            $table->foreignId('purchase_intent_id')->constrained('purchase_intents')->onDelete('restrict');
+            $table->foreignId('vendor_id')->constrained('vendors')->onDelete('restrict');
+            $table->foreignId('department_id')->constrained('departments')->onDelete('restrict');
+            $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
+            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('restrict');
             
-            // PO Details
-            $table->string('subject');
-            $table->text('description')->nullable();
-            $table->enum('type', ['equipment', 'scaffolding', 'spares', 'consumables', 'other'])->default('equipment');
-            $table->enum('status', [
-                'draft',           // Initial draft state
-                'pending_review',  // Waiting for review
-                'pending_approval', // Waiting for management approval
-                'approved',        // Approved by management
-                'sent',           // Sent to supplier
-                'acknowledged',    // Acknowledged by supplier
-                'in_progress',     // Order in progress
-                'partially_received', // Partially received
-                'received',        // Fully received
-                'cancelled',       // Order cancelled
-                'closed'          // Order closed
-            ])->default('draft');
-            
-            // Approval Details
-            $table->enum('approval_status', [
-                'pending',         // Waiting for approval
-                'approved',        // Approved
-                'rejected',        // Rejected
-                'not_required'     // No approval needed
-            ])->default('not_required');
-            $table->timestamp('approved_at')->nullable();
-            $table->text('approval_remarks')->nullable();
-            
-            // Dates
+            // Order Details
             $table->date('po_date');
-            $table->date('expected_delivery_date')->nullable();
-            $table->date('acknowledgement_date')->nullable();
-            $table->date('sent_date')->nullable();
-            $table->date('cancellation_date')->nullable();
-            $table->date('closing_date')->nullable();
+            $table->date('expected_delivery_date');
+            $table->string('delivery_location');
+            $table->string('payment_terms');
+            $table->string('delivery_terms');
+            $table->string('warranty_terms')->nullable();
+            $table->text('special_instructions')->nullable();
             
             // Financial Details
-            $table->decimal('subtotal', 12, 2)->default(0);
-            $table->decimal('tax_percentage', 5, 2)->default(0);
-            $table->decimal('tax_amount', 12, 2)->default(0);
-            $table->decimal('discount_percentage', 5, 2)->default(0);
-            $table->decimal('discount_amount', 12, 2)->default(0);
-            $table->decimal('total_amount', 12, 2)->default(0);
-            $table->decimal('advance_amount', 12, 2)->default(0);
-            $table->decimal('balance_amount', 12, 2)->default(0);
-            $table->string('currency', 3)->default('INR');
+            $table->decimal('total_amount', 15, 2);
+            $table->decimal('tax_amount', 15, 2);
+            $table->decimal('freight_amount', 15, 2)->default(0);
+            $table->decimal('insurance_amount', 15, 2)->default(0);
+            $table->decimal('grand_total', 15, 2);
+            $table->string('currency')->default('INR');
+            $table->decimal('exchange_rate', 10, 4)->default(1);
             
-            // Payment Terms
-            $table->text('payment_terms')->nullable();
-            $table->text('delivery_terms')->nullable();
-            $table->text('warranty_terms')->nullable();
+            // Quality and Inspection
+            $table->text('quality_requirements')->nullable();
+            $table->text('inspection_requirements')->nullable();
+            $table->text('testing_requirements')->nullable();
+            $table->text('certification_requirements')->nullable();
             
-            // Delivery Details
-            $table->string('delivery_address')->nullable();
-            $table->string('delivery_contact_person')->nullable();
-            $table->string('delivery_phone')->nullable();
-            $table->text('delivery_instructions')->nullable();
+            // Status and Tracking
+            $table->string('status')->default('draft'); // draft, pending_approval, approved, sent, acknowledged, partial_received, received, cancelled, closed
+            $table->date('approval_date')->nullable();
+            $table->date('sent_date')->nullable();
+            $table->date('acknowledgement_date')->nullable();
+            $table->date('cancellation_date')->nullable();
+            $table->text('cancellation_reason')->nullable();
+            $table->text('rejection_reason')->nullable();
             
-            // Additional Details
-            $table->text('terms_conditions')->nullable();
-            $table->text('notes')->nullable();
-            $table->text('supplier_remarks')->nullable();
+            // Performance Tracking
+            $table->date('actual_delivery_date')->nullable();
+            $table->integer('delivery_delay_days')->nullable();
+            $table->text('delivery_remarks')->nullable();
+            $table->text('quality_remarks')->nullable();
             
-            // Document Details
-            $table->string('po_document_path')->nullable(); // Path to generated PDF
-            $table->string('acknowledgement_document_path')->nullable();
+            // Document References
+            $table->string('quotation_reference')->nullable();
+            $table->string('contract_reference')->nullable();
+            $table->string('project_reference')->nullable();
             
             // Soft deletes for data retention
             $table->softDeletes();
             $table->timestamps();
+            
+            // Indexes for better performance
+            $table->index(['po_no', 'status']);
+            $table->index(['vendor_id', 'status']);
+            $table->index(['department_id', 'status']);
+            $table->index('expected_delivery_date');
         });
     }
 

@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Enquiry;
 use App\Models\ClientDetail;
+use App\Models\ClientContactDetail;
+use App\Models\User;
 use App\Models\Equipment;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -18,21 +21,9 @@ class EnquiryController extends Controller
     /**
      * Display a listing of the enquiries.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $clients = ClientDetail::where('status', 'active')->get();
-        
-        // Get initial data
-        $query = Enquiry::with(['client', 'creator'])
-            ->latest();
-            
-        $enquiries = $query->paginate(10);
-        
-        return Inertia::render('sales/enquiries/index', [
-            'initialEnquiries' => $enquiries,
-            'initialFilters' => [],
-            'initialClients' => $clients
-        ]);
+        return Inertia::render('sales/enquiries/index');
     }
 
     /**
@@ -40,82 +31,64 @@ class EnquiryController extends Controller
      */
     public function data(Request $request)
     {
-        try {
-            Log::info('Enquiry data request received', [
-                'params' => $request->all(),
-                'headers' => $request->headers->all()
-            ]);
-
-            $query = Enquiry::with(['client', 'creator'])
-                ->latest();
-
-            // Filter by status
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
-            }
-
-            // Filter by approval status
-            if ($request->filled('approval_status')) {
-                $query->where('approval_status', $request->approval_status);
-            }
-
-            // Filter by client
-            if ($request->filled('client_detail_id')) {
-                $query->where('client_detail_id', $request->client_detail_id);
-            }
-
-            // Filter by date range
-            if ($request->filled('from_date')) {
-                $query->where('enquiry_date', '>=', $request->from_date);
-            }
-            if ($request->filled('to_date')) {
-                $query->where('enquiry_date', '<=', $request->to_date);
-            }
-
-            // Search by enquiry number or subject
-            if ($request->filled('search')) {
-                $search = $request->search;
+        $query = Enquiry::with(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('enquiry_no', 'like', "%{$search}%")
-                        ->orWhere('subject', 'like', "%{$search}%");
+                        ->orWhere('subject', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('client', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
                 });
-            }
+            })
+            ->when($request->status, function ($query, $status) {
+                $query->whereIn('status', (array) $status);
+            })
+            ->when($request->priority, function ($query, $priority) {
+                $query->whereIn('priority', (array) $priority);
+            })
+            ->when($request->type, function ($query, $type) {
+                $query->whereIn('type', (array) $type);
+            })
+            ->when($request->source, function ($query, $source) {
+                $query->whereIn('source', (array) $source);
+            })
+            ->when($request->nature_of_work, function ($query, $nature) {
+                $query->whereIn('nature_of_work', (array) $nature);
+            })
+            ->when($request->client_id, function ($query, $clientId) {
+                $query->where('client_detail_id', $clientId);
+            })
+            ->when($request->assigned_to, function ($query, $userId) {
+                $query->where('assigned_to', $userId);
+            })
+            ->when($request->date_range, function ($query, $range) {
+                $query->whereBetween('enquiry_date', $range);
+            });
 
-            $enquiries = $query->paginate(10)->withQueryString();
-            $clients = ClientDetail::where('status', 'active')->get();
-
-            Log::info('Enquiry data response', [
-                'total_enquiries' => $enquiries->total(),
-                'current_page' => $enquiries->currentPage(),
-                'total_clients' => $clients->count()
-            ]);
-
-            return response()->json([
-                'data' => $enquiries,
-                'filters' => $request->only(['status', 'approval_status', 'client_detail_id', 'from_date', 'to_date', 'search']),
-                'clients' => $clients
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error in enquiry data endpoint', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to load enquiries: ' . $e->getMessage()
-            ], 500);
-        }
+        $enquiries = $query->latest()->paginate(10);
+        return response()->json($enquiries);
     }
 
     /**
-     * Show the form for creating a new enquiry.
+     * Get equipment list for the form.
      */
-    public function create()
+    public function getEquipment()
     {
-        $clients = ClientDetail::where('status', 'active')->get();
-        return Inertia::render('sales/enquiries/create', [
-            'clients' => $clients
-        ]);
+        try {
+            $equipment = Equipment::select('id', 'name')
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json($equipment);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch equipment list',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -123,87 +96,62 @@ class EnquiryController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            // Client Information
-            'client_detail_id' => ['required', 'exists:client_details,id'],
-            'contact_person_id' => ['nullable', 'exists:client_contacts,id'],
-            'referred_by' => ['nullable', 'string', 'max:255'],
-
-            // Basic Information
-            'subject' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+        $validator = Validator::make($request->all(), [
+            'client_detail_id' => 'required|exists:client_details,id',
+            'contact_person_id' => 'nullable|exists:client_contact_details,id',
+            'subject' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'type' => ['required', Rule::in(['equipment', 'scaffolding', 'both'])],
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
             'source' => ['required', Rule::in(['website', 'email', 'phone', 'referral', 'walk_in', 'other'])],
-
-            // Equipment Details
-            'equipment_id' => ['nullable', 'exists:equipment,id'],
-            'quantity' => ['nullable', 'integer', 'min:1'],
-            'nature_of_work' => ['nullable', Rule::in(['soil', 'rock', 'limestone', 'coal', 'sand', 'gravel', 'construction', 'demolition', 'mining', 'quarry', 'other'])],
-            'duration' => ['nullable', 'integer', 'min:1'],
+            'equipment_id' => 'nullable|exists:equipment,id',
+            'quantity' => 'required|integer|min:1',
+            'nature_of_work' => ['required', Rule::in([
+                'soil', 'rock', 'limestone', 'coal', 'sand', 'gravel',
+                'construction', 'demolition', 'mining', 'quarry', 'other'
+            ])],
+            'duration' => 'nullable|integer|min:1',
             'duration_unit' => ['nullable', Rule::in(['hours', 'days', 'months', 'years'])],
-
-            // Location Details
-            'deployment_state' => ['nullable', 'string', 'max:2'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'site_details' => ['nullable', 'string'],
-
-            // Dates
-            'enquiry_date' => ['required', 'date'],
-            'required_date' => ['nullable', 'date', 'after_or_equal:enquiry_date'],
-            'valid_until' => ['nullable', 'date', 'after_or_equal:enquiry_date'],
-
-            // Financial Details
-            'estimated_value' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'max:3'],
-
-            // Additional Details
-            'special_requirements' => ['nullable', 'string'],
-            'terms_conditions' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'document' => ['nullable', 'file', 'max:10240'], // 10MB max
+            'deployment_state' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:255',
+            'site_details' => 'nullable|string',
+            'enquiry_date' => 'required|date',
+            'required_date' => 'nullable|date|after_or_equal:enquiry_date',
+            'valid_until' => 'nullable|date|after_or_equal:enquiry_date',
+            'estimated_value' => 'nullable|numeric|min:0',
+            'currency' => 'required|string|size:3',
+            'next_follow_up_date' => 'nullable|date|after_or_equal:enquiry_date',
+            'follow_up_notes' => 'nullable|string',
+            'special_requirements' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'notes' => 'nullable|string'
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             DB::beginTransaction();
 
-            // Generate enquiry number
-            $validated['enquiry_no'] = $this->generateEnquiryNumber();
-            $validated['created_by'] = Auth::id();
-            $validated['status'] = 'draft';
-            $validated['approval_status'] = 'not_required';
+            // Generate unique enquiry number
+            $enquiryNo = 'ENQ-' . date('Y') . '-' . str_pad(Enquiry::whereYear('created_at', date('Y'))->count() + 1, 5, '0', STR_PAD_LEFT);
 
-            $enquiry = Enquiry::create($validated);
-
-            // Store document if uploaded
-            if ($request->hasFile('document')) {
-                $path = $request->file('document')->store('enquiry-documents');
-                $enquiry->update(['document_path' => $path]);
-            }
+            $enquiry = Enquiry::create([
+                'enquiry_no' => $enquiryNo,
+                'created_by' => Auth::id(),
+                ...$request->all()
+            ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
                 'message' => 'Enquiry created successfully',
-                'data' => [
-                    'enquiry' => $enquiry->load(['client', 'creator']),
-                    'redirect_url' => route('sales.enquiries.show', $enquiry)
-                ]
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to create enquiry', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $request->except(['document'])
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create enquiry: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Failed to create enquiry', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -212,10 +160,7 @@ class EnquiryController extends Controller
      */
     public function show(Enquiry $enquiry)
     {
-        $enquiry->load(['client', 'creator', 'quotations']);
-        return Inertia::render('sales/enquiries/show', [
-            'enquiry' => $enquiry
-        ]);
+        return response()->json($enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment', 'quotations']));
     }
 
     /**
@@ -239,45 +184,59 @@ class EnquiryController extends Controller
      */
     public function update(Request $request, Enquiry $enquiry)
     {
-        if (!in_array($enquiry->status, ['draft', 'pending_review'])) {
-            return back()->with('error', 'Only draft or pending review enquiries can be updated.');
+        if (in_array($enquiry->status, ['converted', 'lost', 'cancelled'])) {
+            return response()->json(['message' => 'Cannot update enquiry in current status'], 422);
         }
 
-        $validated = $request->validate([
-            'client_detail_id' => ['required', 'exists:client_details,id'],
-            'subject' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'enquiry_date' => ['required', 'date'],
-            'required_date' => ['nullable', 'date', 'after_or_equal:enquiry_date'],
+        $validator = Validator::make($request->all(), [
+            'client_detail_id' => 'required|exists:client_details,id',
+            'contact_person_id' => 'nullable|exists:client_contact_details,id',
+            'subject' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'type' => ['required', Rule::in(['equipment', 'scaffolding', 'both'])],
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
-            'source' => ['required', Rule::in(['email', 'phone', 'website', 'walk_in', 'other'])],
-            'specifications' => ['nullable', 'string'],
-            'terms_conditions' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'document' => ['nullable', 'file', 'max:10240'], // 10MB max
+            'source' => ['required', Rule::in(['website', 'email', 'phone', 'referral', 'walk_in', 'other'])],
+            'equipment_id' => 'nullable|exists:equipment,id',
+            'quantity' => 'required|integer|min:1',
+            'nature_of_work' => ['required', Rule::in([
+                'soil', 'rock', 'limestone', 'coal', 'sand', 'gravel',
+                'construction', 'demolition', 'mining', 'quarry', 'other'
+            ])],
+            'duration' => 'nullable|integer|min:1',
+            'duration_unit' => ['nullable', Rule::in(['hours', 'days', 'months', 'years'])],
+            'deployment_state' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:255',
+            'site_details' => 'nullable|string',
+            'enquiry_date' => 'required|date',
+            'required_date' => 'nullable|date|after_or_equal:enquiry_date',
+            'valid_until' => 'nullable|date|after_or_equal:enquiry_date',
+            'estimated_value' => 'nullable|numeric|min:0',
+            'currency' => 'required|string|size:3',
+            'next_follow_up_date' => 'nullable|date|after_or_equal:enquiry_date',
+            'follow_up_notes' => 'nullable|string',
+            'special_requirements' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'notes' => 'nullable|string'
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             DB::beginTransaction();
 
-            $enquiry->update($validated);
-
-            // Update document if new one is uploaded
-            if ($request->hasFile('document')) {
-                if ($enquiry->document_path) {
-                    Storage::delete($enquiry->document_path);
-                }
-                $path = $request->file('document')->store('enquiry-documents');
-                $enquiry->update(['document_path' => $path]);
-            }
+            $enquiry->update($request->all());
 
             DB::commit();
 
-            return redirect()->route('enquiries.show', $enquiry)
-                ->with('success', 'Enquiry updated successfully.');
+            return response()->json([
+                'message' => 'Enquiry updated successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to update enquiry: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to update enquiry', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -286,27 +245,21 @@ class EnquiryController extends Controller
      */
     public function destroy(Enquiry $enquiry)
     {
-        if ($enquiry->status !== 'draft') {
-            return back()->with('error', 'Only draft enquiries can be deleted.');
+        if (in_array($enquiry->status, ['converted', 'lost', 'cancelled'])) {
+            return response()->json(['message' => 'Cannot delete enquiry in current status'], 422);
         }
 
         try {
             DB::beginTransaction();
 
-            // Delete associated document
-            if ($enquiry->document_path) {
-                Storage::delete($enquiry->document_path);
-            }
-
             $enquiry->delete();
 
             DB::commit();
 
-            return redirect()->route('enquiries.index')
-                ->with('success', 'Enquiry deleted successfully.');
+            return response()->json(['message' => 'Enquiry deleted successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to delete enquiry: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete enquiry', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -316,15 +269,24 @@ class EnquiryController extends Controller
     public function submitForReview(Enquiry $enquiry)
     {
         if ($enquiry->status !== 'draft') {
-            return back()->with('error', 'Only draft enquiries can be submitted for review.');
+            return response()->json(['message' => 'Only draft enquiries can be submitted for review'], 422);
         }
 
-        $enquiry->update([
-            'status' => 'pending_review',
-            'approval_status' => 'pending'
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return back()->with('success', 'Enquiry submitted for review successfully.');
+            $enquiry->update(['status' => 'pending_review']);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry submitted for review successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to submit enquiry', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -332,23 +294,38 @@ class EnquiryController extends Controller
      */
     public function approve(Request $request, Enquiry $enquiry)
     {
-        if ($enquiry->approval_status !== 'pending') {
-            return back()->with('error', 'Only pending enquiries can be approved.');
+        if ($enquiry->status !== 'pending_review') {
+            return response()->json(['message' => 'Only pending review enquiries can be approved'], 422);
         }
 
-        $validated = $request->validate([
-            'approval_remarks' => ['nullable', 'string'],
+        $validator = Validator::make($request->all(), [
+            'approval_remarks' => 'nullable|string'
         ]);
 
-        $enquiry->update([
-            'approval_status' => 'approved',
-            'approved_at' => now(),
-            'approved_by' => Auth::id(),
-            'approval_remarks' => $validated['approval_remarks'] ?? null,
-            'status' => 'approved'
-        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
-        return back()->with('success', 'Enquiry approved successfully.');
+        try {
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+                'approved_by' => Auth::id(),
+                'approval_remarks' => $request->approval_remarks
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry approved successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to approve enquiry', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -356,45 +333,67 @@ class EnquiryController extends Controller
      */
     public function reject(Request $request, Enquiry $enquiry)
     {
-        if ($enquiry->approval_status !== 'pending') {
-            return back()->with('error', 'Only pending enquiries can be rejected.');
+        if ($enquiry->status !== 'pending_review') {
+            return response()->json(['message' => 'Only pending review enquiries can be rejected'], 422);
         }
 
-        $validated = $request->validate([
-            'approval_remarks' => ['required', 'string'],
+        $validator = Validator::make($request->all(), [
+            'rejection_remarks' => 'required|string'
         ]);
 
-        $enquiry->update([
-            'approval_status' => 'rejected',
-            'approved_at' => now(),
-            'approved_by' => Auth::id(),
-            'approval_remarks' => $validated['approval_remarks'],
-            'status' => 'rejected'
-        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
-        return back()->with('success', 'Enquiry rejected successfully.');
+        try {
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'status' => 'rejected',
+                'approval_remarks' => $request->rejection_remarks
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry rejected successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to reject enquiry', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
      * Convert enquiry to quotation.
      */
-    public function convertToQuotation(Enquiry $enquiry)
+    public function convertToQuotation(Request $request, Enquiry $enquiry)
     {
         if ($enquiry->status !== 'approved') {
-            return back()->with('error', 'Only approved enquiries can be converted to quotations.');
+            return response()->json(['message' => 'Only approved enquiries can be converted to quotation'], 422);
         }
 
-        if ($enquiry->quotations()->exists()) {
-            return back()->with('error', 'This enquiry has already been converted to a quotation.');
+        try {
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'status' => 'quoted',
+                'converted_date' => now()->toDateString(), // current date only
+            ]);
+
+            // Create quotation logic here if needed
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry converted to quotation successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to convert enquiry', 'error' => $e->getMessage()], 500);
         }
-
-        $enquiry->update([
-            'status' => 'converted',
-            'converted_date' => now()
-        ]);
-
-        return redirect()->route('quotations.create', ['enquiry_id' => $enquiry->id])
-            ->with('success', 'Enquiry converted successfully. Please create the quotation.');
     }
 
     /**
@@ -402,76 +401,88 @@ class EnquiryController extends Controller
      */
     public function cancel(Request $request, Enquiry $enquiry)
     {
-        if (!in_array($enquiry->status, ['draft', 'pending_review', 'pending_approval'])) {
-            return back()->with('error', 'Only draft, pending review, or pending approval enquiries can be cancelled.');
+        if (in_array($enquiry->status, ['cancelled'])) {
+            return response()->json(['message' => 'Cannot cancel enquiry in current status'], 422);
         }
 
-        $validated = $request->validate([
-            'notes' => ['required', 'string'],
-        ]);
 
-        $enquiry->update([
-            'status' => 'cancelled',
-            'notes' => $validated['notes']
-        ]);
-
-        return back()->with('success', 'Enquiry cancelled successfully.');
-    }
-
-    /**
-     * Generate a unique enquiry number.
-     */
-    private function generateEnquiryNumber(): string
-    {
-        $prefix = 'ENQ';
-        $year = date('Y');
-        $month = date('m');
-        
-        $lastEnquiry = Enquiry::whereYear('created_at', $year)
-            ->whereMonth('created_at', $month)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastEnquiry) {
-            $lastNumber = (int) substr($lastEnquiry->enquiry_no, -4);
-            $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '0001';
-        }
-
-        return "{$prefix}{$year}{$month}{$newNumber}";
-    }
-
-    /**
-     * Get equipment data for the form.
-     */
-    public function getEquipment()
-    {
         try {
-            $equipment = Equipment::where('status', 'active')
-                ->select('id', 'name', 'model')
-                ->orderBy('name')
-                ->get()
-                ->map(fn($item) => [
-                    'value' => (string) $item->id,
-                    'label' => $item->name,
-                    'model' => $item->model
-                ]);
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'status' => 'cancelled',
+            ]);
+
+            DB::commit();
 
             return response()->json([
-                'success' => true,
-                'data' => $equipment
+                'message' => 'Enquiry cancelled successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch equipment data', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to cancel enquiry', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Assign the enquiry to a user.
+     */
+    public function assign(Request $request, Enquiry $enquiry)
+    {
+        $validator = Validator::make($request->all(), [
+            'assigned_to' => 'required|exists:users,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'assigned_to' => $request->assigned_to,
+                'assigned_at' => now(),
+                'assigned_by' => Auth::id()
             ]);
 
+            DB::commit();
+
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch equipment data: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Enquiry assigned successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to assign enquiry', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get all users for assignment.
+     */
+    public function getUsers()
+    {
+        $users = User::select('id', 'name')->orderBy('name')->get();
+        return response()->json($users);
+    }
+
+    /**
+     * Get all clients for the form.
+     */
+    public function getClients()
+    {
+        $clients = ClientDetail::select('id', 'company_name')->orderBy('company_name')->get();
+        return response()->json($clients);
+    }
+
+    /**
+     * Get contact persons for a client.
+     */
+    public function getClientContacts(ClientDetail $client)
+    {
+        $contacts = $client->contacts()->select('id', 'name')->orderBy('name')->get();
+        return response()->json($contacts);
     }
 }

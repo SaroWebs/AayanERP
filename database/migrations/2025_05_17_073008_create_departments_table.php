@@ -11,27 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('departments', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->string('code')->unique();
             $table->text('description')->nullable();
             $table->string('status')->default('active');
-            $table->integer('sort_order')->default(0);
-            
-            // Refractory-specific fields
-            $table->json('technical_requirements')->nullable();
-            $table->json('application_areas')->nullable();
-            $table->json('quality_standards')->nullable();
             $table->unsignedBigInteger('parent_id')->nullable();
-            
+            $table->integer('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
 
             // Add foreign key constraint for parent_id
             $table->foreign('parent_id')
                   ->references('id')
-                  ->on('categories')
+                  ->on('departments')
                   ->onDelete('set null');
         });
     }
@@ -41,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('departments');
     }
-};
+}; 

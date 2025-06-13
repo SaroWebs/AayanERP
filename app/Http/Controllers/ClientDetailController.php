@@ -372,4 +372,24 @@ class ClientDetailController extends Controller
             'document' => $document
         ], 201);
     }
+
+    /**
+     * Get contact persons for a client.
+     */
+    public function getClientContacts(ClientDetail $client)
+    {
+        try {
+            $contacts = $client->contactDetails()
+                ->select('id', 'contact_person as name', 'department', 'designation', 'phone', 'email')
+                ->orderBy('contact_person')
+                ->get();
+
+            return response()->json($contacts);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch client contacts',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
