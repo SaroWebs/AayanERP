@@ -23,94 +23,26 @@ import { useDisclosure } from '@mantine/hooks';
 import CreateEquipmentModal from './Partials/CreateEquipmentModal';
 import EditEquipmentModal from './Partials/EditEquipmentModal';
 import { PageProps } from '@/types/index.d';
-
-interface Category {
-    id: number;
-    name: string;
-    slug: string;
-    description: string | null;
-    status: string;
-    sort_order: number;
-    parent_id: number | null;
-}
-
-interface Series {
-    id: number;
-    name: string;
-    slug: string;
-    description: string | null;
-    status: 'active' | 'inactive';
-}
-
-interface Equipment {
-    id: number;
-    name: string;
-    code: string;
-    serial_no: string;
-    details: string | null;
-    rental_rate: number | null;
-    make: string | null;
-    model: string | null;
-    make_year: number | null;
-    capacity: string | null;
-    stock_unit: string | null;
-    unit_weight: string | null;
-    rental_unit: string | null;
-    status: 'active' | 'inactive' | 'maintenance' | 'retired';
-    condition: 'new' | 'good' | 'fair' | 'poor';
-    purchase_date: string | null;
-    purchase_price: number | null;
-    warranty_expiry: string | null;
-    last_maintenance_date: string | null;
-    next_maintenance_date: string | null;
-    location: string | null;
-    notes: string | null;
-    category_id: number;
-    equipment_series_id: number;
-    created_at: string;
-    updated_at: string;
-    deleted_at: string | null;
-    category: Category;
-    equipment_series: Series;
-    temperature_rating: string | null;
-    chemical_composition: any | null;
-    application_type: string | null;
-    technical_specifications: any | null;
-    material_safety_data: any | null;
-    installation_guidelines: string | null;
-    maintenance_requirements: string | null;
-    quality_certifications: any | null;
-    storage_conditions: any | null;
-    batch_number: string | null;
-    manufacturing_date: string | null;
-    expiry_date: string | null;
-    physical_properties: any | null;
-    dimensional_specifications: any | null;
-    visual_inspection_criteria: any | null;
-    series: Series;
-}
+import {
+    Equipment,
+    Series,
+    Category,
+    EquipmentStatus,
+    EquipmentFilters,
+    EquipmentResponse
+} from '@/types/equipment';
 
 interface Props extends PageProps {
     auth: any;
     series: Series[];
-    filters: {
-        category_id?: string;
-        series_id?: string;
-        status?: string;
-        search?: string;
-    };
+    filters: EquipmentFilters;
 }
 
 export default function Index({ auth, series, filters }: Props) {
     const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string>(filters.category_id || '');
-    const [equipment, setEquipment] = useState<{
-        data: Equipment[];
-        current_page: number;
-        last_page: number;
-        links: any[];
-    }>({
+    const [equipment, setEquipment] = useState<EquipmentResponse>({
         data: [],
         current_page: 1,
         last_page: 1,
@@ -207,18 +139,22 @@ export default function Index({ auth, series, filters }: Props) {
         openEditModal();
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: EquipmentStatus) => {
         switch (status) {
-            case 'active':
+            case 'available':
                 return 'green';
-            case 'inactive':
-                return 'red';
+            case 'in_use':
+                return 'blue';
             case 'maintenance':
                 return 'yellow';
+            case 'repair':
+                return 'orange';
             case 'retired':
                 return 'gray';
+            case 'scrapped':
+                return 'red';
             default:
-                return 'blue';
+                return 'gray';
         }
     };
 
@@ -253,106 +189,133 @@ export default function Index({ auth, series, filters }: Props) {
 
     const columns: DataTableColumn<Equipment>[] = [
         {
+            accessor: 'code',
+            title: 'Code',
+            width: 100,
+            sortable: true,
+        },
+        {
             accessor: 'name',
             title: 'Name',
-            render: (record) => (
-                <Box>
-                    <Group gap="xs">
-                        <Text fw={500}>{record.name}</Text>
-                        {record.deleted_at && (
-                            <Badge color="red" variant="light">Deleted</Badge>
-                        )}
-                    </Group>
-                    {record.details && (
-                        <Text size="xs" c="dimmed" lineClamp={2}>
-                            {record.details}
-                        </Text>
-                    )}
-                </Box>
+            width: 200,
+            sortable: true,
+        },
+        {
+            accessor: 'category.name',
+            title: 'Category',
+            width: 150,
+            sortable: true,
+            render: (equipment) => (
+                <Badge color={getCategoryColor(equipment.category.name)}>
+                    {equipment.category.name}
+                </Badge>
             ),
         },
         {
-            accessor: 'code',
-            title: 'Code',
+            accessor: 'equipment_series.name',
+            title: 'Series',
+            width: 150,
+            sortable: true,
+            render: (equipment) => equipment.equipment_series?.name || '-',
+        },
+        {
+            accessor: 'make',
+            title: 'Make',
+            width: 120,
+            sortable: true,
+        },
+        {
+            accessor: 'model',
+            title: 'Model',
+            width: 120,
+            sortable: true,
         },
         {
             accessor: 'serial_no',
             title: 'Serial No',
-        },
-        {
-            accessor: 'category',
-            title: 'Category',
-            render: (record) => (
-                <Badge>
-                    {record.category.name}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'equipment_series',
-            title: 'Series',
-            render: (record) => record.equipment_series?.name || '-',
+            width: 120,
+            sortable: true,
         },
         {
             accessor: 'status',
             title: 'Status',
-            render: (record) => (
-                <Group>
-                    {!record.deleted_at && (
-                        <Badge color={getStatusColor(record.status)}>{record.status}</Badge>
-                    )}
-                    {record.deleted_at && (
-                        <Badge color="red">Deleted</Badge>
-                    )}
-                </Group>
-            ),
-        },
-        {
-            accessor: 'condition',
-            title: 'Condition',
-            render: (record) => (
-                <Badge color={getConditionColor(record.condition)}>
-                    {record.condition.charAt(0).toUpperCase() + record.condition.slice(1)}
+            width: 120,
+            sortable: true,
+            render: (equipment) => (
+                <Badge color={getStatusColor(equipment.status)}>
+                    {equipment.status.replace('_', ' ')}
                 </Badge>
             ),
         },
         {
+            accessor: 'current_location',
+            title: 'Location',
+            width: 150,
+            sortable: true,
+        },
+        {
+            accessor: 'condition',
+            title: 'Condition',
+            width: 120,
+            sortable: true,
+            render: (equipment) => (
+                equipment.condition ? (
+                    <Badge color={getConditionColor(equipment.condition)}>
+                        {equipment.condition}
+                    </Badge>
+                ) : '-'
+            ),
+        },
+        {
+            accessor: 'last_maintenance_date',
+            title: 'Last Maintenance',
+            width: 150,
+            sortable: true,
+            render: (equipment) => equipment.last_maintenance_date ? new Date(equipment.last_maintenance_date).toLocaleDateString() : '-',
+        },
+        {
+            accessor: 'next_maintenance_date',
+            title: 'Next Maintenance',
+            width: 150,
+            sortable: true,
+            render: (equipment) => equipment.next_maintenance_date ? new Date(equipment.next_maintenance_date).toLocaleDateString() : '-',
+        },
+        {
             accessor: 'actions',
-            title: '',
-            textAlign: 'right' as DataTableColumnTextAlign,
-            render: (record) => (
-                <Group gap={4} justify="flex-end">
-                    {record.deleted_at ? (
+            title: 'Actions',
+            width: 100,
+            textAlign: 'center' as DataTableColumnTextAlign,
+            render: (equipment) => (
+                <Group gap={4} justify="center">
+                    <Tooltip label="Edit">
+                        <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            onClick={() => handleEdit(equipment)}
+                        >
+                            <Pencil size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                    {equipment.deleted_at ? (
                         <Tooltip label="Restore">
                             <ActionIcon
-                                variant="light"
+                                variant="subtle"
                                 color="green"
-                                onClick={() => handleRestore(record)}
+                                onClick={() => handleRestore(equipment)}
                             >
                                 <RotateCcw size={16} />
                             </ActionIcon>
                         </Tooltip>
                     ) : (
-                        <>
-                            <Tooltip label="Edit">
-                                <ActionIcon
-                                    variant="light"
-                                    color="blue"
-                                    onClick={() => handleEdit(record)}
-                                >
-                                    <Pencil size={16} />
-                                </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete">
-                                <ActionIcon
-                                    variant="light"
-                                    color="red"
-                                    onClick={() => handleDelete(record)}
-                                >
-                                    <Trash size={16} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </>
+                        <Tooltip label="Delete">
+                            <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                onClick={() => handleDelete(equipment)}
+                            >
+                                <Trash size={16} />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
                 </Group>
             ),
@@ -492,6 +455,7 @@ export default function Index({ auth, series, filters }: Props) {
                 opened={createModalOpened}
                 onClose={closeCreateModal}
                 series={series}
+                categories={categories.map(cat => ({ id: cat.id, name: cat.name }))}
             />
 
             {selectedEquipment && (
@@ -500,6 +464,7 @@ export default function Index({ auth, series, filters }: Props) {
                     onClose={closeEditModal}
                     equipment={selectedEquipment}
                     series={series}
+                    categories={categories.map(cat => ({ id: cat.id, name: cat.name }))}
                 />
             )}
         </AppLayout>

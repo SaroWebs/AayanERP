@@ -41,8 +41,9 @@ function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' 
     const [newItem, setNewItem] = useState('');
 
     const handleAdd = () => {
-        if (newItem.trim()) {
-            onChange([...value, newItem.trim()]);
+        const trimmedItem = newItem.trim();
+        if (trimmedItem) {
+            onChange([...value, trimmedItem]);
             setNewItem('');
         }
     };
@@ -67,7 +68,12 @@ function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' 
                         }
                     }}
                 />
-                <ActionIcon variant="light" color="blue" onClick={handleAdd}>
+                <ActionIcon 
+                    variant="light" 
+                    color="blue" 
+                    onClick={handleAdd}
+                    disabled={!newItem.trim()}
+                >
                     <Plus size={16} />
                 </ActionIcon>
             </Group>
@@ -88,17 +94,30 @@ function ArrayInput({ label, value, onChange, error, placeholder = 'Enter item' 
     );
 }
 
+interface FormData {
+    name: string;
+    slug: string;
+    description: string;
+    status: 'active' | 'inactive';
+    sort_order: number;
+    parent_id: string;
+    technical_requirements: string[];
+    application_areas: string[];
+    quality_standards: string[];
+    [key: string]: string | number | string[] | undefined;
+}
+
 export default function CreateCategoryModal({ opened, onClose, categories }: Props) {
-    const form = useForm({
+    const form = useForm<FormData>({
         name: '',
         slug: '',
         description: '',
         status: 'active',
         sort_order: 0,
         parent_id: '',
-        technical_requirements: [''],
-        application_areas: [''],
-        quality_standards: [''],
+        technical_requirements: [],
+        application_areas: [],
+        quality_standards: [],
     });
 
     useEffect(() => {
@@ -109,6 +128,15 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Update form data with filtered arrays
+        form.setData({
+            ...form.data,
+            technical_requirements: form.data.technical_requirements.filter(Boolean),
+            application_areas: form.data.application_areas.filter(Boolean),
+            quality_standards: form.data.quality_standards.filter(Boolean),
+        });
+        
         form.post(route('equipment.categories.store'), {
             onSuccess: () => {
                 form.reset();
@@ -131,15 +159,7 @@ export default function CreateCategoryModal({ opened, onClose, categories }: Pro
             title="Create Category"
             size="xl"
         >
-            <form onSubmit={(e) => {
-                e.preventDefault();
-                form.submit('post', route('equipment.categories.store'), {
-                    onSuccess: () => {
-                        form.reset();
-                        onClose();
-                    },
-                });
-            }}>
+            <form onSubmit={handleSubmit}>
                 <Stack gap="md">
                     <Grid>
                         <Grid.Col span={6}>

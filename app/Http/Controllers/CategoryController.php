@@ -48,9 +48,9 @@ class CategoryController extends Controller
                             $fail('Technical requirements must be an array.');
                             return;
                         }
-                        foreach ($value as $key => $req) {
-                            if (!isset($req['name']) || !isset($req['value'])) {
-                                $fail('Each technical requirement must have a name and value.');
+                        foreach ($value as $req) {
+                            if (!is_string($req) || empty(trim($req))) {
+                                $fail('Each technical requirement must be a non-empty string.');
                             }
                         }
                     },
@@ -64,8 +64,8 @@ class CategoryController extends Controller
                             return;
                         }
                         foreach ($value as $area) {
-                            if (!is_string($area)) {
-                                $fail('Each application area must be a string.');
+                            if (!is_string($area) || empty(trim($area))) {
+                                $fail('Each application area must be a non-empty string.');
                             }
                         }
                     },
@@ -79,15 +79,15 @@ class CategoryController extends Controller
                             return;
                         }
                         foreach ($value as $standard) {
-                            if (!isset($standard['name']) || !isset($standard['value'])) {
-                                $fail('Each quality standard must have a name and value.');
+                            if (!is_string($standard) || empty(trim($standard))) {
+                                $fail('Each quality standard must be a non-empty string.');
                             }
                         }
                     },
                 ],
             ]);
 
-            $category = Category::create($validated);
+            Category::create($validated);
             Cache::forget('categories.all');
 
             return redirect()->back()->with('success', 'Category created successfully.');
@@ -130,9 +130,9 @@ class CategoryController extends Controller
                             $fail('Technical requirements must be an array.');
                             return;
                         }
-                        foreach ($value as $key => $req) {
-                            if (!isset($req['name']) || !isset($req['value'])) {
-                                $fail('Each technical requirement must have a name and value.');
+                        foreach ($value as $req) {
+                            if (!is_string($req) || empty(trim($req))) {
+                                $fail('Each technical requirement must be a non-empty string.');
                             }
                         }
                     },
@@ -146,8 +146,8 @@ class CategoryController extends Controller
                             return;
                         }
                         foreach ($value as $area) {
-                            if (!is_string($area)) {
-                                $fail('Each application area must be a string.');
+                            if (!is_string($area) || empty(trim($area))) {
+                                $fail('Each application area must be a non-empty string.');
                             }
                         }
                     },
@@ -161,8 +161,8 @@ class CategoryController extends Controller
                             return;
                         }
                         foreach ($value as $standard) {
-                            if (!isset($standard['name']) || !isset($standard['value'])) {
-                                $fail('Each quality standard must have a name and value.');
+                            if (!is_string($standard) || empty(trim($standard))) {
+                                $fail('Each quality standard must be a non-empty string.');
                             }
                         }
                     },

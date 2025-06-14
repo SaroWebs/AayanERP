@@ -1,15 +1,15 @@
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { PageProps } from '@/types';
+import { PageProps } from '@/types/index.d';
 import AppLayout from '@/layouts/app-layout';
 import axios from 'axios';
-import { 
-    Card, 
-    TextInput, 
-    Select, 
-    Badge, 
-    Button, 
-    Group, 
+import {
+    Card,
+    TextInput,
+    Select,
+    Badge,
+    Button,
+    Group,
     Stack,
     ActionIcon,
     Text,
@@ -23,23 +23,45 @@ import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import CreateItemModal from './Partials/CreateItemModal';
 import EditItemModal from './Partials/EditItemModal';
+import StockMovementModal from './Partials/StockMovementModal';
 
 
 interface Item {
     id: number;
-    name: string;
     code: string;
+    name: string;
     slug: string;
+    category_id: number | null;
+    category?: {
+        id: number;
+        name: string;
+    };
+    hsn: string | null;
     description_1: string | null;
     description_2: string | null;
-    hsn: string | null;
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding';
-    status: 'active' | 'inactive';
+    type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
+    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
+    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
+    status: 'active' | 'inactive' | 'discontinued';
     minimum_stock: number;
     current_stock: number;
     maximum_stock: number | null;
     reorder_point: number | null;
+    reorder_quantity: number | null;
+    standard_cost: number | null;
+    selling_price: number | null;
+    rental_rate: number | null;
+    specifications: Record<string, any> | null;
+    technical_details: Record<string, any> | null;
+    safety_data: Record<string, any> | null;
+    storage_location: string | null;
+    storage_conditions: string | null;
+    storage_instructions: string | null;
+    manufacturer: string | null;
+    supplier: string | null;
+    warranty_period: string | null;
+    last_purchase_date: string | null;
+    last_purchase_price: number | null;
     sort_order: number;
     created_at: string;
     updated_at: string;
@@ -49,14 +71,15 @@ interface Item {
 
 interface Props extends PageProps {
     filters?: {
-        applicable_for?: string;
-        status?: string;
-        stock_status?: string;
         search?: string;
     };
+    categories?: Array<{
+        id: number;
+        name: string;
+    }>;
 }
 
-export default function Index({ auth, filters = {} }: Props) {
+export default function Index({ filters = {} }: Props) {
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [items, setItems] = useState<{
         data: Item[];
@@ -71,45 +94,28 @@ export default function Index({ auth, filters = {} }: Props) {
     });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState(filters.search || '');
-    const [applicableFor, setApplicableFor] = useState(filters.applicable_for || '');
-    const [status, setStatus] = useState(filters.status || '');
-    const [stockStatus, setStockStatus] = useState(filters.stock_status || '');
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false);
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
+    const [stockMovementModalOpened, { open: openStockMovementModal, close: closeStockMovementModal }] = useDisclosure(false);
+    const [categoriesList, setCategoriesList] = useState<Array<{ id: number; name: string }> | null>(null);
 
     const breadcrumbs = [
-        { title: 'Equipment', href: '#' },
-        { title: 'Items', href: route('equipment.items.index') },
+        { title: 'Inventory', href: '#' },
+        { title: 'Inventory Items', href: route('equipment.items.index') },
     ];
 
     const loadItems = async (params: {
         page?: number;
         search?: string;
-        applicable_for?: string;
-        status?: string;
-        stock_status?: string;
     } = {}) => {
         try {
             setLoading(true);
-            
             const requestParams: Record<string, string | number> = {
                 page: params.page || 1
             };
-            
+
             if (params.search !== undefined ? params.search : search) {
                 requestParams.search = params.search !== undefined ? params.search : search;
-            }
-            
-            if (params.applicable_for !== undefined ? params.applicable_for : applicableFor) {
-                requestParams.applicable_for = params.applicable_for !== undefined ? params.applicable_for : applicableFor;
-            }
-            
-            if (params.status !== undefined ? params.status : status) {
-                requestParams.status = params.status !== undefined ? params.status : status;
-            }
-
-            if (params.stock_status !== undefined ? params.stock_status : stockStatus) {
-                requestParams.stock_status = params.stock_status !== undefined ? params.stock_status : stockStatus;
             }
 
             const response = await axios.get(route('equipment.items.data'), {
@@ -128,30 +134,24 @@ export default function Index({ auth, filters = {} }: Props) {
         loadItems();
     }, []);
 
-    // Load items when filters change
+    // Load items when search changes
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             loadItems({ page: 1 });
         }, 300); // Debounce search
 
         return () => clearTimeout(timeoutId);
-    }, [search, applicableFor, status, stockStatus]);
+    }, [search]);
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-    };
-
-    const handleApplicableForChange = (value: string | null) => {
-        setApplicableFor(value || '');
-    };
-
-    const handleStatusChange = (value: string | null) => {
-        setStatus(value || '');
-    };
-
-    const handleStockStatusChange = (value: string | null) => {
-        setStockStatus(value || '');
-    };
+    useEffect(() => {
+        axios.get(route('equipment.categories.data'))
+            .then(response => {
+                setCategoriesList(response.data);
+            })
+            .catch(error => {
+                console.error('Error loading categories:', error);
+            });
+    }, []);
 
     const handleEdit = (item: Item) => {
         setSelectedItem(item);
@@ -179,14 +179,20 @@ export default function Index({ auth, filters = {} }: Props) {
         });
     };
 
+    const handleStockMovement = (item: Item) => {
+        setSelectedItem(item);
+        openStockMovementModal();
+    };
+
     const getStatusColor = (status: string) => {
-        return status === 'active' ? 'green' : 'red';
+        return status === 'active' ? 'green' : status === 'inactive' ? 'red' : 'gray';
     };
 
     const getApplicableForColor = (variant: string) => {
         switch (variant) {
             case 'equipment': return 'blue';
             case 'scaffolding': return 'gray';
+            case 'refractory': return 'purple';
             default: return 'green';
         }
     };
@@ -207,196 +213,178 @@ export default function Index({ auth, filters = {} }: Props) {
         }
     };
 
-    const columns: DataTableColumn<Item>[] = [
-        {
-            accessor: 'name',
-            title: 'Name',
-            render: (record) => (
-                <Box>
-                    <Text fw={500}>{record.name}</Text>
-                    {record.description_1 && (
-                        <Text size="xs" c="dimmed" lineClamp={2}>
-                            {record.description_1}
-                        </Text>
-                    )}
-                </Box>
-            ),
-        },
-        {
-            accessor: 'code',
-            title: 'Code',
-        },
-        {
-            accessor: 'applicable_for',
-            title: 'Type',
-            render: (record) => (
-                <Badge color={getApplicableForColor(record.applicable_for)}>
-                    {record.applicable_for.charAt(0).toUpperCase() + record.applicable_for.slice(1)}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'unit',
-            title: 'Unit',
-            render: (record) => record.unit?.toUpperCase() || 'N/A',
-        },
-        {
-            accessor: 'current_stock',
-            title: 'Current Stock',
-            render: (record) => (
-                <Group gap="xs">
-                    <Text>{record.current_stock}</Text>
-                    {record.stock_status && (
-                        <Badge color={getStockStatusColor(record.stock_status)}>
-                            {getStockStatusLabel(record.stock_status)}
-                        </Badge>
-                    )}
-                </Group>
-            ),
-        },
-        {
-            accessor: 'hsn',
-            title: 'HSN',
-            render: (record) => record.hsn || 'N/A',
-        },
-        {
-            accessor: 'status',
-            title: 'Status',
-            render: (record) => (
-                <Badge color={getStatusColor(record.status)}>
-                    {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'actions',
-            title: '',
-            textAlign: 'right' as DataTableColumnTextAlign,
-            render: (record) => (
-                <Group gap={4} justify="flex-end">
-                    <Tooltip label="Stock Movement">
-                        <ActionIcon
-                            variant="light"
-                            color="blue"
-                            onClick={() => router.visit(route('equipment.items.show', record.id))}
-                        >
-                            <Package size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Edit">
-                        <ActionIcon
-                            variant="light"
-                            color="blue"
-                            onClick={() => handleEdit(record)}
-                        >
-                            <Pencil size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete">
-                        <ActionIcon
-                            variant="light"
-                            color="red"
-                            onClick={() => handleDelete(record.id)}
-                        >
-                            <Trash size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            ),
-        },
-    ];
+    const getTypeColor = (type: string) => {
+        switch (type) {
+            case 'consumable': return 'blue';
+            case 'spare_part': return 'orange';
+            case 'tool': return 'green';
+            case 'material': return 'grape';
+            default: return 'gray';
+        }
+    };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Items" />
+        <AppLayout
+            breadcrumbs={breadcrumbs}
+        >
+            <Head title="Inventory Items" />
 
-            <Box py="xl">
-                <Card>
-                    <Card.Section p="md">
-                        <Group justify="space-between">
-                            <Text fw={500} size="xl">Items</Text>
-                            <Button
-                                leftSection={<Plus size={16} />}
-                                onClick={openCreateModal}
-                            >
-                                Add Item
-                            </Button>
-                        </Group>
-                    </Card.Section>
+            <Card shadow="sm" padding="lg">
+                <Stack>
+                    <Group>
+                        <TextInput
+                            placeholder="Search items..."
+                            value={search}
+                            onChange={(event) => setSearch(event.currentTarget.value)}
+                            style={{ flex: 1 }}
+                        />
+                        <Button
+                            leftSection={<Plus size={16} />}
+                            onClick={openCreateModal}
+                        >
+                            Add Item
+                        </Button>
+                    </Group>
 
-                    <Card.Section p="md">
-                        <Stack gap="md">
-                            <Card>
-                                <Card.Section p="md">
-                                    <Group>
-                                        <TextInput
-                                            placeholder="Search items..."
-                                            value={search}
-                                            onChange={(e) => handleSearch(e.target.value)}
-                                            style={{ maxWidth: 300 }}
-                                        />
-                                        <Select
-                                            value={applicableFor}
-                                            onChange={handleApplicableForChange}
-                                            placeholder="Select type"
-                                            data={[
-                                                { value: '', label: 'All Types' },
-                                                { value: 'all', label: 'All' },
-                                                { value: 'equipment', label: 'Equipment' },
-                                                { value: 'scaffolding', label: 'Scaffolding' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
-                                        <Select
-                                            value={status}
-                                            onChange={handleStatusChange}
-                                            placeholder="Select status"
-                                            data={[
-                                                { value: '', label: 'All Status' },
-                                                { value: 'active', label: 'Active' },
-                                                { value: 'inactive', label: 'Inactive' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
-                                        <Select
-                                            value={stockStatus}
-                                            onChange={handleStockStatusChange}
-                                            placeholder="Stock Status"
-                                            data={[
-                                                { value: '', label: 'All Stock Status' },
-                                                { value: 'low', label: 'Low Stock' },
-                                                { value: 'normal', label: 'Normal Stock' },
-                                                { value: 'excess', label: 'Excess Stock' }
-                                            ]}
-                                            style={{ width: 200 }}
-                                        />
+                    <DataTable
+                        withTableBorder
+                        borderRadius="sm"
+                        withColumnBorders
+                        striped
+                        highlightOnHover
+                        loadingText="Loading items..."
+                        records={items.data}
+                        columns={[
+                            {
+                                accessor: 'code',
+                                title: 'Code',
+                                width: 100,
+                            },
+                            {
+                                accessor: 'name',
+                                title: 'Name',
+                                width: 200,
+                            },
+                            {
+                                accessor: 'category.name',
+                                title: 'Category',
+                                width: 150,
+                            },
+                            {
+                                accessor: 'type',
+                                title: 'Type',
+                                width: 120,
+                                render: (item) => (
+                                    <Badge color={getTypeColor(item.type)}>
+                                        {item.type.replace('_', ' ').toUpperCase()}
+                                    </Badge>
+                                ),
+                            },
+                            {
+                                accessor: 'unit',
+                                title: 'Unit',
+                                width: 80,
+                                render: (item) => item.unit?.toUpperCase() || 'N/A',
+                            },
+                            {
+                                accessor: 'current_stock',
+                                title: 'Stock',
+                                width: 120,
+                                textAlign: 'right' as DataTableColumnTextAlign,
+                                render: (item) => (
+                                    <Group gap="xs" justify="flex-end">
+                                        <Text>{item.current_stock}</Text>
+                                        <Badge
+                                            color={getStockStatusColor(item.stock_status || 'normal')}
+                                            size="sm"
+                                        >
+                                            {item.stock_status?.toUpperCase() || 'NORMAL'}
+                                        </Badge>
                                     </Group>
-                                </Card.Section>
-                            </Card>
-
-                            <Divider />
-
-                            <DataTable
-                                withTableBorder
-                                borderRadius="sm"
-                                withColumnBorders
-                                striped
-                                highlightOnHover
-                                columns={columns}
-                                records={items.data}
-                                totalRecords={items.last_page * 10}
-                                recordsPerPage={10}
-                                page={items.current_page}
-                                onPageChange={(page) => loadItems({ page })}
-                                fetching={loading}
-                                noRecordsText="No items found"
-                                minHeight={150}
-                                idAccessor="id"
-                            />
-                        </Stack>
-                    </Card.Section>
-                </Card>
-            </Box>
+                                ),
+                            },
+                            {
+                                accessor: 'standard_cost',
+                                title: 'Cost',
+                                width: 120,
+                                textAlign: 'right' as DataTableColumnTextAlign,
+                                render: (item) => item.standard_cost ? `₹${item.standard_cost.toFixed(2)}` : 'N/A',
+                            },
+                            {
+                                accessor: 'selling_price',
+                                title: 'Price',
+                                width: 120,
+                                textAlign: 'right' as DataTableColumnTextAlign,
+                                render: (item) => item.selling_price ? `₹${item.selling_price.toFixed(2)}` : 'N/A',
+                            },
+                            {
+                                accessor: 'applicable_for',
+                                title: 'Application',
+                                width: 120,
+                                render: (item) => (
+                                    <Badge color={getApplicableForColor(item.applicable_for)}>
+                                        {item.applicable_for.replace('_', ' ').toUpperCase()}
+                                    </Badge>
+                                ),
+                            },
+                            {
+                                accessor: 'status',
+                                title: 'Status',
+                                width: 100,
+                                render: (item) => (
+                                    <Badge color={getStatusColor(item.status)}>
+                                        {item.status.toUpperCase()}
+                                    </Badge>
+                                ),
+                            },
+                            {
+                                accessor: 'actions',
+                                title: 'Actions',
+                                width: 150,
+                                textAlign: 'center' as DataTableColumnTextAlign,
+                                render: (item) => (
+                                    <Group gap="xs" justify="center">
+                                        <Tooltip label="Stock Movement">
+                                            <ActionIcon
+                                                variant="light"
+                                                color="blue"
+                                                onClick={() => handleStockMovement(item)}
+                                            >
+                                                <Package size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                        <Tooltip label="Edit">
+                                            <ActionIcon
+                                                variant="light"
+                                                color="blue"
+                                                onClick={() => handleEdit(item)}
+                                            >
+                                                <Pencil size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                        <Tooltip label="Delete">
+                                            <ActionIcon
+                                                variant="light"
+                                                color="red"
+                                                onClick={() => handleDelete(item.id)}
+                                            >
+                                                <Trash size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
+                                ),
+                            },
+                        ]}
+                        totalRecords={items.last_page * 10}
+                        recordsPerPage={10}
+                        page={items.current_page}
+                        onPageChange={(page) => loadItems({ page })}
+                        noRecordsText="No items found"
+                        minHeight={150}
+                        idAccessor="id"
+                    />
+                </Stack>
+            </Card>
 
             <CreateItemModal
                 opened={createModalOpened}
@@ -408,6 +396,15 @@ export default function Index({ auth, filters = {} }: Props) {
                 <EditItemModal
                     opened={editModalOpened}
                     onClose={closeEditModal}
+                    loadData={loadItems}
+                    item={selectedItem}
+                />
+            )}
+
+            {selectedItem && (
+                <StockMovementModal
+                    opened={stockMovementModalOpened}
+                    onClose={closeStockMovementModal}
                     item={selectedItem}
                     loadData={loadItems}
                 />

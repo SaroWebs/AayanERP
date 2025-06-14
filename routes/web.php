@@ -52,6 +52,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('data/clients/{client}/contacts', 'getClientContacts');
     });
 
+    Route::post('equipment/categories/store', [CategoryController::class, 'store'])->name('equipment.categories.store');
+
     Route::prefix('equipment')->name('equipment.')->group(function () {
         Route::get('/equipment/data', [EquipmentController::class, 'data'])->name('equipment.data');
         Route::get('/equipment/list', [EquipmentController::class, 'getEquipment'])->name('equipment.list');
@@ -59,7 +61,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::controller(CategoryController::class)->group(function () {
             Route::get('/categories', 'index')->name('categories.index');
-            Route::post('/categories/store', 'store')->name('categories.store');
             Route::put('/categories/{category}', 'update')->name('categories.update');
             Route::put('/categories/{category}/status', 'updateStatus')->name('categories.status.update');
             Route::delete('/categories/{category}', 'destroy')->name('categories.destroy');
@@ -174,8 +175,10 @@ Route::middleware(['auth'])->group(function () {
             Route::put('items/{item}', 'update')->name('equipment.items.update');
             Route::delete('items/{item}', 'destroy')->name('equipment.items.destroy');
             Route::post('items/{item}/restore', 'restore')->name('equipment.items.restore');
-            Route::post('items/{item}/stock-movement', 'storeStockMovement')->name('equipment.items.stock-movement.store');
-            Route::delete('items/{item}/stock-movement/{movement}', 'destroyStockMovement')->name('equipment.items.stock-movement.destroy');
+            Route::post('equipment/items/{item}/stock-movement', 'storeStockMovement')
+                ->name('equipment.items.stock-movement.store');
+            Route::delete('equipment/items/{item}/stock-movement/{movement}', 'destroyStockMovement')
+                ->name('equipment.items.stock-movement.destroy');
         });
     });
 

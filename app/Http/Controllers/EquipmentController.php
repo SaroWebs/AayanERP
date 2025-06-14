@@ -7,6 +7,7 @@ use App\Models\EquipmentSeries;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Illuminate\Support\Str;
 
 class EquipmentController extends Controller
 {
@@ -59,63 +60,88 @@ class EquipmentController extends Controller
     {
         try {
             $validated = $request->validate([
-                // Common details
+                // Basic Information
+                'code' => 'required|string|max:255|unique:equipment',
                 'name' => 'required|string|max:255',
                 'category_id' => 'required|exists:categories,id',
-                'equipment_series_id' => 'required|exists:equipment_series,id',
-                'details' => 'nullable|string',
-                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'equipment_series_id' => 'nullable|exists:equipment_series,id',
+                'description' => 'nullable|string',
 
                 // Equipment Details
                 'make' => 'nullable|string|max:255',
                 'model' => 'nullable|string|max:255',
-                'serial_no' => 'nullable|string|max:255|unique:equipment',
-                'code' => 'nullable|string|max:255|unique:equipment',
+                'serial_no' => 'nullable|string|max:255',
                 'make_year' => 'nullable|integer|min:1800|max:' . date('Y'),
                 'capacity' => 'nullable|string|max:255',
-                'stock_unit' => 'nullable|string|max:255',
-                'unit_weight' => 'nullable|string|max:255',
-                'rental_unit' => 'nullable|string|max:255',
+                'power_rating' => 'nullable|string|max:255',
+                'fuel_type' => 'nullable|string|max:255',
+                'operating_conditions' => 'nullable|string|max:255',
 
-                // Other Details
-                'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-                'condition' => ['nullable', Rule::in(['new', 'good', 'fair', 'poor'])],
-                'purchase_date' => 'nullable|date',
+                // Physical Details
+                'weight' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_length' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_width' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_height' => 'nullable|numeric|min:0|decimal:0,2',
+                'color' => 'nullable|string|max:255',
+                'material' => 'nullable|string|max:255',
+
+                // Financial Details
                 'purchase_price' => 'nullable|numeric|min:0|decimal:0,2',
-                'warranty_expiry' => 'nullable|date',
+                'purchase_date' => 'nullable|date',
+                'purchase_order_no' => 'nullable|string|max:255',
+                'supplier' => 'nullable|string|max:255',
+                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'depreciation_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'current_value' => 'nullable|numeric|min:0|decimal:0,2',
+
+                // Maintenance Details
+                'maintenance_frequency' => ['nullable', Rule::in(['daily', 'weekly', 'monthly', 'quarterly', 'bi-annual', 'annual', 'as-needed'])],
                 'last_maintenance_date' => 'nullable|date',
                 'next_maintenance_date' => 'nullable|date',
-                'location' => 'nullable|string|max:255',
-                'notes' => 'nullable|string',
+                'maintenance_hours' => 'nullable|integer|min:0',
+                'maintenance_instructions' => 'nullable|string',
+                'maintenance_checklist' => 'nullable|json',
 
-                // Refractory-specific fields
-                'temperature_rating' => 'nullable|string|max:255',
-                'chemical_composition' => 'nullable|json',
-                'application_type' => 'nullable|string|max:255',
+                // Warranty and Insurance
+                'warranty_start_date' => 'nullable|date',
+                'warranty_end_date' => 'nullable|date',
+                'warranty_terms' => 'nullable|string|max:255',
+                'insurance_policy_no' => 'nullable|string|max:255',
+                'insurance_expiry_date' => 'nullable|date',
+                'insurance_coverage' => 'nullable|string|max:255',
+
+                // Location and Status
+                'status' => ['required', Rule::in(['available', 'in_use', 'maintenance', 'repair', 'retired', 'scrapped'])],
+                'current_location' => 'nullable|string|max:255',
+                'assigned_to' => 'nullable|string|max:255',
+                'condition' => 'nullable|string|max:255',
+                'usage_hours' => 'nullable|integer|min:0',
+
+                // Documentation
                 'technical_specifications' => 'nullable|json',
-                'material_safety_data' => 'nullable|json',
-                'installation_guidelines' => 'nullable|string',
-                'maintenance_requirements' => 'nullable|string',
-                'quality_certifications' => 'nullable|json',
-                'storage_conditions' => 'nullable|json',
-                'batch_number' => 'nullable|string|max:255',
-                'manufacturing_date' => 'nullable|date',
-                'expiry_date' => 'nullable|date',
-                'physical_properties' => 'nullable|json',
-                'dimensional_specifications' => 'nullable|json',
-                'visual_inspection_criteria' => 'nullable|json',
+                'safety_requirements' => 'nullable|json',
+                'operating_instructions' => 'nullable|json',
+                'certifications' => 'nullable|json',
+                'attachments' => 'nullable|json',
+
+                // Additional Details
+                'notes' => 'nullable|string',
+                'special_instructions' => 'nullable|string',
+                'custom_fields' => 'nullable|json',
             ]);
+
+            // Generate slug from name
+            $validated['slug'] = Str::slug($validated['name']);
 
             // Handle JSON fields
             $jsonFields = [
-                'chemical_composition',
+                'maintenance_checklist',
                 'technical_specifications',
-                'material_safety_data',
-                'quality_certifications',
-                'storage_conditions',
-                'physical_properties',
-                'dimensional_specifications',
-                'visual_inspection_criteria'
+                'safety_requirements',
+                'operating_instructions',
+                'certifications',
+                'attachments',
+                'custom_fields'
             ];
 
             foreach ($jsonFields as $field) {
@@ -154,63 +180,90 @@ class EquipmentController extends Controller
     {
         try {
             $validated = $request->validate([
-                // Common details
+                // Basic Information
+                'code' => ['required', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
                 'name' => 'required|string|max:255',
                 'category_id' => 'required|exists:categories,id',
-                'equipment_series_id' => 'required|exists:equipment_series,id',
-                'details' => 'nullable|string',
-                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'equipment_series_id' => 'nullable|exists:equipment_series,id',
+                'description' => 'nullable|string',
 
                 // Equipment Details
                 'make' => 'nullable|string|max:255',
                 'model' => 'nullable|string|max:255',
-                'serial_no' => ['nullable', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
-                'code' => ['nullable', 'string', 'max:255', Rule::unique('equipment')->ignore($equipment)],
+                'serial_no' => 'nullable|string|max:255',
                 'make_year' => 'nullable|integer|min:1800|max:' . date('Y'),
                 'capacity' => 'nullable|string|max:255',
-                'stock_unit' => 'nullable|string|max:255',
-                'unit_weight' => 'nullable|string|max:255',
-                'rental_unit' => 'nullable|string|max:255',
+                'power_rating' => 'nullable|string|max:255',
+                'fuel_type' => 'nullable|string|max:255',
+                'operating_conditions' => 'nullable|string|max:255',
 
-                // Other Details
-                'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
-                'condition' => ['nullable', Rule::in(['new', 'good', 'fair', 'poor'])],
-                'purchase_date' => 'nullable|date',
+                // Physical Details
+                'weight' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_length' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_width' => 'nullable|numeric|min:0|decimal:0,2',
+                'dimensions_height' => 'nullable|numeric|min:0|decimal:0,2',
+                'color' => 'nullable|string|max:255',
+                'material' => 'nullable|string|max:255',
+
+                // Financial Details
                 'purchase_price' => 'nullable|numeric|min:0|decimal:0,2',
-                'warranty_expiry' => 'nullable|date',
+                'purchase_date' => 'nullable|date',
+                'purchase_order_no' => 'nullable|string|max:255',
+                'supplier' => 'nullable|string|max:255',
+                'rental_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'depreciation_rate' => 'nullable|numeric|min:0|decimal:0,2',
+                'current_value' => 'nullable|numeric|min:0|decimal:0,2',
+
+                // Maintenance Details
+                'maintenance_frequency' => ['nullable', Rule::in(['daily', 'weekly', 'monthly', 'quarterly', 'bi-annual', 'annual', 'as-needed'])],
                 'last_maintenance_date' => 'nullable|date',
                 'next_maintenance_date' => 'nullable|date',
-                'location' => 'nullable|string|max:255',
-                'notes' => 'nullable|string',
+                'maintenance_hours' => 'nullable|integer|min:0',
+                'maintenance_instructions' => 'nullable|string',
+                'maintenance_checklist' => 'nullable|json',
 
-                // Refractory-specific fields
-                'temperature_rating' => 'nullable|string|max:255',
-                'chemical_composition' => 'nullable|json',
-                'application_type' => 'nullable|string|max:255',
+                // Warranty and Insurance
+                'warranty_start_date' => 'nullable|date',
+                'warranty_end_date' => 'nullable|date',
+                'warranty_terms' => 'nullable|string|max:255',
+                'insurance_policy_no' => 'nullable|string|max:255',
+                'insurance_expiry_date' => 'nullable|date',
+                'insurance_coverage' => 'nullable|string|max:255',
+
+                // Location and Status
+                'status' => ['required', Rule::in(['available', 'in_use', 'maintenance', 'repair', 'retired', 'scrapped'])],
+                'current_location' => 'nullable|string|max:255',
+                'assigned_to' => 'nullable|string|max:255',
+                'condition' => 'nullable|string|max:255',
+                'usage_hours' => 'nullable|integer|min:0',
+
+                // Documentation
                 'technical_specifications' => 'nullable|json',
-                'material_safety_data' => 'nullable|json',
-                'installation_guidelines' => 'nullable|string',
-                'maintenance_requirements' => 'nullable|string',
-                'quality_certifications' => 'nullable|json',
-                'storage_conditions' => 'nullable|json',
-                'batch_number' => 'nullable|string|max:255',
-                'manufacturing_date' => 'nullable|date',
-                'expiry_date' => 'nullable|date',
-                'physical_properties' => 'nullable|json',
-                'dimensional_specifications' => 'nullable|json',
-                'visual_inspection_criteria' => 'nullable|json',
+                'safety_requirements' => 'nullable|json',
+                'operating_instructions' => 'nullable|json',
+                'certifications' => 'nullable|json',
+                'attachments' => 'nullable|json',
+
+                // Additional Details
+                'notes' => 'nullable|string',
+                'special_instructions' => 'nullable|string',
+                'custom_fields' => 'nullable|json',
             ]);
+
+            // Update slug if name changed
+            if ($equipment->name !== $validated['name']) {
+                $validated['slug'] = Str::slug($validated['name']);
+            }
 
             // Handle JSON fields
             $jsonFields = [
-                'chemical_composition',
+                'maintenance_checklist',
                 'technical_specifications',
-                'material_safety_data',
-                'quality_certifications',
-                'storage_conditions',
-                'physical_properties',
-                'dimensional_specifications',
-                'visual_inspection_criteria'
+                'safety_requirements',
+                'operating_instructions',
+                'certifications',
+                'attachments',
+                'custom_fields'
             ];
 
             foreach ($jsonFields as $field) {
@@ -275,20 +328,31 @@ class EquipmentController extends Controller
     public function updateMaintenance(Request $request, Equipment $equipment)
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['active', 'inactive', 'maintenance', 'retired'])],
+            'status' => ['required', Rule::in(['available', 'in_use', 'maintenance', 'repair', 'retired', 'scrapped'])],
             'maintenance_notes' => 'required|string',
             'maintenance_date' => 'required|date',
             'next_maintenance_date' => 'nullable|date',
+            'maintenance_hours' => 'nullable|integer|min:0',
+            'maintenance_instructions' => 'nullable|string',
+            'maintenance_checklist' => 'nullable|json',
             'cost' => 'nullable|numeric|min:0',
         ]);
 
-        $equipment->update(['status' => $validated['status']]);
+        $equipment->update([
+            'status' => $validated['status'],
+            'last_maintenance_date' => $validated['maintenance_date'],
+            'next_maintenance_date' => $validated['next_maintenance_date'],
+            'maintenance_hours' => $validated['maintenance_hours'],
+            'maintenance_instructions' => $validated['maintenance_instructions'],
+            'maintenance_checklist' => $validated['maintenance_checklist'],
+        ]);
         
         $equipment->maintenanceRecords()->create([
             'notes' => $validated['maintenance_notes'],
             'date' => $validated['maintenance_date'],
             'next_date' => $validated['next_maintenance_date'],
             'cost' => $validated['cost'],
+            'hours' => $validated['maintenance_hours'],
         ]);
 
         return redirect()
