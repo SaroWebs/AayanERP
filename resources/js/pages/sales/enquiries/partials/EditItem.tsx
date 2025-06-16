@@ -1,6 +1,5 @@
-import { Modal, Button, TextInput, Select, Textarea, Stack, Group, Grid, NumberInput, Divider, Title } from '@mantine/core';
+import { Modal, Button, TextInput, Select, Textarea, Stack, Group, Grid, NumberInput, Divider, Title, Text } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { router } from '@inertiajs/react';
 import { notifications } from '@mantine/notifications';
 import { Enquiry, EnquiryType, EnquiryPriority, EnquirySource, NatureOfWork, DurationUnit } from '../types';
 import { FormEvent, useEffect, useState } from 'react';
@@ -69,86 +68,37 @@ const DURATION_UNIT_OPTIONS: { value: DurationUnit; label: string }[] = [
 ];
 
 export function EditItem({ opened, onClose, enquiry, clients }: Props) {
-    const [states, setStates] = useState<State[]>([]);
-    const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [contactPersons, setContactPersons] = useState<Array<{ id: number; name: string }>>([]);
+    const [equipment, setEquipment] = useState<Equipment[]>([]);
+    const [states, setStates] = useState<State[]>([]);
 
-    useEffect(() => {
-        fetch('/assets/data/states.json')
-            .then(response => response.json())
-            .then(data => setStates(data.states))
-            .catch(error => {
-                console.error('Error loading states:', error);
-                notifications.show({
-                    title: 'Error',
-                    message: 'Failed to load states data',
-                    color: 'red',
-                });
-            });
-    }, []);
-
-    useEffect(() => {
-        const loadEquipment = async () => {
-            if (!opened) return;
-            
-            setIsLoadingEquipment(true);
-            try {
-                const response = await axios.get(route('sales.enquiries.equipment'));
-                if (response.data.success) {
-                    setEquipment(response.data.data);
-                }
-            } catch (error) {
-                console.error('Error loading equipment:', error);
-                notifications.show({
-                    title: 'Error',
-                    message: 'Failed to load equipment data',
-                    color: 'red',
-                });
-            } finally {
-                setIsLoadingEquipment(false);
-            }
-        };
-
-        loadEquipment();
-    }, [opened]);
-
+    // First, declare the form
     const form = useForm({
         initialValues: {
-            // Client Information
-            client_detail_id: enquiry?.client_detail_id.toString() || '',
-            contact_person_id: enquiry?.contact_person_id?.toString() || null,
-            referred_by: enquiry?.referred_by?.toString() || null,
-
-            // Basic Information
+            client_detail_id: enquiry?.client_detail_id?.toString() || '',
+            contact_person_id: enquiry?.contact_person_id?.toString() || '',
             subject: enquiry?.subject || '',
             description: enquiry?.description || '',
             type: enquiry?.type || 'equipment',
             priority: enquiry?.priority || 'medium',
             source: enquiry?.source || 'other',
-
-            // Equipment Details
-            equipment_id: enquiry?.equipment_id?.toString() || null,
+            equipment_id: enquiry?.equipment_id?.toString() || '',
             quantity: enquiry?.quantity || 1,
             nature_of_work: enquiry?.nature_of_work || 'other',
             duration: enquiry?.duration || null,
             duration_unit: enquiry?.duration_unit || 'days',
-
-            // Location Details
             deployment_state: enquiry?.deployment_state || '',
             location: enquiry?.location || '',
             site_details: enquiry?.site_details || '',
-
-            // Dates
-            enquiry_date: enquiry?.enquiry_date || new Date().toISOString().split('T')[0],
+            enquiry_date: enquiry?.enquiry_date || new Date().toISOString().slice(0, 10),
             required_date: enquiry?.required_date || null,
             valid_until: enquiry?.valid_until || null,
-
-            // Financial Details
             estimated_value: enquiry?.estimated_value || null,
             currency: enquiry?.currency || 'INR',
-
-            // Additional Details
+            next_follow_up_date: enquiry?.next_follow_up_date || null,
+            follow_up_notes: enquiry?.follow_up_notes || '',
             special_requirements: enquiry?.special_requirements || '',
             terms_conditions: enquiry?.terms_conditions || '',
             notes: enquiry?.notes || '',
@@ -164,24 +114,101 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
         },
     });
 
+    // Fetch required data when component mounts
+    useEffect(() => {
+        // Fetch equipment
+        axios.get('/equipment/equipment/list')
+            .then(response => setEquipment(response.data))
+            .catch(error => console.error('Error fetching equipment:', error));
+
+        // Fetch states
+        axios.get('/data/config/states')
+            .then(response => setStates(response.data))
+            .catch(error => console.error('Error fetching states:', error));
+    }, []);
+
+    // Now you can use form in useEffect because it's already declared
+    useEffect(() => {
+        if (form.values.client_detail_id) {
+            axios.get(`/data/clients/${form.values.client_detail_id}/contacts`)
+                .then(response => setContactPersons(response.data))
+                .catch(error => console.error('Error fetching contact persons:', error));
+        } else {
+            setContactPersons([]);
+        }
+    }, [form.values.client_detail_id]);
+
+    // Only allow editing of enquiries in appropriate statuses
+    useEffect(() => {
+        if (enquiry && !['draft', 'pending_review'].includes(enquiry.status)) {
+            setError('This enquiry cannot be edited in its current status');
+        } else {
+            setError(null);
+        }
+    }, [enquiry]);
+
+    // Reset form when enquiry changes
+    useEffect(() => {
+        if (enquiry) {
+            form.setValues({
+                client_detail_id: enquiry.client_detail_id?.toString() || '',
+                contact_person_id: enquiry.contact_person_id?.toString() || '',
+                subject: enquiry.subject || '',
+                description: enquiry.description || '',
+                type: enquiry.type || 'equipment',
+                priority: enquiry.priority || 'medium',
+                source: enquiry.source || 'other',
+                equipment_id: enquiry.equipment_id?.toString() || '',
+                quantity: enquiry.quantity || 1,
+                nature_of_work: enquiry.nature_of_work || 'other',
+                duration: enquiry.duration || null,
+                duration_unit: enquiry.duration_unit || 'days',
+                deployment_state: enquiry.deployment_state || '',
+                location: enquiry.location || '',
+                site_details: enquiry.site_details || '',
+                enquiry_date: enquiry.enquiry_date || new Date().toISOString().slice(0, 10),
+                required_date: enquiry.required_date || null,
+                valid_until: enquiry.valid_until || null,
+                estimated_value: enquiry.estimated_value || null,
+                currency: enquiry.currency || 'INR',
+                next_follow_up_date: enquiry.next_follow_up_date || null,
+                follow_up_notes: enquiry.follow_up_notes || '',
+                special_requirements: enquiry.special_requirements || '',
+                terms_conditions: enquiry.terms_conditions || '',
+                notes: enquiry.notes || '',
+            });
+        }
+    }, [enquiry]);
+
     const handleSubmit = async (values: typeof form.values, event?: FormEvent<HTMLFormElement>) => {
         event?.preventDefault();
         if (!enquiry) return;
-        
+
         setIsSubmitting(true);
 
         try {
-            const response = await axios.put(route('sales.enquiries.update', enquiry.id), values);
+            // Format the data to match the expected backend structure
+            const formattedValues = {
+                ...values,
+                client_detail_id: values.client_detail_id ? parseInt(values.client_detail_id) : null,
+                contact_person_id: values.contact_person_id ? parseInt(values.contact_person_id) : null,
+                equipment_id: values.equipment_id ? parseInt(values.equipment_id) : null,
+            };
+
+            const response = await axios.put(`/sales/enquiries/${enquiry.id}`, formattedValues);
 
             if (response.data.success) {
                 notifications.show({
                     title: 'Success',
-                    message: response.data.message,
+                    message: response.data.message || 'Enquiry updated successfully',
                     color: 'green',
                 });
                 onClose();
-                if (response.data.data.redirect_url) {
+                // Refresh the page or redirect if needed
+                if (response.data.data?.redirect_url) {
                     window.location.href = response.data.data.redirect_url;
+                } else {
+                    window.location.reload();
                 }
             }
         } catch (error: any) {
@@ -222,6 +249,10 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
             closeOnClickOutside={!isSubmitting}
             closeOnEscape={!isSubmitting}
         >
+            {error && (
+                <Text color="red" mb="md">{error}</Text>
+            )}
+
             <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="lg">
                     {/* Client Information */}
@@ -239,16 +270,21 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     searchable
                                     required
                                     {...form.getInputProps('client_detail_id')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
                                 <Select
                                     label="Contact Person"
                                     placeholder="Select contact person"
-                                    data={[]} // This should be populated based on selected client
+                                    data={contactPersons.map(contact => ({
+                                        value: contact.id.toString(),
+                                        label: contact.name
+                                    }))}
                                     searchable
                                     clearable
                                     {...form.getInputProps('contact_person_id')}
+                                    disabled={!form.values.client_detail_id || error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -266,6 +302,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter subject"
                                     required
                                     {...form.getInputProps('subject')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -275,6 +312,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     data={TYPE_OPTIONS}
                                     required
                                     {...form.getInputProps('type')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -284,6 +322,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     data={PRIORITY_OPTIONS}
                                     required
                                     {...form.getInputProps('priority')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -293,6 +332,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     data={SOURCE_OPTIONS}
                                     required
                                     {...form.getInputProps('source')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={12}>
@@ -302,6 +342,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     required
                                     minRows={3}
                                     {...form.getInputProps('description')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -324,6 +365,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     searchable
                                     clearable
                                     {...form.getInputProps('equipment_id')}
+                                    disabled={form.values.type === 'scaffolding' || error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -332,6 +374,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter quantity"
                                     min={1}
                                     {...form.getInputProps('quantity')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -340,6 +383,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Select nature of work"
                                     data={NATURE_OF_WORK_OPTIONS}
                                     {...form.getInputProps('nature_of_work')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 3 }}>
@@ -348,6 +392,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter duration"
                                     min={1}
                                     {...form.getInputProps('duration')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 3 }}>
@@ -356,6 +401,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Select unit"
                                     data={DURATION_UNIT_OPTIONS}
                                     {...form.getInputProps('duration_unit')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -377,6 +423,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     }))}
                                     searchable
                                     {...form.getInputProps('deployment_state')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
@@ -384,6 +431,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     label="Location"
                                     placeholder="Enter location"
                                     {...form.getInputProps('location')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={12}>
@@ -392,13 +440,12 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter site details"
                                     minRows={2}
                                     {...form.getInputProps('site_details')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
                     </Stack>
-
                     <Divider />
-
                     {/* Dates */}
                     <Stack gap="xs">
                         <Title order={4}>Dates</Title>
@@ -410,6 +457,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     required
                                     valueFormat="YYYY-MM-DD"
                                     {...form.getInputProps('enquiry_date')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 4 }}>
@@ -419,6 +467,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     clearable
                                     valueFormat="YYYY-MM-DD"
                                     {...form.getInputProps('required_date')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 4 }}>
@@ -428,6 +477,35 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     clearable
                                     valueFormat="YYYY-MM-DD"
                                     {...form.getInputProps('valid_until')}
+                                    disabled={error !== null}
+                                />
+                            </Grid.Col>
+                        </Grid>
+                    </Stack>
+
+                    <Divider />
+
+                    {/* Follow-up Information */}
+                    <Stack gap="xs">
+                        <Title order={4}>Follow-up Information</Title>
+                        <Grid>
+                            <Grid.Col span={{ base: 12, md: 6 }}>
+                                <DateInput
+                                    label="Next Follow-up Date"
+                                    placeholder="Select date"
+                                    clearable
+                                    valueFormat="YYYY-MM-DD"
+                                    {...form.getInputProps('next_follow_up_date')}
+                                    disabled={error !== null}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Follow-up Notes"
+                                    placeholder="Enter follow-up notes"
+                                    minRows={2}
+                                    {...form.getInputProps('follow_up_notes')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -446,14 +524,22 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     min={0}
                                     decimalScale={2}
                                     {...form.getInputProps('estimated_value')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={{ base: 12, md: 6 }}>
-                                <TextInput
+                                <Select
                                     label="Currency"
-                                    placeholder="Enter currency"
+                                    placeholder="Select currency"
+                                    data={[
+                                        { value: 'INR', label: 'Indian Rupee (INR)' },
+                                        { value: 'USD', label: 'US Dollar (USD)' },
+                                        { value: 'EUR', label: 'Euro (EUR)' },
+                                        { value: 'GBP', label: 'British Pound (GBP)' }
+                                    ]}
                                     defaultValue="INR"
                                     {...form.getInputProps('currency')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -471,6 +557,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter special requirements"
                                     minRows={2}
                                     {...form.getInputProps('special_requirements')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={12}>
@@ -479,6 +566,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter terms and conditions"
                                     minRows={2}
                                     {...form.getInputProps('terms_conditions')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                             <Grid.Col span={12}>
@@ -487,6 +575,7 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                                     placeholder="Enter notes"
                                     minRows={2}
                                     {...form.getInputProps('notes')}
+                                    disabled={error !== null}
                                 />
                             </Grid.Col>
                         </Grid>
@@ -496,7 +585,11 @@ export function EditItem({ opened, onClose, enquiry, clients }: Props) {
                         <Button variant="light" onClick={onClose} disabled={isSubmitting}>
                             Cancel
                         </Button>
-                        <Button type="submit" loading={isSubmitting}>
+                        <Button
+                            type="submit"
+                            loading={isSubmitting}
+                            disabled={error !== null}
+                        >
                             Update Enquiry
                         </Button>
                     </Group>

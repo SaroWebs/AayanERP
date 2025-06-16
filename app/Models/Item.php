@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Item extends Model
 {
@@ -46,9 +47,9 @@ class Item extends Model
     /**
      * Get the stock movements for the item.
      */
-    public function stockMovements(): HasMany
+    public function stockMovements(): MorphMany
     {
-        return $this->hasMany(StockMovement::class);
+        return $this->morphMany(StockMovement::class, 'movable');
     }
 
     /**

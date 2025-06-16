@@ -348,8 +348,10 @@ class EnquiryController extends Controller
         try {
             DB::beginTransaction();
 
+            // Update to use valid status values from migration
             $enquiry->update([
-                'status' => 'rejected',
+                'status' => 'lost', // Using a valid status from migration
+                'approval_status' => 'rejected',
                 'approval_remarks' => $request->rejection_remarks
             ]);
 
@@ -362,6 +364,41 @@ class EnquiryController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to reject enquiry', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Assign the enquiry to a user.
+     */
+    public function assign(Request $request, Enquiry $enquiry)
+    {
+        $validator = Validator::make($request->all(), [
+            'assigned_to' => 'required|exists:users,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update to only use fields that exist in the migration
+            $enquiry->update([
+                'assigned_to' => $request->assigned_to,
+                // Remove assigned_at and assigned_by as they don't exist in the migration
+                // Or add them to the migration if needed
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry assigned successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to assign enquiry', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -422,40 +459,6 @@ class EnquiryController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to cancel enquiry', 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Assign the enquiry to a user.
-     */
-    public function assign(Request $request, Enquiry $enquiry)
-    {
-        $validator = Validator::make($request->all(), [
-            'assigned_to' => 'required|exists:users,id'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $enquiry->update([
-                'assigned_to' => $request->assigned_to,
-                'assigned_at' => now(),
-                'assigned_by' => Auth::id()
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Enquiry assigned successfully',
-                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'equipment'])
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Failed to assign enquiry', 'error' => $e->getMessage()], 500);
         }
     }
 

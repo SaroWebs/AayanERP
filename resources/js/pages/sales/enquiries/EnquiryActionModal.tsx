@@ -37,6 +37,25 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
     const isView = action === 'view';
     const isAssign = action === 'assign';
 
+    const statusOptions = [
+        { value: 'draft', label: 'Draft' },
+        { value: 'pending_review', label: 'Pending Review' },
+        { value: 'under_review', label: 'Under Review' },
+        { value: 'quoted', label: 'Quoted' },
+        { value: 'pending_approval', label: 'Pending Approval' },
+        { value: 'approved', label: 'Approved' },
+        { value: 'converted', label: 'Converted' },
+        { value: 'lost', label: 'Lost' },
+        { value: 'cancelled', label: 'Cancelled' }
+    ];
+
+    const approvalStatusOptions = [
+        { value: 'pending', label: 'Pending' },
+        { value: 'approved', label: 'Approved' },
+        { value: 'rejected', label: 'Rejected' },
+        { value: 'not_required', label: 'Not Required' }
+    ];
+
     const form = useForm<EnquiryFormData>({
         initialValues: {
             client_detail_id: enquiry?.client_detail_id || 0,
@@ -71,7 +90,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
             approved_by: enquiry?.approved_by || null,
             approved_at: enquiry?.approved_at || null,
             approval_remarks: enquiry?.approval_remarks || '',
-            converted_date: enquiry?.converted_date || null
+            converted_date: null
         },
         validate: {
             client_detail_id: (value) => (!value ? 'Client is required' : null),
@@ -137,6 +156,32 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         mutation.mutate(values);
     };
 
+    const handleReject = async (remarks: string) => {
+        if (!enquiry) return;
+        try {
+            await axios.post(`/sales/enquiries/${enquiry.id}/reject`, {
+                approval_remarks: remarks,
+                status: 'lost',
+                approval_status: 'rejected'
+            });
+
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: 'Enquiry rejected successfully',
+                color: 'green'
+            });
+            onClose();
+        } catch (error) {
+            console.error('Failed to reject enquiry', error);
+            notifications.show({
+                title: 'Error',
+                message: 'Failed to reject enquiry',
+                color: 'red'
+            });
+        }
+    };
+
     if (isAssign) {
         return (
             <Stack>
@@ -170,7 +215,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                     </Text>
                     <Group>
                         <Badge color={ENQUIRY_STATUS_COLORS[enquiry.status]}>
-                            {enquiry.status.split('_').map(word => 
+                            {enquiry.status.split('_').map(word =>
                                 word.charAt(0).toUpperCase() + word.slice(1)
                             ).join(' ')}
                         </Badge>
@@ -180,8 +225,8 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                     </Group>
                 </Group>
 
-                        <Grid>
-                            <Grid.Col span={6}>
+                <Grid>
+                    <Grid.Col span={6}>
                         <Paper withBorder p="md">
                             <Text fw={500} mb="md">Client Information</Text>
                             <Stack gap="xs">
@@ -196,9 +241,9 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                 </Text>
                             </Stack>
                         </Paper>
-                            </Grid.Col>
+                    </Grid.Col>
 
-                            <Grid.Col span={6}>
+                    <Grid.Col span={6}>
                         <Paper withBorder p="md">
                             <Text fw={500} mb="md">Enquiry Details</Text>
                             <Stack gap="xs">
@@ -218,17 +263,17 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                 )}
                             </Stack>
                         </Paper>
-                            </Grid.Col>
+                    </Grid.Col>
 
                     <Grid.Col span={12}>
                         <Paper withBorder p="md">
                             <Text fw={500} mb="md">Description</Text>
                             <Text size="sm">{enquiry.description}</Text>
                         </Paper>
-                            </Grid.Col>
+                    </Grid.Col>
 
                     {enquiry.equipment && (
-                            <Grid.Col span={6}>
+                        <Grid.Col span={6}>
                             <Paper withBorder p="md">
                                 <Text fw={500} mb="md">Equipment Details</Text>
                                 <Stack gap="xs">
@@ -241,18 +286,18 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                     <Text size="sm">
                                         <Text span fw={500}>Nature of Work:</Text> {NATURE_OF_WORK_LABELS[enquiry.nature_of_work]}
                                     </Text>
-                            {enquiry.duration && (
+                                    {enquiry.duration && (
                                         <Text size="sm">
                                             <Text span fw={500}>Duration:</Text> {enquiry.duration} {enquiry.duration_unit}
                                         </Text>
                                     )}
                                 </Stack>
                             </Paper>
-                                </Grid.Col>
-                            )}
+                        </Grid.Col>
+                    )}
 
                     {(enquiry.deployment_state || enquiry.location) && (
-                            <Grid.Col span={6}>
+                        <Grid.Col span={6}>
                             <Paper withBorder p="md">
                                 <Text fw={500} mb="md">Location Details</Text>
                                 <Stack gap="xs">
@@ -266,45 +311,45 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                             <Text span fw={500}>Location:</Text> {enquiry.location}
                                         </Text>
                                     )}
-                            {enquiry.site_details && (
+                                    {enquiry.site_details && (
                                         <Text size="sm">
                                             <Text span fw={500}>Site Details:</Text> {enquiry.site_details}
                                         </Text>
                                     )}
                                 </Stack>
                             </Paper>
-                                </Grid.Col>
-                            )}
+                        </Grid.Col>
+                    )}
 
                     {enquiry.estimated_value && (
-                            <Grid.Col span={6}>
+                        <Grid.Col span={6}>
                             <Paper withBorder p="md">
                                 <Text fw={500} mb="md">Financial Details</Text>
                                 <Text size="sm">
                                     <Text span fw={500}>Estimated Value:</Text> {enquiry.currency} {enquiry.estimated_value.toLocaleString()}
                                 </Text>
                             </Paper>
-                                </Grid.Col>
-                            )}
+                        </Grid.Col>
+                    )}
 
-                            {(enquiry.special_requirements || enquiry.terms_conditions || enquiry.notes) && (
+                    {(enquiry.special_requirements || enquiry.terms_conditions || enquiry.notes) && (
                         <Grid.Col span={12}>
                             <Paper withBorder p="md">
                                 <Text fw={500} mb="md">Additional Information</Text>
                                 <Stack gap="xs">
-                            {enquiry.special_requirements && (
+                                    {enquiry.special_requirements && (
                                         <div>
                                             <Text size="sm" fw={500}>Special Requirements:</Text>
                                             <Text size="sm">{enquiry.special_requirements}</Text>
                                         </div>
-                            )}
-                            {enquiry.terms_conditions && (
+                                    )}
+                                    {enquiry.terms_conditions && (
                                         <div>
                                             <Text size="sm" fw={500}>Terms & Conditions:</Text>
                                             <Text size="sm">{enquiry.terms_conditions}</Text>
                                         </div>
-                            )}
-                            {enquiry.notes && (
+                                    )}
+                                    {enquiry.notes && (
                                         <div>
                                             <Text size="sm" fw={500}>Notes:</Text>
                                             <Text size="sm">{enquiry.notes}</Text>
@@ -312,10 +357,63 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                     )}
                                 </Stack>
                             </Paper>
-                                </Grid.Col>
-                            )}
-                        </Grid>
-                </Stack>
+                        </Grid.Col>
+                    )}
+
+                    {/* Add approval information section */}
+                    {enquiry.approval_status !== 'not_required' && (
+                        <Grid.Col span={12}>
+                            <Paper withBorder p="md">
+                                <Text fw={500} mb="md">Approval Information</Text>
+                                <Stack gap="xs">
+                                    <Text size="sm">
+                                        <Text span fw={500}>Approval Status:</Text> {
+                                            enquiry.approval_status.charAt(0).toUpperCase() +
+                                            enquiry.approval_status.slice(1).replace('_', ' ')
+                                        }
+                                    </Text>
+                                    {enquiry.approved_by && (
+                                        <Text size="sm">
+                                            <Text span fw={500}>Approved By:</Text> {enquiry.approver?.name}
+                                        </Text>
+                                    )}
+                                    {enquiry.approved_at && (
+                                        <Text size="sm">
+                                            <Text span fw={500}>Approved At:</Text> {format(new Date(enquiry.approved_at), 'dd MMM yyyy HH:mm')}
+                                        </Text>
+                                    )}
+                                    {enquiry.approval_remarks && (
+                                        <Text size="sm">
+                                            <Text span fw={500}>Approval Remarks:</Text> {enquiry.approval_remarks}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Grid.Col>
+                    )}
+
+                    {/* Add follow-up information if available */}
+                    {(enquiry.next_follow_up_date || enquiry.follow_up_notes) && (
+                        <Grid.Col span={12}>
+                            <Paper withBorder p="md">
+                                <Text fw={500} mb="md">Follow-up Information</Text>
+                                <Stack gap="xs">
+                                    {enquiry.next_follow_up_date && (
+                                        <Text size="sm">
+                                            <Text span fw={500}>Next Follow-up Date:</Text> {format(new Date(enquiry.next_follow_up_date), 'dd MMM yyyy')}
+                                        </Text>
+                                    )}
+                                    {enquiry.follow_up_notes && (
+                                        <Text size="sm">
+                                            <Text span fw={500}>Follow-up Notes:</Text> {enquiry.follow_up_notes}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Grid.Col>
+                    )}
+                </Grid>
+            </Stack>
         );
     }
 
@@ -366,12 +464,12 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                     </Grid.Col>
 
                     <Grid.Col span={12}>
-                    <Textarea
+                        <Textarea
                             label="Description"
                             placeholder="Enter description"
                             {...form.getInputProps('description')}
                             disabled={isView}
-                        minRows={3}
+                            minRows={3}
                         />
                     </Grid.Col>
 
@@ -511,7 +609,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                             label="Enquiry Date"
                             type="date"
                             {...form.getInputProps('enquiry_date')}
-                        required
+                            required
                             disabled={isView}
                         />
                     </Grid.Col>
@@ -580,19 +678,42 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                             minRows={2}
                         />
                     </Grid.Col>
+
+                    {/* Add follow-up section */}
+                    <Divider label="Follow-up Information" labelPosition="center" />
+
+                    <Grid.Col span={6}>
+                        <TextInput
+                            label="Next Follow-up Date"
+                            type="date"
+                            {...form.getInputProps('next_follow_up_date')}
+                            disabled={isView}
+                        />
+                    </Grid.Col>
+
+                    <Grid.Col span={12}>
+                        <Textarea
+                            label="Follow-up Notes"
+                            placeholder="Enter follow-up notes"
+                            {...form.getInputProps('follow_up_notes')}
+                            disabled={isView}
+                            minRows={2}
+                        />
+                    </Grid.Col>
                 </Grid>
 
                 {!isView && (
                     <Group justify="flex-end">
                         <Button variant="subtle" onClick={onClose}>
-                        Cancel
-                    </Button>
+                            Cancel
+                        </Button>
                         <Button type="submit" loading={mutation.isPending}>
                             {action === 'create' ? 'Create' : 'Update'}
-                    </Button>
-                </Group>
+                        </Button>
+                    </Group>
                 )}
             </Stack>
         </form>
     );
-} 
+}
+

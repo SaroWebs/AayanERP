@@ -59,6 +59,10 @@ export interface Enquiry {
     contact_person?: ClientContactDetail;
     creator?: User;
     assignee?: User;
+    approver?: {
+        id: number;
+        name: string;
+    };
     equipment?: Equipment;
     quotations?: Quotation[];
 }

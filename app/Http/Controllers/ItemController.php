@@ -88,6 +88,7 @@ class ItemController extends Controller
                     'type' => 'in',
                     'quantity' => $validated['current_stock'],
                     'notes' => 'Initial stock',
+                    'movement_date' => now()->toDateString(), // Add this line
                     'created_by' => Auth::id(),
                 ]);
             }
@@ -153,6 +154,7 @@ class ItemController extends Controller
                     'type' => $stockDifference > 0 ? 'in' : 'out',
                     'quantity' => abs($stockDifference),
                     'notes' => 'Stock adjustment',
+                    'movement_date' => now()->toDateString(), // Add this line
                     'created_by' => Auth::id(),
                 ]);
             }
@@ -232,6 +234,7 @@ class ItemController extends Controller
             'reference_type' => 'nullable|string|max:255',
             'reference_id' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'movement_date' => 'nullable|date', // Add validation for movement_date
         ]);
 
         try {
@@ -240,6 +243,7 @@ class ItemController extends Controller
             // Create stock movement
             $stockMovement = $item->stockMovements()->create([
                 ...$validated,
+                'movement_date' => $validated['movement_date'] ?? now()->toDateString(), // Add movement_date with default value
                 'created_by' => Auth::id(),
             ]);
 
@@ -253,8 +257,10 @@ class ItemController extends Controller
             }
 
             DB::commit();
-
-            return response()->json($stockMovement->load('creator'));
+            // inertia back with success message
+            return redirect()
+                ->route('equipment.items.index')
+                ->with('success', 'Stock Updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 422);
