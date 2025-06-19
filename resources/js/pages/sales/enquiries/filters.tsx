@@ -167,8 +167,24 @@ export function Filters({ filters, onFiltersChange, onReset, users, clients }: F
                             onChange={(value: DatesRangeValue) => handleFilterChange('date_range', value)}
                             clearable
                         />
-                </Group>
-            </Stack>
+                        <Group grow>
+                            <NumberInput
+                                label="Min Estimated Value"
+                                placeholder="Enter min value"
+                                value={filters.min_estimated_value}
+                                onChange={(value) => handleFilterChange('min_estimated_value', value)}
+                                min={0}
+                            />
+                            <NumberInput
+                                label="Max Estimated Value"
+                                placeholder="Enter max value"
+                                value={filters.max_estimated_value}
+                                onChange={(value) => handleFilterChange('max_estimated_value', value)}
+                                min={0}
+                            />
+                        </Group>
+                    </Group>
+                </Stack>
             )}
         </Paper>
     );

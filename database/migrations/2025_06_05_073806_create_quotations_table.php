@@ -68,14 +68,6 @@ return new class extends Migration
             $table->text('payment_terms')->nullable();
             $table->text('delivery_terms')->nullable();
             
-            // Equipment Details
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
-            $table->integer('quantity')->default(1);
-            $table->decimal('unit_price', 12, 2)->default(0);
-            $table->decimal('total_price', 12, 2)->default(0);
-            $table->enum('rental_period_unit', ['hours', 'days', 'months', 'years'])->default('days');
-            $table->integer('rental_period')->nullable();
-            
             // Location Details
             $table->string('deployment_state')->nullable();
             $table->string('location')->nullable();
@@ -87,15 +79,14 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->text('client_remarks')->nullable();
             
-            // Document Details
-            $table->string('document_path')->nullable(); // Path to generated PDF
+            // Tracking
+            $table->string('document_path')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->string('sent_by')->nullable();
-            $table->string('sent_via')->nullable(); // email, courier, hand delivery, etc.
+            $table->string('sent_via')->nullable();
             
-            // Soft deletes for data retention
-            $table->softDeletes();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

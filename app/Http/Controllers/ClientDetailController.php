@@ -32,6 +32,12 @@ class ClientDetailController extends Controller
         return response()->json($clients);
     }
 
+    public function all_data() {
+        $clients = ClientDetail::with(['contactDetails', 'bankAccounts', 'documents'])->get();
+        return response()->json($clients);
+    }
+
+
     public function show(ClientDetail $client)
     {
         $client->load(['bankAccounts', 'contactDetails', 'documents']);

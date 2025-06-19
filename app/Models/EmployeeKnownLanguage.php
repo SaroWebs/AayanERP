@@ -2,14 +2,30 @@
 
 namespace App\Models;
 
-use App\Models\Employee;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeKnownLanguage extends Model
 {
-    protected $guarded = [];
+    protected $table = 'employee_known_languages';
 
-    public function employee()
+    protected $fillable = [
+        'employee_id',
+        'language_name',
+        'speak',
+        'read',
+        'write',
+        'priority'
+    ];
+
+    protected $casts = [
+        'speak' => 'boolean',
+        'read' => 'boolean',
+        'write' => 'boolean',
+        'priority' => 'integer'
+    ];
+
+    public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
     }

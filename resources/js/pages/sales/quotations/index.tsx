@@ -1,29 +1,32 @@
 import { Head, router, Link } from '@inertiajs/react';
-import { PageProps } from '@/types';
 import { Paper, Title, Button, Group, Stack, Container } from '@mantine/core';
 import { DataTable } from 'mantine-datatable';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { columns } from './columns';
 import { QuotationFilters } from './filters';
+import { AddNew } from './partials/AddNew';
+import { EditItem } from './partials/EditItem';
+import { ViewItem } from './partials/ViewItem';
 import AppLayout from '@/layouts/app-layout';
-import { BreadcrumbItem } from '@/types';
 import { notifications } from '@mantine/notifications';
+import { BreadcrumbItem, PageProps } from '@/types/index.d';
+import { Quotation, QuotationAction } from '@/types/sales';
+import axios from 'axios';
 
-interface Quotation {
+// Set up CSRF token for axios
+const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+if (token) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+}
+
+interface Client {
     id: number;
-    quotation_no: string;
-    client: {
+    name: string;
+    contact_details?: Array<{
         id: number;
-        name: string;
-    };
-    status: string;
-    approval_status: string;
-    created_at: string;
-    created_by: {
-        id: number;
-        name: string;
-    };
+        contact_person: string;
+    }>;
 }
 
 interface Props extends PageProps {
@@ -44,9 +47,30 @@ interface Props extends PageProps {
     };
 }
 
-type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
-
 export default function Index({ quotations, filters }: Props) {
+    const [addModalOpened, setAddModalOpened] = useState(false);
+    const [editModalOpened, setEditModalOpened] = useState(false);
+    const [viewModalOpened, setViewModalOpened] = useState(false);
+    const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        loadClients();
+    }, []);
+
+    const loadClients = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get('/data/clients/all');
+            setClients(response.data);
+        } catch (error) {
+            notifications.show({ message: 'Failed to load clients', color: 'red' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handlePageChange = (page: number) => {
         router.get(
             route('sales.quotations.index'),
@@ -57,6 +81,14 @@ export default function Index({ quotations, filters }: Props) {
 
     const handleAction = (quotation: Quotation, action: QuotationAction) => {
         switch (action) {
+            case 'view':
+                setSelectedQuotation(quotation);
+                setViewModalOpened(true);
+                break;
+            case 'edit':
+                setSelectedQuotation(quotation);
+                setEditModalOpened(true);
+                break;
             case 'submit':
                 router.put(route('sales.quotations.submit', quotation.id), {}, {
                     onSuccess: () => notifications.show({ message: 'Quotation submitted for review', color: 'green' })
@@ -95,42 +127,70 @@ export default function Index({ quotations, filters }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Quotations" />
-
-            <Container size="xl" py="xl">
-                <Stack gap="md">
-                    <Group justify="space-between">
+            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+                <Container size="lg" py="xl">
+                    <Group justify="space-between" mb="md">
                         <Title order={2}>Quotations</Title>
                         <Button
-                            component={Link}
-                            href={route('sales.quotations.create')}
                             leftSection={<Plus size={16} />}
+                            onClick={() => setAddModalOpened(true)}
                         >
-                            New Quotation
+                            Add New
                         </Button>
                     </Group>
+                    <Stack gap="md">
+                        {/* <QuotationFilters filters={filters} /> */}
+                        <DataTable
+                            columns={columns(handleAction)}
+                            records={quotations.data}
+                            totalRecords={quotations.total}
+                            recordsPerPage={quotations.per_page}
+                            page={quotations.current_page}
+                            onPageChange={handlePageChange}
+                            withTableBorder
+                            borderColor="gray.3"
+                            striped
+                            highlightOnHover
+                            withColumnBorders
+                            verticalAlign="top"
+                            pinLastColumn
+                        />
+                    </Stack>
+                </Container>
 
-                    <Paper p="md">
-                        <Stack gap="md">
-                            <QuotationFilters filters={filters} />
-                            <DataTable
-                                columns={columns(handleAction)}
-                                records={quotations.data}
-                                totalRecords={quotations.total}
-                                recordsPerPage={quotations.per_page}
-                                page={quotations.current_page}
-                                onPageChange={handlePageChange}
-                                withTableBorder
-                                borderColor="gray.3"
-                                striped
-                                highlightOnHover
-                                withColumnBorders
-                                verticalAlign="top"
-                                pinLastColumn
-                            />
-                        </Stack>
-                    </Paper>
-                </Stack>
-            </Container>
+                <AddNew
+                    opened={addModalOpened}
+                    onClose={() => setAddModalOpened(false)}
+                    clients={clients}
+                    loading={loading}
+                />
+
+                {selectedQuotation && (
+                    <>
+                        <EditItem
+                            opened={editModalOpened}
+                            onClose={() => {
+                                setEditModalOpened(false);
+                                setSelectedQuotation(null);
+                            }}
+                            quotation={selectedQuotation}
+                            clients={clients}
+                            loading={loading}
+                        />
+
+                        <ViewItem
+                            opened={viewModalOpened}
+                            onClose={() => {
+                                setViewModalOpened(false);
+                                setSelectedQuotation(null);
+                            }}
+                            quotation={selectedQuotation}
+                            clients={clients}
+                            loading={loading}
+                        />
+                    </>
+                )}
+            </div>
         </AppLayout>
     );
 } 

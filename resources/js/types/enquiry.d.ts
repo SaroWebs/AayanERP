@@ -51,6 +51,26 @@ export interface Enquiry {
     approver?: User;
     referrer?: Employee;
     quotations?: Quotation[];
+    items?: EnquiryItem[];
+}
+
+export interface EnquiryItem {
+    id: number;
+    enquiry_id: number;
+    equipment_id: number | null;
+    quantity: number;
+    nature_of_work: EnquiryNatureOfWork;
+    duration: number | null;
+    duration_unit: EnquiryDurationUnit | null;
+    estimated_value: number | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+
+    // Relationships
+    enquiry?: Enquiry;
+    equipment?: Equipment;
 }
 
 export interface EnquiryFilters {

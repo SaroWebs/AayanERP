@@ -13,36 +13,60 @@ export type EnquirySource = 'website' | 'email' | 'phone' | 'referral' | 'walk_i
 export type NatureOfWork = 'soil' | 'rock' | 'limestone' | 'coal' | 'sand' | 'gravel' | 'construction' | 'demolition' | 'mining' | 'quarry' | 'other';
 export type DurationUnit = 'hours' | 'days' | 'months' | 'years';
 
+interface Client {
+    id: number;
+    name: string;
+    contact_no: string;
+    email: string;
+    address: string;
+}
+
+interface ContactPerson {
+    id: number;
+    client_detail_id: number;
+    contact_person: string;
+    designation: string;
+    email: string;
+    phone: string;
+}
+
+export interface EnquiryItem {
+    id: number;
+    enquiry_id: number;
+    equipment_id: number;
+    quantity: number;
+    nature_of_work: NatureOfWork;
+    duration: number | null;
+    duration_unit: DurationUnit;
+    estimated_value: number | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+
+    // Relations
+    equipment?: Equipment;
+}
+
 export interface Enquiry {
     id: number;
     enquiry_no: string;
     client_detail_id: number;
     contact_person_id: number | null;
-    created_by: number;
     assigned_to: number | null;
     referred_by: number | null;
-    subject: string | null;
+    subject: string;
     description: string | null;
-    type: 'equipment' | 'scaffolding' | 'both';
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    status: 'draft' | 'pending_review' | 'under_review' | 'quoted' | 'pending_approval' | 'approved' | 'converted' | 'lost' | 'cancelled';
-    approval_status: 'pending' | 'approved' | 'rejected' | 'not_required';
-    approved_by: number | null;
-    approved_at: string | null;
-    approval_remarks: string | null;
-    source: 'website' | 'email' | 'phone' | 'referral' | 'walk_in' | 'other';
-    equipment_id: number | null;
-    quantity: number;
-    nature_of_work: 'soil' | 'rock' | 'limestone' | 'coal' | 'sand' | 'gravel' | 'construction' | 'demolition' | 'mining' | 'quarry' | 'other';
-    duration: number | null;
-    duration_unit: 'hours' | 'days' | 'months' | 'years';
+    type: EnquiryType;
+    priority: EnquiryPriority;
+    status: EnquiryStatus;
+    approval_status: ApprovalStatus;
+    source: EnquirySource;
     deployment_state: string | null;
     location: string | null;
     site_details: string | null;
     enquiry_date: string;
     required_date: string | null;
     valid_until: string | null;
-    converted_date: string | null;
     estimated_value: number | null;
     currency: string;
     next_follow_up_date: string | null;
@@ -50,21 +74,34 @@ export interface Enquiry {
     special_requirements: string | null;
     terms_conditions: string | null;
     notes: string | null;
+    approved_by: number | null;
+    approved_at: string | null;
+    approval_remarks: string | null;
+    converted_date: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
-
-    // Relations
-    client?: ClientDetail;
-    contact_person?: ClientContactDetail;
-    creator?: User;
-    assignee?: User;
+    created_by: {
+        id: number;
+        name: string;
+    };
+    client?: {
+        id: number;
+        name: string;
+    };
+    contact_person?: {
+        id: number;
+        name: string;
+    };
+    assignee?: {
+        id: number;
+        name: string;
+    };
     approver?: {
         id: number;
         name: string;
     };
-    equipment?: Equipment;
-    quotations?: Quotation[];
+    items?: EnquiryItem[];
 }
 
 export interface EnquiryFilters {
@@ -76,11 +113,51 @@ export interface EnquiryFilters {
     date_range?: [string, string];
     client_id?: number;
     assigned_to?: number;
-    nature_of_work?: Enquiry['nature_of_work'][];
+    nature_of_work?: NatureOfWork[];
+    min_estimated_value?: number;
+    max_estimated_value?: number;
 }
 
-export interface EnquiryFormData extends Omit<Enquiry, 'id' | 'enquiry_no' | 'created_by' | 'created_at' | 'updated_at' | 'deleted_at'> {
-    // Additional form-specific fields if needed
+export interface FormEnquiryItem {
+    equipment_id: number | null;
+    quantity: number;
+    nature_of_work: NatureOfWork;
+    duration: number | null;
+    duration_unit: DurationUnit;
+    estimated_value: number | null;
+    notes: string | null;
+}
+
+export interface EnquiryFormData {
+    client_detail_id: number;
+    contact_person_id: number | null;
+    assigned_to: number | null;
+    referred_by: number | null;
+    subject: string;
+    description: string | null;
+    type: EnquiryType;
+    priority: EnquiryPriority;
+    status: EnquiryStatus;
+    approval_status: ApprovalStatus;
+    source: EnquirySource;
+    deployment_state: string | null;
+    location: string | null;
+    site_details: string | null;
+    enquiry_date: string;
+    required_date: string | null;
+    valid_until: string | null;
+    estimated_value: number | null;
+    currency: string;
+    next_follow_up_date: string | null;
+    follow_up_notes: string | null;
+    special_requirements: string | null;
+    terms_conditions: string | null;
+    notes: string | null;
+    approved_by: number | null;
+    approved_at: string | null;
+    approval_remarks: string | null;
+    converted_date: string | null;
+    items: FormEnquiryItem[];
 }
 
 export interface EnquiryTableProps {
@@ -106,7 +183,7 @@ export const ENQUIRY_STATUS_COLORS: Record<Enquiry['status'], string> = {
     cancelled: 'dark'
 };
 
-export const ENQUIRY_PRIORITY_COLORS: Record<Enquiry['priority'], string> = {
+export const ENQUIRY_PRIORITY_COLORS: Record<EnquiryPriority, string> = {
     low: 'gray',
     medium: 'blue',
     high: 'orange',
@@ -124,11 +201,11 @@ export const ENQUIRY_SOURCE_LABELS: Record<Enquiry['source'], string> = {
     email: 'Email',
     phone: 'Phone',
     referral: 'Referral',
-    walk_in: 'Walk In',
+    walk_in: 'Walk-in',
     other: 'Other'
 };
 
-export const NATURE_OF_WORK_LABELS: Record<Enquiry['nature_of_work'], string> = {
+export const NATURE_OF_WORK_LABELS: Record<NatureOfWork, string> = {
     soil: 'Soil',
     rock: 'Rock',
     limestone: 'Limestone',

@@ -7,6 +7,8 @@ export type ClientCategory = 'regular' | 'premium' | 'vip';
 export interface ClientDetail {
     id: number;
     name: string;
+    email: string;
+    phone: string;
     type: ClientType;
     status: ClientStatus;
     category: ClientCategory;
@@ -30,6 +32,7 @@ export interface ClientContactDetail {
     id: number;
     client_detail_id: number;
     name: string;
+    contact_person: string;
     designation?: string;
     email?: string;
     phone?: string;

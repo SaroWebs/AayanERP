@@ -12,6 +12,22 @@ class ClientDetail extends Model
 {
     protected $guarded = [];
 
+    protected $fillable = [
+        'name',
+        'contact_no',
+        'email',
+        'gstin_no',
+        'pan_no',
+        'fax',
+        'state',
+        'address',
+        'correspondence_address',
+        'company_type',
+        'turnover',
+        'range',
+        'status',
+    ];
+
     public function bankAccounts(): HasMany
     {
         return $this->hasMany(ClientBankAccount::class);

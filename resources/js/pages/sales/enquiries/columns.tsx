@@ -1,7 +1,7 @@
 import { Badge, Group, Text, ActionIcon, Menu, Tooltip, Stack } from '@mantine/core';
 import { Eye, Edit, Trash, UserPlus, CheckCircle, AlertCircle, Clock, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { Enquiry, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS } from './types';
+import { Enquiry, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS, NATURE_OF_WORK_LABELS } from './types';
 import type { DataTableColumn } from 'mantine-datatable';
 import { useState } from 'react';
 import { PrepareQuotationModal } from './PrepareQuotationModal';
@@ -70,6 +70,50 @@ export const createColumns = ({
             ),
         },
         {
+            accessor: 'items',
+            title: 'Equipment Items',
+            width: 300,
+            render: (enquiry: Enquiry) => (
+                <Stack gap="xs">
+                    {enquiry.items?.map((item, index) => (
+                        <Group key={index} gap="xs">
+                            <Text size="sm" fw={500}>{item.equipment?.name}</Text>
+                            <Badge size="sm" variant="light">Qty: {item.quantity}</Badge>
+                            <Badge size="sm" variant="light">{NATURE_OF_WORK_LABELS[item.nature_of_work]}</Badge>
+                            {item.duration && (
+                                <Badge size="sm" variant="light">
+                                    {item.duration} {item.duration_unit}
+                                </Badge>
+                            )}
+                            {item.estimated_value && (
+                                <Badge size="sm" variant="light" color="green">
+                                    ₹{item.estimated_value.toLocaleString()}
+                                </Badge>
+                            )}
+                        </Group>
+                    ))}
+                </Stack>
+            ),
+        },
+        {
+            accessor: 'type',
+            title: 'Type',
+            width: 120,
+            render: (enquiry: Enquiry) => (
+                <Badge
+                    color={
+                        enquiry.type === 'equipment'
+                            ? 'blue'
+                            : enquiry.type === 'scaffolding'
+                            ? 'green'
+                            : 'grape'
+                    }
+                >
+                    {enquiry.type.charAt(0).toUpperCase() + enquiry.type.slice(1)}
+                </Badge>
+            ),
+        },
+        {
             accessor: 'status',
             title: 'Status',
             width: 150,
@@ -101,7 +145,7 @@ export const createColumns = ({
             title: 'Actions',
             width: 100,
             render: (enquiry) => {
-                const canManage = enquiry.created_by === currentUserId || enquiry.assigned_to === currentUserId;
+                const canManage = enquiry.created_by.id === currentUserId || enquiry.assigned_to === currentUserId;
                 const isAssigned = enquiry.assigned_to === currentUserId;
 
                 // Define allowed actions based on current status

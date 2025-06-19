@@ -1,24 +1,29 @@
 <?php
 
 use Inertia\Inertia;
+use App\Models\Department;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
-use App\Http\Controllers\ClientDetailController;
-use App\Http\Controllers\ConfigurationController;
-use App\Http\Controllers\EquipmentSeriesController;
-use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\QuotationController;
-use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SalesBillController;
+use App\Http\Controllers\SalesOrderController;
+use App\Http\Controllers\ClientDetailController;
 use App\Http\Controllers\SalesPaymentController;
-use App\Http\Controllers\PurchaseIntentController;
+use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\PurchaseOrderController;
-use App\Http\Controllers\GoodsReceiptNoteController;
+use App\Http\Controllers\PurchaseIntentController;
+use App\Http\Controllers\EquipmentSeriesController;
 use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\GoodsReceiptNoteController;
+use App\Models\Vendor;
+use App\Models\Item;
+use App\Models\Equipment;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -26,14 +31,13 @@ Route::get('/', function () {
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 
     Route::controller(ClientDetailController::class)->group(function () {
         Route::get('master/clients', 'index');
         Route::get('data/clients', 'paginatedlist');
+        Route::get('data/clients/all', 'all_data');
         Route::get('master/clients/{client}', 'show');
         Route::post('data/clients/add', 'store');
         Route::patch('data/clients/{client}/basic', 'updateBasic');
@@ -132,8 +136,8 @@ Route::middleware(['auth'])->group(function () {
     // Equipment Management Routes
     Route::prefix('equipment')->group(function () {
         Route::get('items/last-code', [ItemController::class, 'getLastCode'])->name('equipment.items.last-code');
-
         Route::post('/categories/store', [CategoryController::class, 'store'])->name('equipment.categories.store');
+
         // Categories
         Route::controller(CategoryController::class)->group(function () {
             Route::get('/categories', 'index')->name('equipment.categories.index');
@@ -201,23 +205,24 @@ Route::middleware(['auth'])->group(function () {
             Route::post('enquiries/{enquiry}/convert', 'convertToQuotation')->name('enquiries.convert');
             Route::post('enquiries/{enquiry}/cancel', 'cancel')->name('enquiries.cancel');
             Route::post('enquiries/{enquiry}/assign', 'assign')->name('enquiries.assign');
+            Route::post('enquiries/{enquiry}/under-review', 'markUnderReview')->name('enquiries.under-review');
+            Route::post('enquiries/{enquiry}/quoted', 'markAsQuoted')->name('enquiries.quoted');
+            Route::post('enquiries/{enquiry}/pending-approval', 'markPendingApproval')->name('enquiries.pending-approval');
         });
 
         // Quotations
         Route::controller(QuotationController::class)->group(function () {
             Route::get('quotations', 'index')->name('quotations.index');
-            Route::get('data/quotations', 'paginatedList')->name('quotations.data');
-            Route::post('data/quotations', 'store')->name('quotations.store');
-            Route::get('quotations/{quotation}', 'show')->name('quotations.show');
-            Route::put('data/quotations/{quotation}', 'update')->name('quotations.update');
-            Route::delete('data/quotations/{quotation}', 'destroy')->name('quotations.destroy');
+            Route::post('quotations', 'store')->name('quotations.store');
+            Route::put('quotations/{quotation}', 'update')->name('quotations.update');
+            Route::delete('quotations/{quotation}', 'destroy')->name('quotations.destroy');
 
             // Workflow actions
-            Route::post('data/quotations/{quotation}/submit', 'submitForReview')->name('quotations.submit');
-            Route::post('data/quotations/{quotation}/approve', 'approve')->name('quotations.approve');
-            Route::post('data/quotations/{quotation}/reject', 'reject')->name('quotations.reject');
-            Route::post('data/quotations/{quotation}/convert', 'convertToSalesOrder')->name('quotations.convert');
-            Route::post('data/quotations/{quotation}/cancel', 'cancel')->name('quotations.cancel');
+            Route::put('quotations/{quotation}/submit', 'submitForReview')->name('quotations.submit');
+            Route::put('quotations/{quotation}/approve', 'approve')->name('quotations.approve');
+            Route::put('quotations/{quotation}/reject', 'reject')->name('quotations.reject');
+            Route::post('quotations/{quotation}/convert', 'convertToSalesOrder')->name('quotations.convert');
+            Route::put('quotations/{quotation}/cancel', 'cancel')->name('quotations.cancel');
         });
 
         // Sales Orders
@@ -272,22 +277,40 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::prefix('purchases')->name('purchases.')->group(function () {
+        Route::get('data/departments/all', function () {
+            return Department::where('status', 'active')->get();
+        })->name('departments.all');
+
+        Route::get('data/vendors/all', function () {
+            return Vendor::where('status', 'active')->get();
+        })->name('vendors.all');
+
+        Route::get('data/items/all', function () {
+            return Item::where('status', 'active')->get();
+        })->name('items.all');
+
+        Route::get('data/equipment/all', function () {
+            return Equipment::where('status', 'active')->get();
+        })->name('equipment.all');
+
         // Purchase Intents
         Route::controller(PurchaseIntentController::class)->group(function () {
             Route::get('intents', 'index')->name('intents.index');
             Route::get('data/intents', 'paginatedList')->name('intents.data');
             Route::post('data/intents', 'store')->name('intents.store');
             Route::get('intents/{intent}', 'show')->name('intents.show');
-            Route::put('data/intents/{intent}', 'update')->name('intents.update');
-            Route::delete('data/intents/{intent}', 'destroy')->name('intents.destroy');
+            Route::put('data/intents/{purchaseIntent}', 'update')->name('intents.update');
+            Route::delete('data/intents/{purchaseIntent}', 'destroy')->name('intents.destroy');
 
             // Workflow actions
-            Route::post('data/intents/{intent}/submit', 'submitForReview')->name('intents.submit');
-            Route::post('data/intents/{intent}/approve', 'approve')->name('intents.approve');
-            Route::post('data/intents/{intent}/reject', 'reject')->name('intents.reject');
+            Route::post('data/intents/{purchaseIntent}/submit', 'submitForReview')->name('intents.submit');
+            Route::post('data/intents/{purchaseIntent}/approve', 'approve')->name('intents.approve');
+            Route::post('data/intents/{purchaseIntent}/reject', 'reject')->name('intents.reject');
             Route::post('data/intents/{intent}/convert', 'convertToPurchaseOrder')->name('intents.convert');
-            Route::post('data/intents/{intent}/cancel', 'cancel')->name('intents.cancel');
+            Route::post('data/intents/{purchaseIntent}/cancel', 'cancel')->name('intents.cancel');
         });
+
+
 
         // Purchase Orders
         Route::controller(PurchaseOrderController::class)->group(function () {

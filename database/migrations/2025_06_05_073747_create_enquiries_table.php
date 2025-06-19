@@ -53,16 +53,6 @@ return new class extends Migration
             
             $table->enum('source', ['website', 'email', 'phone', 'referral', 'walk_in', 'other'])->default('other');
             
-            // Equipment and Work Details
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
-            $table->integer('quantity')->default(1);
-            $table->enum('nature_of_work', [
-                'soil', 'rock', 'limestone', 'coal', 'sand', 'gravel', 
-                'construction', 'demolition', 'mining', 'quarry', 'other'
-            ])->default('other');
-            $table->integer('duration')->nullable();
-            $table->enum('duration_unit', ['hours', 'days', 'months', 'years'])->default('days');
-            
             // Location Details
             $table->string('deployment_state')->nullable();
             $table->string('location')->nullable();
@@ -81,15 +71,12 @@ return new class extends Migration
             // Follow-up
             $table->date('next_follow_up_date')->nullable();
             $table->text('follow_up_notes')->nullable();
-            
-            // Additional Details
             $table->text('special_requirements')->nullable();
             $table->text('terms_conditions')->nullable();
             $table->text('notes')->nullable();
             
-            // Soft deletes for data retention
-            $table->softDeletes();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

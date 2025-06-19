@@ -1,80 +1,89 @@
-import { User } from './user';
-import { Enquiry } from './enquiry';
-import { ClientDetail, ClientContactDetail } from './client';
-import { Equipment } from './equipment';
+import { User } from '@/types/user';
+import { Enquiry } from '@/types/enquiry';
+import { ClientDetail, ClientContactDetail } from '@/types/client';
+import { Equipment } from '@/types/equipment';
 
-export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
-export type QuotationType = 'sales' | 'service' | 'rental' | 'spare_parts';
-export type QuotationCurrency = 'USD' | 'EUR' | 'GBP' | 'AED' | 'SAR' | 'INR';
+export type QuotationStatus = 'draft' | 'pending_review' | 'pending_approval' | 'approved' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
+export type QuotationType = 'equipment' | 'scaffolding' | 'both';
+export type QuotationCurrency = 'INR' | 'USD' | 'EUR' | 'GBP';
 export type QuotationPaymentTerm = 'immediate' | 'net15' | 'net30' | 'net45' | 'net60' | 'custom';
 export type QuotationValidityUnit = 'days' | 'weeks' | 'months';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'not_required';
+export type RentalPeriodUnit = 'hours' | 'days' | 'months' | 'years';
 
 export interface Quotation {
     id: number;
     quotation_no: string;
     enquiry_id: number;
     client_detail_id: number;
-    contact_person_id: number;
+    contact_person_id: number | null;
+    created_by: number;
+    approved_by: number | null;
+    subject: string | null;
+    description: string | null;
     type: QuotationType;
     status: QuotationStatus;
-    subject: string;
-    description?: string;
-    currency: QuotationCurrency;
-    subtotal: number;
-    tax_rate: number;
-    tax_amount: number;
-    discount_type?: 'percentage' | 'fixed';
-    discount_value?: number;
-    discount_amount?: number;
-    total: number;
-    payment_terms: QuotationPaymentTerm;
-    custom_payment_terms?: string;
-    validity_period: number;
-    validity_unit: QuotationValidityUnit;
+    approval_status: ApprovalStatus;
+    approved_at: string | null;
+    approval_remarks: string | null;
+    quotation_date: string;
     valid_until: string;
-    notes?: string;
-    terms_conditions?: string;
-    created_by: number;
-    sent_by?: number;
-    sent_at?: string;
-    accepted_by?: number;
-    accepted_at?: string;
-    rejected_by?: number;
-    rejected_at?: string;
-    rejection_reason?: string;
+    accepted_date: string | null;
+    converted_date: string | null;
+    subtotal: number;
+    tax_percentage: number;
+    tax_amount: number;
+    discount_percentage: number;
+    discount_amount: number;
+    total_amount: number;
+    currency: QuotationCurrency;
+    payment_terms_days: number;
+    advance_percentage: number;
+    payment_terms: string | null;
+    delivery_terms: string | null;
+    equipment_id: number | null;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    rental_period_unit: RentalPeriodUnit;
+    rental_period: number | null;
+    deployment_state: string | null;
+    location: string | null;
+    site_details: string | null;
+    special_conditions: string | null;
+    terms_conditions: string | null;
+    notes: string | null;
+    client_remarks: string | null;
+    document_path: string | null;
+    sent_at: string | null;
+    sent_by: string | null;
+    sent_via: string | null;
+    deleted_at: string | null;
     created_at: string;
     updated_at: string;
-    deleted_at: string | null;
 
-    // Relationships
+    // Relations
     enquiry?: Enquiry;
     client?: ClientDetail;
     contact_person?: ClientContactDetail;
     creator?: User;
-    sender?: User;
-    accepter?: User;
-    rejecter?: User;
+    approver?: User;
     items?: QuotationItem[];
-    attachments?: QuotationAttachment[];
 }
 
 export interface QuotationItem {
     id: number;
     quotation_id: number;
-    equipment_id?: number;
-    description: string;
+    equipment_id: number | null;
     quantity: number;
     unit_price: number;
-    tax_rate: number;
-    tax_amount: number;
-    discount_type?: 'percentage' | 'fixed';
-    discount_value?: number;
-    discount_amount?: number;
-    subtotal: number;
-    total: number;
-    notes?: string;
+    total_price: number;
+    rental_period_unit: RentalPeriodUnit;
+    rental_period: number | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
+    deleted_at: string | null;
 
     // Relationships
     quotation?: Quotation;
@@ -99,50 +108,27 @@ export interface QuotationAttachment {
 
 export interface QuotationFilters {
     search?: string;
-    status?: QuotationStatus[];
-    type?: QuotationType[];
-    currency?: QuotationCurrency[];
-    client?: number[];
-    created_by?: number[];
+    status?: Quotation['status'][];
+    approval_status?: Quotation['approval_status'][];
     date_range?: [string, string];
-    sort_by?: string;
-    sort_direction?: 'asc' | 'desc';
-    page?: number;
-    per_page?: number;
+    client_id?: number;
+    created_by?: number;
 }
 
-export interface QuotationFormData {
-    enquiry_id: number;
-    client_detail_id: number;
-    contact_person_id: number;
-    type: QuotationType;
-    subject: string;
-    description?: string;
-    currency: QuotationCurrency;
-    items: QuotationItemFormData[];
-    tax_rate: number;
-    discount_type?: 'percentage' | 'fixed';
-    discount_value?: number;
-    payment_terms: QuotationPaymentTerm;
-    custom_payment_terms?: string;
-    validity_period: number;
-    validity_unit: QuotationValidityUnit;
-    notes?: string;
-    terms_conditions?: string;
+export interface QuotationFormData extends Omit<Quotation, 'id' | 'quotation_no' | 'created_by' | 'created_at' | 'updated_at' | 'deleted_at'> {
+    // Additional form-specific fields if needed
 }
 
-export interface QuotationItemFormData {
-    equipment_id?: number;
-    description: string;
-    quantity: number;
-    unit_price: number;
-    tax_rate: number;
-    discount_type?: 'percentage' | 'fixed';
-    discount_value?: number;
-    notes?: string;
+export interface QuotationTableProps {
+    data: Quotation[];
+    loading: boolean;
+    onStatusChange: (id: number, status: Quotation['status']) => Promise<void>;
+    onApprovalStatusChange: (id: number, status: Quotation['approval_status']) => Promise<void>;
+    onDelete: (id: number) => Promise<void>;
+    onEdit: (id: number) => void;
+    onView: (id: number) => void;
 }
 
-// Constants for UI display
 export const QUOTATION_STATUS_OPTIONS: { value: QuotationStatus; label: string; color: string }[] = [
     { value: 'draft', label: 'Draft', color: 'gray' },
     { value: 'sent', label: 'Sent', color: 'blue' },
@@ -153,19 +139,16 @@ export const QUOTATION_STATUS_OPTIONS: { value: QuotationStatus; label: string; 
 ];
 
 export const QUOTATION_TYPE_OPTIONS: { value: QuotationType; label: string; color: string }[] = [
-    { value: 'sales', label: 'Sales', color: 'blue' },
-    { value: 'service', label: 'Service', color: 'green' },
-    { value: 'rental', label: 'Rental', color: 'purple' },
-    { value: 'spare_parts', label: 'Spare Parts', color: 'orange' }
+    { value: 'equipment', label: 'Equipment', color: 'blue' },
+    { value: 'scaffolding', label: 'Scaffolding', color: 'green' },
+    { value: 'both', label: 'Both', color: 'purple' }
 ];
 
 export const QUOTATION_CURRENCY_OPTIONS: { value: QuotationCurrency; label: string; symbol: string }[] = [
+    { value: 'INR', label: 'Indian Rupee', symbol: '₹' },
     { value: 'USD', label: 'US Dollar', symbol: '$' },
     { value: 'EUR', label: 'Euro', symbol: '€' },
-    { value: 'GBP', label: 'British Pound', symbol: '£' },
-    { value: 'AED', label: 'UAE Dirham', symbol: 'د.إ' },
-    { value: 'SAR', label: 'Saudi Riyal', symbol: '﷼' },
-    { value: 'INR', label: 'Indian Rupee', symbol: '₹' }
+    { value: 'GBP', label: 'British Pound', symbol: '£' }
 ];
 
 export const QUOTATION_PAYMENT_TERM_OPTIONS: { value: QuotationPaymentTerm; label: string }[] = [
@@ -182,3 +165,29 @@ export const QUOTATION_VALIDITY_UNIT_OPTIONS: { value: QuotationValidityUnit; la
     { value: 'weeks', label: 'Weeks' },
     { value: 'months', label: 'Months' }
 ];
+
+export const QUOTATION_STATUS_COLORS: Record<Quotation['status'], string> = {
+    draft: 'gray',
+    pending_review: 'yellow',
+    pending_approval: 'orange',
+    approved: 'green',
+    sent: 'blue',
+    accepted: 'teal',
+    rejected: 'red',
+    expired: 'dark',
+    converted: 'indigo',
+    cancelled: 'gray'
+};
+
+export const QUOTATION_APPROVAL_STATUS_COLORS: Record<Quotation['approval_status'], string> = {
+    pending: 'yellow',
+    approved: 'green',
+    rejected: 'red',
+    not_required: 'gray'
+};
+
+export const QUOTATION_TYPE_LABELS: Record<Quotation['type'], string> = {
+    equipment: 'Equipment',
+    scaffolding: 'Scaffolding',
+    both: 'Both'
+};

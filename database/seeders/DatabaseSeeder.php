@@ -18,25 +18,64 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'email' => 'admin@aayan.com',
-            'password' => Hash::make('admin1234'),
-            'remember_token' => Str::random(60),
+        // Core system seeders
+        $this->call([
+            RoleAndPermissionSeeder::class,
+            UserSeeder::class,
+            DepartmentSeeder::class,
+            CategorySeeder::class,
         ]);
 
-        Role::create(['name' => 'admin']);
-        Role::create(['name' => 'hr']);
-        Role::create(['name' => 'sales']);
-        Role::create(['name' => 'purchase']);
-        
-        $modules = ['users', 'roles'];
-        $actions = ['create', 'read', 'update', 'delete'];
-        foreach ($modules as $module) {
-            foreach ($actions as $action) {
-                $name = "$module.$action";
-                Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
-            }
-        }
+        // HR Module seeders
+        $this->call([
+            EmployeeSeeder::class,
+            EmployeeAddressSeeder::class,
+            EmployeeDocumentSeeder::class,
+            EmpEducationalQualificationSeeder::class,
+            EmpProfessionalQualificationSeeder::class,
+            EmploymentDetailSeeder::class,
+            EmpJoiningDetailSeeder::class,
+            EmployeeSpouseSeeder::class,
+            EmployeeChildSeeder::class,
+            EmployeeCurricularActivitySeeder::class,
+            EmployeeKnownLanguageSeeder::class,
+            EmployeeSpecialTrainingSeeder::class,
+            EmployeeNomineeSeeder::class,
+            EmployeeReferenceSeeder::class,
+        ]);
+
+        // Vendor Module seeders
+        $this->call([
+            VendorSeeder::class,
+            VendorBankAccountSeeder::class,
+            VendorContactDetailSeeder::class,
+            VendorDocumentSeeder::class,
+        ]);
+
+        // Client Module seeders
+        $this->call([
+            ClientDetailSeeder::class,
+            ClientBankAccountSeeder::class,
+            ClientContactDetailSeeder::class,
+            ClientDocumentSeeder::class,
+        ]);
+
+        // // Sales Module seeders
+        // $this->call([
+        //     EnquirySeeder::class,
+        //     QuotationSeeder::class,
+        //     SalesOrderSeeder::class,
+        //     SalesBillSeeder::class,
+        //     SalesPaymentSeeder::class,
+        //     DispatchSeeder::class,
+        // ]);
+
+        // // Purchase Module seeders
+        // $this->call([
+        //     PurchaseIntentSeeder::class,
+        //     PurchaseOrderSeeder::class,
+        //     GoodsReceiptNoteSeeder::class,
+        //     PurchasePaymentSeeder::class,
+        // ]);
     }
 }

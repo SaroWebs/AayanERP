@@ -73,6 +73,14 @@ class Quotation extends Model
     }
 
     /**
+     * Get the items for the quotation.
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(QuotationItem::class);
+    }
+
+    /**
      * Get the sales orders for the quotation.
      */
     public function salesOrders(): HasMany

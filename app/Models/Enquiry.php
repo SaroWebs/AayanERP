@@ -76,11 +76,11 @@ class Enquiry extends Model
     }
 
     /**
-     * Get the equipment for the enquiry.
+     * Get the items for the enquiry.
      */
-    public function equipment(): BelongsTo
+    public function items(): HasMany
     {
-        return $this->belongsTo(Equipment::class, 'equipment_id');
+        return $this->hasMany(EnquiryItem::class);
     }
 
     /**

@@ -12,14 +12,25 @@ import {
     Divider,
     Paper,
     Badge,
-    LoadingOverlay
+    LoadingOverlay,
+    Table
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
 import { format } from 'date-fns';
-import { Enquiry, EnquiryFormData, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS, ENQUIRY_SOURCE_LABELS, NATURE_OF_WORK_LABELS } from './types';
+import { 
+    Enquiry, 
+    EnquiryFormData, 
+    ENQUIRY_STATUS_COLORS, 
+    ENQUIRY_PRIORITY_COLORS, 
+    ENQUIRY_TYPE_LABELS, 
+    ENQUIRY_SOURCE_LABELS, 
+    NATURE_OF_WORK_LABELS,
+    NatureOfWork,
+    DurationUnit
+} from './types';
 import type { Equipment } from '@/types/equipment';
 import type { ClientDetail } from '@/types/client';
 import type { ClientContactDetail } from '@/types/client-contact';
@@ -56,7 +67,157 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         { value: 'not_required', label: 'Not Required' }
     ];
 
-    const form = useForm<EnquiryFormData>({
+    const canTransitionTo = (currentStatus: string, targetStatus: string) => {
+        const validTransitions: Record<string, string[]> = {
+            'draft': ['pending_review', 'cancelled'],
+            'pending_review': ['under_review', 'cancelled'],
+            'under_review': ['quoted', 'lost'],
+            'quoted': ['pending_approval', 'lost'],
+            'pending_approval': ['approved', 'rejected'],
+            'approved': ['converted', 'lost'],
+            'converted': [],
+            'lost': [],
+            'cancelled': []
+        };
+
+        return validTransitions[currentStatus]?.includes(targetStatus) ?? false;
+    };
+
+    const getStatusActions = (enquiry: Enquiry) => {
+        const actions = [];
+
+        switch (enquiry.status) {
+            case 'draft':
+                actions.push({
+                    label: 'Submit for Review',
+                    color: 'blue',
+                    onClick: () => handleStatusChange('pending_review')
+                });
+                break;
+            case 'pending_review':
+                actions.push({
+                    label: 'Start Review',
+                    color: 'blue',
+                    onClick: () => handleStatusChange('under_review')
+                });
+                break;
+            case 'under_review':
+                actions.push({
+                    label: 'Mark as Quoted',
+                    color: 'green',
+                    onClick: () => handleStatusChange('quoted')
+                });
+                break;
+            case 'quoted':
+                actions.push({
+                    label: 'Submit for Approval',
+                    color: 'blue',
+                    onClick: () => handleStatusChange('pending_approval')
+                });
+                break;
+            case 'pending_approval':
+                actions.push({
+                    label: 'Approve',
+                    color: 'green',
+                    onClick: () => handleStatusChange('approved')
+                });
+                actions.push({
+                    label: 'Reject',
+                    color: 'red',
+                    onClick: () => handleStatusChange('lost')
+                });
+                break;
+            case 'approved':
+                actions.push({
+                    label: 'Mark as Converted',
+                    color: 'green',
+                    onClick: () => handleStatusChange('converted')
+                });
+                break;
+        }
+
+        if (!['converted', 'lost', 'cancelled'].includes(enquiry.status)) {
+            actions.push({
+                label: 'Cancel Enquiry',
+                color: 'red',
+                onClick: () => handleStatusChange('cancelled')
+            });
+        }
+
+        return actions;
+    };
+
+    const handleStatusChange = async (newStatus: string) => {
+        if (!enquiry) return;
+
+        if (!canTransitionTo(enquiry.status, newStatus)) {
+            notifications.show({
+                title: 'Invalid Status Change',
+                message: `Cannot change status from ${enquiry.status} to ${newStatus}`,
+                color: 'red'
+            });
+            return;
+        }
+
+        try {
+            let endpoint = '';
+            let payload: any = {};
+
+            switch (newStatus) {
+                case 'pending_review':
+                    endpoint = 'submit';
+                    break;
+                case 'under_review':
+                    endpoint = 'under-review';
+                    break;
+                case 'quoted':
+                    endpoint = 'quoted';
+                    break;
+                case 'pending_approval':
+                    endpoint = 'pending-approval';
+                    break;
+                case 'approved':
+                    endpoint = 'approve';
+                    payload = { approval_remarks: form.values.approval_remarks };
+                    break;
+                case 'converted':
+                    endpoint = 'convert';
+                    break;
+                case 'lost':
+                    endpoint = 'reject';
+                    payload = { rejection_remarks: form.values.rejection_remarks };
+                    break;
+                case 'cancelled':
+                    endpoint = 'cancel';
+                    break;
+                default:
+                    throw new Error('Invalid status transition');
+            }
+
+            await axios.post(`/sales/enquiries/${enquiry.id}/${endpoint}`, payload);
+
+            queryClient.invalidateQueries({ queryKey: ['enquiries'] });
+            notifications.show({
+                title: 'Success',
+                message: `Status updated to ${newStatus}`,
+                color: 'green'
+            });
+            onClose();
+        } catch (error) {
+            const errorMessage = error instanceof Error
+                ? error.message
+                : error && typeof error === 'object' && 'response' in error
+                    ? (error.response as any)?.data?.message
+                    : 'Failed to update status';
+            notifications.show({
+                title: 'Error',
+                message: errorMessage,
+                color: 'red'
+            });
+        }
+    };
+
+    const form = useForm<EnquiryFormData & { rejection_remarks?: string }>({
         initialValues: {
             client_detail_id: enquiry?.client_detail_id || 0,
             contact_person_id: enquiry?.contact_person_id || null,
@@ -69,11 +230,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
             status: enquiry?.status || 'draft',
             approval_status: enquiry?.approval_status || 'not_required',
             source: enquiry?.source || 'other',
-            equipment_id: enquiry?.equipment_id || null,
-            quantity: enquiry?.quantity || 1,
-            nature_of_work: enquiry?.nature_of_work || 'other',
-            duration: enquiry?.duration || null,
-            duration_unit: enquiry?.duration_unit || 'days',
             deployment_state: enquiry?.deployment_state || '',
             location: enquiry?.location || '',
             site_details: enquiry?.site_details || '',
@@ -90,12 +246,24 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
             approved_by: enquiry?.approved_by || null,
             approved_at: enquiry?.approved_at || null,
             approval_remarks: enquiry?.approval_remarks || '',
-            converted_date: null
+            converted_date: enquiry?.converted_date || null,
+            items: enquiry?.items?.map(item => ({
+                equipment_id: item.equipment_id,
+                quantity: item.quantity,
+                nature_of_work: item.nature_of_work || 'other',
+                duration: item.duration,
+                duration_unit: item.duration_unit || 'days',
+                estimated_value: item.estimated_value,
+                notes: item.notes
+            })) || []
         },
         validate: {
-            client_detail_id: (value) => (!value ? 'Client is required' : null),
+            client_detail_id: (value) => (value === 0 ? 'Client is required' : null),
             subject: (value) => (!value ? 'Subject is required' : null),
             type: (value) => (!value ? 'Type is required' : null),
+            priority: (value) => (!value ? 'Priority is required' : null),
+            status: (value) => (!value ? 'Status is required' : null),
+            source: (value) => (!value ? 'Source is required' : null),
             enquiry_date: (value) => (!value ? 'Enquiry date is required' : null)
         }
     });
@@ -209,210 +377,235 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
     if (isView && enquiry) {
         return (
             <Stack>
-                <Group justify="space-between">
-                    <Text fw={500} size="lg">
-                        {enquiry.enquiry_no}
-                    </Text>
-                    <Group>
-                        <Badge color={ENQUIRY_STATUS_COLORS[enquiry.status]}>
-                            {enquiry.status.split('_').map(word =>
-                                word.charAt(0).toUpperCase() + word.slice(1)
-                            ).join(' ')}
-                        </Badge>
-                        <Badge color={ENQUIRY_PRIORITY_COLORS[enquiry.priority]}>
-                            {enquiry.priority.charAt(0).toUpperCase() + enquiry.priority.slice(1)}
-                        </Badge>
+                <Paper withBorder p="xl">
+                    <Group justify="space-between" mb="xl">
+                        <Stack gap={0}>
+                            <Text fw={700} size="xl">Enquiry Proposal</Text>
+                            <Text size="sm" c="dimmed">Reference: {enquiry.enquiry_no}</Text>
+                        </Stack>
+                        <Group>
+                            <Badge color={ENQUIRY_STATUS_COLORS[enquiry.status]} size="lg">
+                                {enquiry.status.split('_').map(word =>
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                ).join(' ')}
+                            </Badge>
+                            <Badge color={ENQUIRY_PRIORITY_COLORS[enquiry.priority]} size="lg">
+                                {enquiry.priority.charAt(0).toUpperCase() + enquiry.priority.slice(1)}
+                            </Badge>
+                        </Group>
                     </Group>
-                </Group>
 
-                <Grid>
-                    <Grid.Col span={6}>
-                        <Paper withBorder p="md">
-                            <Text fw={500} mb="md">Client Information</Text>
-                            <Stack gap="xs">
-                                <Text size="sm">
-                                    <Text span fw={500}>Client:</Text> {enquiry.client?.name}
-                                </Text>
-                                <Text size="sm">
-                                    <Text span fw={500}>Contact Person:</Text> {enquiry.contact_person?.name}
-                                </Text>
-                                <Text size="sm">
-                                    <Text span fw={500}>Assigned To:</Text> {enquiry.assignee?.name || '-'}
-                                </Text>
-                            </Stack>
+                    {getStatusActions(enquiry).length > 0 && (
+                        <Paper withBorder p="md" mb="xl">
+                            <Text fw={500} mb="md">Status Actions</Text>
+                            <Group>
+                                {getStatusActions(enquiry).map((action, index) => (
+                                    <Button
+                                        key={index}
+                                        color={action.color}
+                                        onClick={action.onClick}
+                                    >
+                                        {action.label}
+                                    </Button>
+                                ))}
+                            </Group>
                         </Paper>
-                    </Grid.Col>
+                    )}
 
-                    <Grid.Col span={6}>
-                        <Paper withBorder p="md">
-                            <Text fw={500} mb="md">Enquiry Details</Text>
-                            <Stack gap="xs">
-                                <Text size="sm">
-                                    <Text span fw={500}>Type:</Text> {ENQUIRY_TYPE_LABELS[enquiry.type]}
-                                </Text>
-                                <Text size="sm">
-                                    <Text span fw={500}>Source:</Text> {ENQUIRY_SOURCE_LABELS[enquiry.source]}
-                                </Text>
-                                <Text size="sm">
-                                    <Text span fw={500}>Enquiry Date:</Text> {format(new Date(enquiry.enquiry_date), 'dd MMM yyyy')}
-                                </Text>
-                                {enquiry.required_date && (
-                                    <Text size="sm">
-                                        <Text span fw={500}>Required Date:</Text> {format(new Date(enquiry.required_date), 'dd MMM yyyy')}
-                                    </Text>
-                                )}
-                            </Stack>
-                        </Paper>
-                    </Grid.Col>
-
-                    <Grid.Col span={12}>
-                        <Paper withBorder p="md">
-                            <Text fw={500} mb="md">Description</Text>
-                            <Text size="sm">{enquiry.description}</Text>
-                        </Paper>
-                    </Grid.Col>
-
-                    {enquiry.equipment && (
+                    <Grid>
                         <Grid.Col span={6}>
                             <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Equipment Details</Text>
+                                <Text fw={500} mb="md">Client Information</Text>
                                 <Stack gap="xs">
                                     <Text size="sm">
-                                        <Text span fw={500}>Equipment:</Text> {enquiry.equipment.name}
+                                        <Text span fw={500}>Client:</Text> {enquiry.client?.name}
                                     </Text>
                                     <Text size="sm">
-                                        <Text span fw={500}>Quantity:</Text> {enquiry.quantity}
+                                        <Text span fw={500}>Contact Person:</Text> {enquiry.contact_person?.name}
                                     </Text>
                                     <Text size="sm">
-                                        <Text span fw={500}>Nature of Work:</Text> {NATURE_OF_WORK_LABELS[enquiry.nature_of_work]}
+                                        <Text span fw={500}>Assigned To:</Text> {enquiry.assignee?.name || '-'}
                                     </Text>
-                                    {enquiry.duration && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Duration:</Text> {enquiry.duration} {enquiry.duration_unit}
-                                        </Text>
-                                    )}
                                 </Stack>
                             </Paper>
                         </Grid.Col>
-                    )}
 
-                    {(enquiry.deployment_state || enquiry.location) && (
                         <Grid.Col span={6}>
                             <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Location Details</Text>
-                                <Stack gap="xs">
-                                    {enquiry.deployment_state && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>State:</Text> {enquiry.deployment_state}
-                                        </Text>
-                                    )}
-                                    {enquiry.location && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Location:</Text> {enquiry.location}
-                                        </Text>
-                                    )}
-                                    {enquiry.site_details && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Site Details:</Text> {enquiry.site_details}
-                                        </Text>
-                                    )}
-                                </Stack>
-                            </Paper>
-                        </Grid.Col>
-                    )}
-
-                    {enquiry.estimated_value && (
-                        <Grid.Col span={6}>
-                            <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Financial Details</Text>
-                                <Text size="sm">
-                                    <Text span fw={500}>Estimated Value:</Text> {enquiry.currency} {enquiry.estimated_value.toLocaleString()}
-                                </Text>
-                            </Paper>
-                        </Grid.Col>
-                    )}
-
-                    {(enquiry.special_requirements || enquiry.terms_conditions || enquiry.notes) && (
-                        <Grid.Col span={12}>
-                            <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Additional Information</Text>
-                                <Stack gap="xs">
-                                    {enquiry.special_requirements && (
-                                        <div>
-                                            <Text size="sm" fw={500}>Special Requirements:</Text>
-                                            <Text size="sm">{enquiry.special_requirements}</Text>
-                                        </div>
-                                    )}
-                                    {enquiry.terms_conditions && (
-                                        <div>
-                                            <Text size="sm" fw={500}>Terms & Conditions:</Text>
-                                            <Text size="sm">{enquiry.terms_conditions}</Text>
-                                        </div>
-                                    )}
-                                    {enquiry.notes && (
-                                        <div>
-                                            <Text size="sm" fw={500}>Notes:</Text>
-                                            <Text size="sm">{enquiry.notes}</Text>
-                                        </div>
-                                    )}
-                                </Stack>
-                            </Paper>
-                        </Grid.Col>
-                    )}
-
-                    {/* Add approval information section */}
-                    {enquiry.approval_status !== 'not_required' && (
-                        <Grid.Col span={12}>
-                            <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Approval Information</Text>
+                                <Text fw={500} mb="md">Enquiry Details</Text>
                                 <Stack gap="xs">
                                     <Text size="sm">
-                                        <Text span fw={500}>Approval Status:</Text> {
-                                            enquiry.approval_status.charAt(0).toUpperCase() +
-                                            enquiry.approval_status.slice(1).replace('_', ' ')
-                                        }
+                                        <Text span fw={500}>Type:</Text> {ENQUIRY_TYPE_LABELS[enquiry.type]}
                                     </Text>
-                                    {enquiry.approved_by && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Approved By:</Text> {enquiry.approver?.name}
-                                        </Text>
-                                    )}
-                                    {enquiry.approved_at && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Approved At:</Text> {format(new Date(enquiry.approved_at), 'dd MMM yyyy HH:mm')}
-                                        </Text>
-                                    )}
-                                    {enquiry.approval_remarks && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Approval Remarks:</Text> {enquiry.approval_remarks}
-                                        </Text>
-                                    )}
+                                    <Text size="sm">
+                                        <Text span fw={500}>Source:</Text> {ENQUIRY_SOURCE_LABELS[enquiry.source]}
+                                    </Text>
+                                    <Text size="sm">
+                                        <Text span fw={500}>Enquiry Date:</Text> {format(new Date(enquiry.enquiry_date), 'dd MMM yyyy')}
+                                    </Text>
                                 </Stack>
                             </Paper>
                         </Grid.Col>
-                    )}
 
-                    {/* Add follow-up information if available */}
-                    {(enquiry.next_follow_up_date || enquiry.follow_up_notes) && (
                         <Grid.Col span={12}>
                             <Paper withBorder p="md">
-                                <Text fw={500} mb="md">Follow-up Information</Text>
-                                <Stack gap="xs">
-                                    {enquiry.next_follow_up_date && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Next Follow-up Date:</Text> {format(new Date(enquiry.next_follow_up_date), 'dd MMM yyyy')}
-                                        </Text>
-                                    )}
-                                    {enquiry.follow_up_notes && (
-                                        <Text size="sm">
-                                            <Text span fw={500}>Follow-up Notes:</Text> {enquiry.follow_up_notes}
-                                        </Text>
-                                    )}
-                                </Stack>
+                                <Text fw={500} mb="md">Description</Text>
+                                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{enquiry.description}</Text>
                             </Paper>
                         </Grid.Col>
-                    )}
-                </Grid>
+
+                        {enquiry.items && enquiry.items.length > 0 && (
+                            <Grid.Col span={12}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Enquiry Items</Text>
+                                    <Table striped highlightOnHover>
+                                        <Table.Thead>
+                                            <Table.Tr>
+                                                <Table.Th>Equipment</Table.Th>
+                                                <Table.Th>Quantity</Table.Th>
+                                                <Table.Th>Nature of Work</Table.Th>
+                                                <Table.Th>Duration</Table.Th>
+                                                <Table.Th>Estimated Value</Table.Th>
+                                                <Table.Th>Notes</Table.Th>
+                                            </Table.Tr>
+                                        </Table.Thead>
+                                        <Table.Tbody>
+                                            {enquiry.items.map((item, index) => (
+                                                <Table.Tr key={index}>
+                                                    <Table.Td>{item.equipment?.name || '-'}</Table.Td>
+                                                    <Table.Td>{item.quantity}</Table.Td>
+                                                    <Table.Td>{NATURE_OF_WORK_LABELS[item.nature_of_work]}</Table.Td>
+                                                    <Table.Td>
+                                                        {item.duration ? `${item.duration} ${item.duration_unit}` : '-'}
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        {item.estimated_value ? `${enquiry.currency} ${item.estimated_value.toLocaleString()}` : '-'}
+                                                    </Table.Td>
+                                                    <Table.Td>{item.notes || '-'}</Table.Td>
+                                                </Table.Tr>
+                                            ))}
+                                        </Table.Tbody>
+                                    </Table>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+
+                        {(enquiry.deployment_state || enquiry.location) && (
+                            <Grid.Col span={6}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Location Details</Text>
+                                    <Stack gap="xs">
+                                        {enquiry.deployment_state && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>State:</Text> {enquiry.deployment_state}
+                                            </Text>
+                                        )}
+                                        {enquiry.location && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Location:</Text> {enquiry.location}
+                                            </Text>
+                                        )}
+                                        {enquiry.site_details && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Site Details:</Text> {enquiry.site_details}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+
+                        {enquiry.estimated_value && (
+                            <Grid.Col span={6}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Financial Details</Text>
+                                    <Text size="sm">
+                                        <Text span fw={500}>Estimated Value:</Text> {enquiry.currency} {enquiry.estimated_value.toLocaleString()}
+                                    </Text>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+
+                        {(enquiry.special_requirements || enquiry.terms_conditions || enquiry.notes) && (
+                            <Grid.Col span={12}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Additional Information</Text>
+                                    <Stack gap="md">
+                                        {enquiry.special_requirements && (
+                                            <div>
+                                                <Text size="sm" fw={500}>Special Requirements:</Text>
+                                                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{enquiry.special_requirements}</Text>
+                                            </div>
+                                        )}
+                                        {enquiry.terms_conditions && (
+                                            <div>
+                                                <Text size="sm" fw={500}>Terms & Conditions:</Text>
+                                                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{enquiry.terms_conditions}</Text>
+                                            </div>
+                                        )}
+                                        {enquiry.notes && (
+                                            <div>
+                                                <Text size="sm" fw={500}>Notes:</Text>
+                                                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{enquiry.notes}</Text>
+                                            </div>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+
+                        {enquiry.approval_status !== 'not_required' && (
+                            <Grid.Col span={12}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Approval Information</Text>
+                                    <Stack gap="xs">
+                                        <Text size="sm">
+                                            <Text span fw={500}>Approval Status:</Text> {
+                                                enquiry.approval_status.charAt(0).toUpperCase() +
+                                                enquiry.approval_status.slice(1).replace('_', ' ')
+                                            }
+                                        </Text>
+                                        {enquiry.approved_by && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Approved By:</Text> {enquiry.approver?.name}
+                                            </Text>
+                                        )}
+                                        {enquiry.approved_at && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Approved At:</Text> {format(new Date(enquiry.approved_at), 'dd MMM yyyy HH:mm')}
+                                            </Text>
+                                        )}
+                                        {enquiry.approval_remarks && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Approval Remarks:</Text> {enquiry.approval_remarks}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+
+                        {(enquiry.next_follow_up_date || enquiry.follow_up_notes) && (
+                            <Grid.Col span={12}>
+                                <Paper withBorder p="md">
+                                    <Text fw={500} mb="md">Follow-up Information</Text>
+                                    <Stack gap="xs">
+                                        {enquiry.next_follow_up_date && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Next Follow-up Date:</Text> {format(new Date(enquiry.next_follow_up_date), 'dd MMM yyyy')}
+                                            </Text>
+                                        )}
+                                        {enquiry.follow_up_notes && (
+                                            <Text size="sm">
+                                                <Text span fw={500}>Follow-up Notes:</Text> {enquiry.follow_up_notes}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            </Grid.Col>
+                        )}
+                    </Grid>
+                </Paper>
             </Stack>
         );
     }
@@ -522,8 +715,15 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                 value: item.id.toString(),
                                 label: item.name
                             }))}
-                            value={form.values.equipment_id?.toString()}
-                            onChange={(value) => form.setFieldValue('equipment_id', value ? parseInt(value) : null)}
+                            value={form.values.items[0]?.equipment_id?.toString()}
+                            onChange={(value) => {
+                                form.setFieldValue('items', [
+                                    {
+                                        ...form.values.items[0],
+                                        equipment_id: value ? parseInt(value) : null
+                                    }
+                                ]);
+                            }}
                             disabled={isView || form.values.type === 'scaffolding'}
                             clearable
                         />
@@ -537,7 +737,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                 value,
                                 label
                             }))}
-                            {...form.getInputProps('nature_of_work')}
+                            {...form.getInputProps('items.0.nature_of_work')}
                             disabled={isView}
                         />
                     </Grid.Col>
@@ -546,7 +746,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                         <NumberInput
                             label="Quantity"
                             placeholder="Enter quantity"
-                            {...form.getInputProps('quantity')}
+                            {...form.getInputProps('items.0.quantity')}
                             min={1}
                             disabled={isView}
                         />
@@ -557,7 +757,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                             <NumberInput
                                 label="Duration"
                                 placeholder="Enter duration"
-                                {...form.getInputProps('duration')}
+                                {...form.getInputProps('items.0.duration')}
                                 min={1}
                                 disabled={isView}
                             />
@@ -570,7 +770,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                     { value: 'months', label: 'Months' },
                                     { value: 'years', label: 'Years' }
                                 ]}
-                                {...form.getInputProps('duration_unit')}
+                                {...form.getInputProps('items.0.duration_unit')}
                                 disabled={isView}
                             />
                         </Group>
@@ -679,7 +879,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                         />
                     </Grid.Col>
 
-                    {/* Add follow-up section */}
                     <Divider label="Follow-up Information" labelPosition="center" />
 
                     <Grid.Col span={6}>

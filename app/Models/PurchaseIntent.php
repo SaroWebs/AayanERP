@@ -43,6 +43,14 @@ class PurchaseIntent extends Model
     }
 
     /**
+     * Get the department that the purchase intent belongs to.
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /**
      * Get the purchase orders for the intent.
      */
     public function purchaseOrders(): HasMany

@@ -19,7 +19,7 @@ class QuotationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Quotation::with(['enquiry', 'client', 'creator', 'approver'])
+        $query = Quotation::with(['enquiry', 'client', 'contactPerson', 'creator', 'approver'])
             ->latest();
 
         // Filter by status
@@ -34,7 +34,7 @@ class QuotationController extends Controller
 
         // Filter by client
         if ($request->has('client_id')) {
-            $query->where('client_id', $request->client_id);
+            $query->where('client_detail_id', $request->client_id);
         }
 
         // Filter by date range
@@ -55,7 +55,7 @@ class QuotationController extends Controller
         }
 
         $quotations = $query->paginate(10)->withQueryString();
-        $clients = ClientDetail::where('status', 'active')->get();
+        $clients = ClientDetail::all();
 
         return Inertia::render('sales/quotations/index', [
             'quotations' => $quotations,
@@ -64,53 +64,76 @@ class QuotationController extends Controller
         ]);
     }
 
-
     /**
      * Store a newly created quotation in storage.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'enquiry_id' => ['nullable', 'exists:enquiries,id'],
-            'client_id' => ['required', 'exists:clients,id'],
-            'subject' => ['required', 'string', 'max:255'],
+            'client_detail_id' => ['required', 'exists:client_details,id'],
+            'contact_person_id' => ['nullable', 'exists:client_contact_details,id'],
+            'subject' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'type' => ['required', 'in:equipment,scaffolding,both'],
             'quotation_date' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after:quotation_date'],
             'currency' => ['required', 'string', 'size:3'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'payment_terms' => ['required', 'string'],
-            'delivery_terms' => ['required', 'string'],
-            'specifications' => ['nullable', 'string'],
-            'terms_conditions' => ['required', 'string'],
+            'subtotal' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'tax_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'tax_amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+            'total_amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'payment_terms_days' => ['required', 'integer', 'min:0'],
+            'advance_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'payment_terms' => ['nullable', 'string'],
+            'delivery_terms' => ['nullable', 'string'],
+            'deployment_state' => ['nullable', 'string'],
+            'location' => ['nullable', 'string'],
+            'site_details' => ['nullable', 'string'],
+            'special_conditions' => ['nullable', 'string'],
+            'terms_conditions' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'document' => ['nullable', 'file', 'max:10240'], // 10MB max
+            'client_remarks' => ['nullable', 'string'],
+            'items' => 'required|array|min:1',
+            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+            'items.*.rental_period_unit' => ['required', 'in:hours,days,months,years'],
+            'items.*.rental_period' => 'nullable|integer|min:1',
+            'items.*.notes' => 'nullable|string'
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Generate quotation number
-            $validated['quotation_no'] = $this->generateQuotationNumber();
-            $validated['created_by'] = Auth::id();
-            $validated['status'] = 'draft';
-            $validated['approval_status'] = 'not_required';
+            // if discount_percentage is not a number then is 0
+            if (!is_numeric($request->discount_percentage)) {
+                $request->merge(['discount_percentage' => 0]);
+            }
 
-            $quotation = Quotation::create($validated);
+            // Create quotation
+            $quotation = Quotation::create([
+                'quotation_no' => $this->generateQuotationNumber(),
+                'created_by' => Auth::id(),
+                ...$request->except('items')
+            ]);
 
-            // Store document if uploaded
-            if ($request->hasFile('document')) {
-                $path = $request->file('document')->store('quotation-documents');
-                $quotation->update(['document_path' => $path]);
+            // Create quotation items
+            foreach ($request->items as $item) {
+                $quotation->items()->create($item);
             }
 
             DB::commit();
 
-            return redirect()->route('quotations.show', $quotation)
-                ->with('success', 'Quotation created successfully.');
+            return response()->json([
+                'message' => 'Quotation created successfully',
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.equipment'])
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to create quotation: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to create quotation', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -119,47 +142,80 @@ class QuotationController extends Controller
      */
     public function update(Request $request, Quotation $quotation)
     {
-        if (!in_array($quotation->status, ['draft', 'pending_review'])) {
-            return back()->with('error', 'Only draft or pending review quotations can be updated.');
-        }
-
         $validated = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
-            'subject' => ['required', 'string', 'max:255'],
+            'client_detail_id' => ['required', 'exists:client_details,id'],
+            'contact_person_id' => ['nullable', 'exists:client_contact_details,id'],
+            'subject' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'type' => ['required', 'in:equipment,scaffolding,both'],
             'quotation_date' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after:quotation_date'],
             'currency' => ['required', 'string', 'size:3'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'payment_terms' => ['required', 'string'],
-            'delivery_terms' => ['required', 'string'],
-            'specifications' => ['nullable', 'string'],
-            'terms_conditions' => ['required', 'string'],
+            'subtotal' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'tax_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'tax_amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+            'total_amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'payment_terms_days' => ['required', 'integer', 'min:0'],
+            'advance_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'payment_terms' => ['nullable', 'string'],
+            'delivery_terms' => ['nullable', 'string'],
+            'deployment_state' => ['nullable', 'string'],
+            'location' => ['nullable', 'string'],
+            'site_details' => ['nullable', 'string'],
+            'special_conditions' => ['nullable', 'string'],
+            'terms_conditions' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'document' => ['nullable', 'file', 'max:10240'], // 10MB max
+            'client_remarks' => ['nullable', 'string'],
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'nullable|exists:quotation_items,id',
+            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+            'items.*.rental_period_unit' => ['required', 'in:hours,days,months,years'],
+            'items.*.rental_period' => 'nullable|integer|min:1',
+            'items.*.notes' => 'nullable|string'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $quotation->update($validated);
+            // Update quotation
+            $quotation->update($request->except('items'));
 
-            // Update document if new one is uploaded
-            if ($request->hasFile('document')) {
-                if ($quotation->document_path) {
-                    Storage::delete($quotation->document_path);
+            // Update quotation items
+            $existingItemIds = $quotation->items()->pluck('id')->toArray();
+            $updatedItemIds = [];
+
+            foreach ($request->items as $item) {
+                if (isset($item['id'])) {
+                    // Update existing item
+                    $quotation->items()->where('id', $item['id'])->update($item);
+                    $updatedItemIds[] = $item['id'];
+                } else {
+                    // Create new item
+                    $newItem = $quotation->items()->create($item);
+                    $updatedItemIds[] = $newItem->id;
                 }
-                $path = $request->file('document')->store('quotation-documents');
-                $quotation->update(['document_path' => $path]);
+            }
+
+            // Delete items that were not updated
+            $itemsToDelete = array_diff($existingItemIds, $updatedItemIds);
+            if (!empty($itemsToDelete)) {
+                $quotation->items()->whereIn('id', $itemsToDelete)->delete();
             }
 
             DB::commit();
 
-            return redirect()->route('quotations.show', $quotation)
-                ->with('success', 'Quotation updated successfully.');
+            return response()->json([
+                'message' => 'Quotation updated successfully',
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.equipment'])
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to update quotation: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to update quotation', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -184,7 +240,7 @@ class QuotationController extends Controller
 
             DB::commit();
 
-            return redirect()->route('quotations.index')
+            return redirect()->route('sales.quotations.index')
                 ->with('success', 'Quotation deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -275,7 +331,7 @@ class QuotationController extends Controller
             'converted_date' => now()
         ]);
 
-        return redirect()->route('sales-orders.create', ['quotation_id' => $quotation->id])
+        return redirect()->route('sales.orders.create', ['quotation_id' => $quotation->id])
             ->with('success', 'Quotation converted successfully. Please create the sales order.');
     }
 
@@ -308,7 +364,7 @@ class QuotationController extends Controller
         $prefix = 'QT';
         $year = date('Y');
         $month = date('m');
-        
+
         $lastQuotation = Quotation::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->orderBy('id', 'desc')

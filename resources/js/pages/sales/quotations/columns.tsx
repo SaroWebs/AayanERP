@@ -1,159 +1,252 @@
-import { DataTableColumn } from 'mantine-datatable';
-import { Badge, ActionIcon, Menu } from '@mantine/core';
-import { Eye, Edit, MoreHorizontal, Send, Check, X, FileText, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Badge, Group, Text, ActionIcon, Menu, Stack, Tooltip } from '@mantine/core';
+import { MoreHorizontal, Eye, Edit, Send, Check, X, FileText, Ban, Calendar, Clock, DollarSign, User } from 'lucide-react';
 import { Link } from '@inertiajs/react';
+import { formatCurrency } from '@/utils/format';
+import { format, isAfter, isBefore } from 'date-fns';
+import { Quotation, QuotationAction } from '@/types/sales';
 
-interface Quotation {
-    id: number;
-    quotation_no: string;
-    client: {
-        id: number;
-        name: string;
+export const getStatusColor = (status: Quotation['status']) => {
+    const colors: Record<Quotation['status'], string> = {
+        draft: 'gray',
+        pending_review: 'yellow',
+        pending_approval: 'orange',
+        approved: 'blue',
+        sent: 'cyan',
+        accepted: 'green',
+        rejected: 'red',
+        expired: 'gray',
+        converted: 'violet',
+        cancelled: 'red'
     };
-    status: string;
-    approval_status: string;
-    created_at: string;
-    created_by: {
-        id: number;
-        name: string;
-    };
-}
-
-type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
-
-const statusColors: Record<string, { color: string; label: string }> = {
-    draft: { color: 'gray', label: 'DRAFT' },
-    pending_review: { color: 'yellow', label: 'PENDING REVIEW' },
-    approved: { color: 'green', label: 'APPROVED' },
-    rejected: { color: 'red', label: 'REJECTED' },
-    cancelled: { color: 'gray', label: 'CANCELLED' },
+    return colors[status];
 };
 
-const approvalStatusColors: Record<string, { color: string; label: string }> = {
-    not_required: { color: 'gray', label: 'NOT REQUIRED' },
-    pending: { color: 'yellow', label: 'PENDING' },
-    approved: { color: 'green', label: 'APPROVED' },
-    rejected: { color: 'red', label: 'REJECTED' },
+export const getApprovalStatusColor = (status: Quotation['approval_status']) => {
+    const colors: Record<Quotation['approval_status'], string> = {
+        pending: 'yellow',
+        approved: 'green',
+        rejected: 'red',
+        not_required: 'gray'
+    };
+    return colors[status];
 };
 
-export const columns = (
-    handleAction: (quotation: Quotation, action: QuotationAction) => void
-): DataTableColumn<Quotation>[] => [
+const isQuotationExpired = (validUntil: string) => {
+    return isBefore(new Date(validUntil), new Date());
+};
+
+export const columns = (handleAction: (quotation: Quotation, action: QuotationAction) => void) => [
     {
         accessor: 'quotation_no',
-        title: 'Quotation No.',
+        title: 'Quotation No',
+        width: 150,
+        render: (quotation: Quotation) => (
+            <Group gap="xs">
+                <Text fw={500}>{quotation.quotation_no}</Text>
+                {quotation.enquiry && (
+                    <Tooltip label="From Enquiry">
+                        <Badge size="sm" variant="light" color="blue">
+                            {quotation.enquiry.enquiry_no}
+                        </Badge>
+                    </Tooltip>
+                )}
+            </Group>
+        ),
     },
     {
-        accessor: 'client.name',
+        accessor: 'client',
         title: 'Client',
+        width: 200,
+        render: (quotation: Quotation) => (
+            <Stack gap={4}>
+                <Text fw={500}>{quotation.client?.name || 'N/A'}</Text>
+                {quotation.contact_person && (
+                    <Group gap={4}>
+                        <User size={14} />
+                        <Text size="sm" c="dimmed">{quotation.contact_person.name}</Text>
+                    </Group>
+                )}
+            </Stack>
+        ),
+    },
+    {
+        accessor: 'type',
+        title: 'Type',
+        width: 120,
+        render: (quotation: Quotation) => (
+            <Badge
+                color={
+                    quotation.type === 'equipment'
+                        ? 'blue'
+                        : quotation.type === 'scaffolding'
+                            ? 'green'
+                            : 'grape'
+                }
+            >
+                {quotation.type.charAt(0).toUpperCase() + quotation.type.slice(1)}
+            </Badge>
+        ),
     },
     {
         accessor: 'status',
         title: 'Status',
-        render: (quotation) => {
-            const status = statusColors[quotation.status];
-            return (
-                <Badge color={status.color} variant="light">
-                    {status.label}
+        width: 120,
+        render: (quotation: Quotation) => (
+            <Stack gap={4}>
+                <Badge color={getStatusColor(quotation.status)}>
+                    {quotation.status.replace('_', ' ').charAt(0).toUpperCase() +
+                        quotation.status.replace('_', ' ').slice(1)}
                 </Badge>
-            );
-        },
+                {quotation.status === 'sent' && isQuotationExpired(quotation.valid_until) && (
+                    <Badge color="red" variant="light" size="sm">Expired</Badge>
+                )}
+            </Stack>
+        ),
     },
     {
         accessor: 'approval_status',
-        title: 'Approval Status',
-        render: (quotation) => {
-            const status = approvalStatusColors[quotation.approval_status];
-            return (
-                <Badge color={status.color} variant="light">
-                    {status.label}
+        title: 'Approval',
+        width: 120,
+        render: (quotation: Quotation) => (
+            <Stack gap={4}>
+                <Badge color={getApprovalStatusColor(quotation.approval_status)}>
+                    {quotation.approval_status.replace('_', ' ').charAt(0).toUpperCase() +
+                        quotation.approval_status.replace('_', ' ').slice(1)}
                 </Badge>
-            );
-        },
+                {quotation.approved_by && (
+                    <Group gap={4}>
+                        <User size={14} />
+                        <Text size="sm" c="dimmed">{quotation.approved_by.name}</Text>
+                    </Group>
+                )}
+            </Stack>
+        ),
     },
     {
-        accessor: 'created_by.name',
-        title: 'Created By',
+        accessor: 'financial',
+        title: 'Financial',
+        width: 200,
+        render: (quotation: Quotation) => (
+            <Stack gap={4}>
+                <Group gap={4}>
+                    <DollarSign size={14} />
+                    <Text fw={500}>
+                        {quotation.currency} {formatCurrency(quotation.total_amount)}
+                    </Text>
+                </Group>
+                {(quotation.discount_amount ?? 0) > 0 && (
+                    <Text size="sm" c="dimmed">
+                        Discount: {quotation.currency} {formatCurrency(quotation.discount_amount ?? 0)}
+                    </Text>
+                )}
+                {quotation.tax_amount > 0 && (
+                    <Text size="sm" c="dimmed">
+                        Tax: {quotation.currency} {formatCurrency(quotation.tax_amount)}
+                    </Text>
+                )}
+            </Stack>
+        ),
     },
     {
-        accessor: 'created_at',
-        title: 'Created At',
-        render: (quotation) => format(new Date(quotation.created_at), 'dd MMM yyyy HH:mm'),
+        accessor: 'dates',
+        title: 'Dates',
+        width: 200,
+        render: (quotation: Quotation) => (
+            <Stack gap={4}>
+                <Group gap={4}>
+                    <Calendar size={14} />
+                    <Text size="sm">Quotation: {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}</Text>
+                </Group>
+                <Group gap={4}>
+                    <Clock size={14} />
+                    <Text size="sm">Valid until: {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}</Text>
+                </Group>
+            </Stack>
+        ),
     },
     {
         accessor: 'actions',
         title: 'Actions',
-        textAlign: 'right',
-        render: (quotation) => (
-            <Menu position="bottom-end" withinPortal>
-                <Menu.Target>
-                    <ActionIcon>
-                        <MoreHorizontal size={16} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<Eye size={16} />}
-                        component={Link}
-                        href={route('sales.quotations.show', quotation.id)}
+        render: (quotation: Quotation) => {
+            const canEdit = ['draft', 'pending_review'].includes(quotation.status);
+            const canSubmit = quotation.status === 'draft';
+            const canApprove = quotation.status === 'pending_approval' && quotation.approval_status === 'pending';
+            const canReject = quotation.status === 'pending_approval' && quotation.approval_status === 'pending';
+            const canConvert = quotation.status === 'approved';
+            const canCancel = ['draft', 'pending_review', 'pending_approval'].includes(quotation.status);
+
+            return (
+                <Group gap={4} justify="flex-end">
+                    <ActionIcon
+                        variant="subtle"
+                        color="blue"
+                        onClick={() => handleAction(quotation, 'view')}
                     >
-                        View Details
-                    </Menu.Item>
-                    {quotation.status === 'draft' && (
-                        <>
-                            <Menu.Item
-                                leftSection={<Edit size={16} />}
-                                component={Link}
-                                href={route('sales.quotations.edit', quotation.id)}
-                            >
-                                Edit
-                            </Menu.Item>
-                            <Menu.Item
-                                leftSection={<Send size={16} />}
-                                onClick={() => handleAction(quotation, 'submit')}
-                            >
-                                Submit for Review
-                            </Menu.Item>
-                        </>
-                    )}
-                    {quotation.approval_status === 'pending' && (
-                        <>
-                            <Menu.Item
-                                leftSection={<Check size={16} />}
-                                onClick={() => handleAction(quotation, 'approve')}
-                                c="green"
-                            >
-                                Approve
-                            </Menu.Item>
-                            <Menu.Item
-                                leftSection={<X size={16} />}
-                                onClick={() => handleAction(quotation, 'reject')}
-                                c="red"
-                            >
-                                Reject
-                            </Menu.Item>
-                        </>
-                    )}
-                    {quotation.status === 'approved' && (
-                        <Menu.Item
-                            leftSection={<FileText size={16} />}
-                            onClick={() => handleAction(quotation, 'convert')}
+                        <Eye size={16} />
+                    </ActionIcon>
+
+                    {canEdit && (
+                        <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            onClick={() => handleAction(quotation, 'edit')}
                         >
-                            Convert to Sales Order
-                        </Menu.Item>
+                            <Edit size={16} />
+                        </ActionIcon>
                     )}
-                    {['draft', 'pending_review'].includes(quotation.status) && (
-                        <Menu.Item
-                            leftSection={<Trash2 size={16} />}
-                            onClick={() => handleAction(quotation, 'cancel')}
-                            c="red"
-                        >
-                            Cancel
-                        </Menu.Item>
-                    )}
-                </Menu.Dropdown>
-            </Menu>
-        ),
+
+                    <Menu position="bottom-end" withinPortal>
+                        <Menu.Target>
+                            <ActionIcon variant="subtle" color="gray">
+                                <MoreHorizontal size={16} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {canSubmit && (
+                                <Menu.Item
+                                    leftSection={<Send size={16} />}
+                                    onClick={() => handleAction(quotation, 'submit')}
+                                >
+                                    Submit for Review
+                                </Menu.Item>
+                            )}
+                            {canApprove && (
+                                <Menu.Item
+                                    leftSection={<Check size={16} />}
+                                    onClick={() => handleAction(quotation, 'approve')}
+                                >
+                                    Approve
+                                </Menu.Item>
+                            )}
+                            {canReject && (
+                                <Menu.Item
+                                    leftSection={<X size={16} />}
+                                    onClick={() => handleAction(quotation, 'reject')}
+                                >
+                                    Reject
+                                </Menu.Item>
+                            )}
+                            {canConvert && (
+                                <Menu.Item
+                                    leftSection={<FileText size={16} />}
+                                    onClick={() => handleAction(quotation, 'convert')}
+                                >
+                                    Convert to Order
+                                </Menu.Item>
+                            )}
+                            {canCancel && (
+                                <Menu.Item
+                                    leftSection={<Ban size={16} />}
+                                    onClick={() => handleAction(quotation, 'cancel')}
+                                    color="red"
+                                >
+                                    Cancel
+                                </Menu.Item>
+                            )}
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
+            );
+        },
     },
 ]; 

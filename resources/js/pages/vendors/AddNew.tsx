@@ -21,7 +21,7 @@ const AddNew = () => {
 
     const form = useForm<VendorForm>({
         initialValues: {
-            name: '',
+            name: 'vasp',
             contact_no: '',
             email: '',
             gstin: '',
@@ -34,6 +34,33 @@ const AddNew = () => {
         validateInputOnChange: false,
     });
 
+<<<<<<< HEAD
+    const handleSubmit = async (values: VendorForm) => {
+        // const { reset } = form;
+        try {
+            // Get the CSRF token from the meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            // Use fetch or axios to post the vendor data
+            const response = await fetch('data/vendors/new', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '', // Include CSRF token
+                },
+                body: JSON.stringify(values),
+            });
+            console.log(response);
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            close(); // Close the modal
+        } catch (error) {
+            console.error('Submission error:', error);
+            // Handle error (e.g., set errors in the form)
+=======
     const handleSubmit = (values: VendorForm) => {
         try {
             const formData = new FormData();
@@ -108,6 +135,7 @@ const AddNew = () => {
                 color: 'red',
             });
             setActiveTab('basic_profile');
+>>>>>>> 79e43e5d64f051e9737f31e3f9954713a29c3d4d
         }
     };
 

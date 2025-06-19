@@ -92,6 +92,14 @@ class PurchaseOrder extends Model
     }
 
     /**
+     * Get the items for the purchase order.
+     */
+    public function purchaseOrderItems(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    /**
      * Scope a query to only include pending approval orders.
      */
     public function scopePendingApproval($query)
