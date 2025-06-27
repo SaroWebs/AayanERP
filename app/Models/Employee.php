@@ -8,20 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Employee extends Model
 {
-    protected $fillable = [
-        'first_name',
-        'last_name',
-        'pf_no',
-        'date_of_birth',
-        'gender',
-        'blood_group',
-        'pan_no',
-        'aadhar_no',
-        'guardian_name',
-        'contact_no',
-        'email',
-        'country'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'date_of_birth' => 'date',

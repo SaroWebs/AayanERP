@@ -1,17 +1,14 @@
 import { User } from '@/types/user';
 import { ClientDetail, ClientContactDetail } from '@/types/client';
-import { Equipment } from '@/types/equipment';
+import { Item } from '@/pages/Equipment/Items/types';
 import { Quotation } from '@/types/quotation';
 
 export type EnquiryAction = 'view' | 'edit' | 'create' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
 
-export type EnquiryType = 'equipment' | 'scaffolding' | 'both';
 export type EnquiryPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type EnquiryStatus = 'draft' | 'pending_review' | 'under_review' | 'quoted' | 'pending_approval' | 'approved' | 'converted' | 'lost' | 'cancelled';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'not_required';
 export type EnquirySource = 'website' | 'email' | 'phone' | 'referral' | 'walk_in' | 'other';
-export type NatureOfWork = 'soil' | 'rock' | 'limestone' | 'coal' | 'sand' | 'gravel' | 'construction' | 'demolition' | 'mining' | 'quarry' | 'other';
-export type DurationUnit = 'hours' | 'days' | 'months' | 'years';
 
 interface Client {
     id: number;
@@ -19,6 +16,7 @@ interface Client {
     contact_no: string;
     email: string;
     address: string;
+    phone: string;
 }
 
 interface ContactPerson {
@@ -26,25 +24,27 @@ interface ContactPerson {
     client_detail_id: number;
     contact_person: string;
     designation: string;
+    department: string;
     email: string;
     phone: string;
+    created_at: string;
+    updated_at: string;
 }
+
+
 
 export interface EnquiryItem {
     id: number;
     enquiry_id: number;
-    equipment_id: number;
+    item_id: number;
     quantity: number;
-    nature_of_work: NatureOfWork;
-    duration: number | null;
-    duration_unit: DurationUnit;
     estimated_value: number | null;
     notes: string | null;
     created_at: string;
     updated_at: string;
 
     // Relations
-    equipment?: Equipment;
+    item?: Item;
 }
 
 export interface Enquiry {
@@ -56,7 +56,6 @@ export interface Enquiry {
     referred_by: number | null;
     subject: string;
     description: string | null;
-    type: EnquiryType;
     priority: EnquiryPriority;
     status: EnquiryStatus;
     approval_status: ApprovalStatus;
@@ -85,14 +84,8 @@ export interface Enquiry {
         id: number;
         name: string;
     };
-    client?: {
-        id: number;
-        name: string;
-    };
-    contact_person?: {
-        id: number;
-        name: string;
-    };
+    client?: ClientDetail | null;
+    contact_person?: ContactPerson | null;
     assignee?: {
         id: number;
         name: string;
@@ -102,28 +95,24 @@ export interface Enquiry {
         name: string;
     };
     items?: EnquiryItem[];
+    quotations?: Quotation[];
 }
 
 export interface EnquiryFilters {
     search?: string;
     status?: Enquiry['status'][];
     priority?: Enquiry['priority'][];
-    type?: Enquiry['type'][];
     source?: Enquiry['source'][];
     date_range?: [string, string];
     client_id?: number;
     assigned_to?: number;
-    nature_of_work?: NatureOfWork[];
     min_estimated_value?: number;
     max_estimated_value?: number;
 }
 
 export interface FormEnquiryItem {
-    equipment_id: number | null;
+    item_id: number | null;
     quantity: number;
-    nature_of_work: NatureOfWork;
-    duration: number | null;
-    duration_unit: DurationUnit;
     estimated_value: number | null;
     notes: string | null;
 }
@@ -135,7 +124,6 @@ export interface EnquiryFormData {
     referred_by: number | null;
     subject: string;
     description: string | null;
-    type: EnquiryType;
     priority: EnquiryPriority;
     status: EnquiryStatus;
     approval_status: ApprovalStatus;
@@ -190,31 +178,11 @@ export const ENQUIRY_PRIORITY_COLORS: Record<EnquiryPriority, string> = {
     urgent: 'red'
 };
 
-export const ENQUIRY_TYPE_LABELS: Record<Enquiry['type'], string> = {
-    equipment: 'Equipment',
-    scaffolding: 'Scaffolding',
-    both: 'Both'
-};
-
 export const ENQUIRY_SOURCE_LABELS: Record<Enquiry['source'], string> = {
     website: 'Website',
     email: 'Email',
     phone: 'Phone',
     referral: 'Referral',
     walk_in: 'Walk-in',
-    other: 'Other'
-};
-
-export const NATURE_OF_WORK_LABELS: Record<NatureOfWork, string> = {
-    soil: 'Soil',
-    rock: 'Rock',
-    limestone: 'Limestone',
-    coal: 'Coal',
-    sand: 'Sand',
-    gravel: 'Gravel',
-    construction: 'Construction',
-    demolition: 'Demolition',
-    mining: 'Mining',
-    quarry: 'Quarry',
     other: 'Other'
 }; 

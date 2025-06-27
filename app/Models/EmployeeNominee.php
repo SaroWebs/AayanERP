@@ -9,13 +9,7 @@ class EmployeeNominee extends Model
 {
     protected $table = 'employee_nominees';
 
-    protected $fillable = [
-        'employee_id',
-        'nominee_name',
-        'nominee_relationship',
-        'nominee_dob',
-        'share_percentage'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'nominee_dob' => 'date',

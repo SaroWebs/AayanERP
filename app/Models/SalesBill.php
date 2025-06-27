@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Item;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class SalesBill extends Model
 {
@@ -71,11 +72,11 @@ class SalesBill extends Model
     }
 
     /**
-     * Get the equipment for the bill.
+     * Get the items for the bill.
      */
-    public function equipment(): BelongsTo
+    public function items(): HasMany
     {
-        return $this->belongsTo(Equipment::class);
+        return $this->hasMany(Item::class);
     }
 
     /**
@@ -134,5 +135,10 @@ class SalesBill extends Model
     {
         return $query->where('status', '!=', 'paid')
             ->where('due_date', '<', now());
+    }
+
+    public function salesOrderItems()
+    {
+        return $this->hasMany(SalesOrdersItem::class, 'sales_bill_id');
     }
 }

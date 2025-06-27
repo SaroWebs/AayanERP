@@ -103,13 +103,6 @@ return new class extends Migration
             // Soft deletes for data retention
             $table->softDeletes();
             $table->timestamps();
-            
-            // Indexes for better performance
-            $table->index(['payment_no', 'status']);
-            $table->index(['vendor_id', 'status']);
-            $table->index(['purchase_order_id', 'status']);
-            $table->index('payment_date');
-            $table->index('due_date');
         });
     }
 

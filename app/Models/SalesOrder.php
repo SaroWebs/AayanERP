@@ -100,6 +100,14 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the sales order items for the sales order.
+     */
+    public function salesOrderItems()
+    {
+        return $this->hasMany(SalesOrdersItem::class);
+    }
+
+    /**
      * Scope a query to only include pending approval orders.
      */
     public function scopePendingApproval($query)

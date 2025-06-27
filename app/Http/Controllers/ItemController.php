@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
-use App\Models\Category;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -74,7 +73,6 @@ class ItemController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate(Item::$rules);
-
         $validated['slug'] = Str::slug($validated['name']);
 
         try {
@@ -87,9 +85,12 @@ class ItemController extends Controller
                 $item->stockMovements()->create([
                     'type' => 'in',
                     'quantity' => $validated['current_stock'],
-                    'notes' => 'Initial stock',
-                    'movement_date' => now()->toDateString(), // Add this line
+                    'unit_price' => $validated['standard_cost'] ?? null,
+                    'total_value' => isset($validated['standard_cost']) ? $validated['current_stock'] * $validated['standard_cost'] : null,
+                    'reason' => 'Initial stock',
+                    'movement_date' => now()->toDateString(),
                     'created_by' => Auth::id(),
+                    'status' => 'approved',
                 ]);
             }
 
@@ -134,6 +135,7 @@ class ItemController extends Controller
         $rules = Item::$rules;
         $rules['code'] = ['required', 'string', 'max:50', Rule::unique('items')->ignore($item)];
         $rules['name'] = ['required', 'string', 'max:255', Rule::unique('items')->ignore($item)];
+        $rules['slug'] = ['nullable', 'string', 'max:255', Rule::unique('items')->ignore($item)];
 
         $validated = $request->validate($rules);
 
@@ -153,9 +155,12 @@ class ItemController extends Controller
                 $item->stockMovements()->create([
                     'type' => $stockDifference > 0 ? 'in' : 'out',
                     'quantity' => abs($stockDifference),
-                    'notes' => 'Stock adjustment',
-                    'movement_date' => now()->toDateString(), // Add this line
+                    'unit_price' => $validated['standard_cost'] ?? null,
+                    'total_value' => isset($validated['standard_cost']) ? abs($stockDifference) * $validated['standard_cost'] : null,
+                    'reason' => 'Stock adjustment',
+                    'movement_date' => now()->toDateString(),
                     'created_by' => Auth::id(),
+                    'status' => 'approved',
                 ]);
             }
 
@@ -201,24 +206,35 @@ class ItemController extends Controller
             ->with('success', 'Item restored successfully.');
     }
 
+    private function isUniqueCode($code)
+    {
+        return !Item::where('code', $code)->exists();
+    }
+
     /**
      * Get the last item code.
      */
     public function getLastCode()
     {
-        $lastItem = Item::latest()->first();
+        // Find the item with the highest code numerically
+        $lastItemCode = Item::query()
+            ->where('code', 'REGEXP', '^ITM[0-9]{6}$')
+            ->max('code');
 
-        if (!$lastItem) {
-            return response()->json(['code' => 'ITM000000']);
+        if (!$lastItemCode) {
+            $newNumber = 1;
+        } else {
+            $numericPart = (int) substr($lastItemCode, 3);
+            $newNumber = $numericPart + 1;
         }
 
-        // Extract the numeric part from the last code
-        $lastCode = $lastItem->code;
-        $numericPart = (int) substr($lastCode, 3); // Remove 'ITM' prefix and convert to number
-
-        // Generate new code with incremented number
-        $newNumber = $numericPart + 1;
         $newCode = 'ITM' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+
+        // In case of race conditions or non-standard codes, ensure uniqueness
+        while (!$this->isUniqueCode($newCode)) {
+            $newNumber++;
+            $newCode = 'ITM' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        }
 
         return response()->json(['code' => $newCode]);
     }
@@ -229,22 +245,39 @@ class ItemController extends Controller
     public function storeStockMovement(Request $request, Item $item)
     {
         $validated = $request->validate([
-            'type' => ['required', Rule::in(['in', 'out'])],
-            'quantity' => 'required|integer|min:1',
+            'type' => ['required', Rule::in(['in', 'out', 'transfer', 'adjustment', 'return', 'damage'])],
+            'quantity' => 'required|numeric|min:0.01',
+            'unit_price' => 'nullable|numeric|min:0',
+            'total_value' => 'nullable|numeric|min:0',
             'reference_type' => 'nullable|string|max:255',
             'reference_id' => 'nullable|string|max:255',
+            'reference_number' => 'nullable|string|max:255',
+            'from_location' => 'nullable|string|max:255',
+            'to_location' => 'nullable|string|max:255',
+            'reason' => 'nullable|string',
             'notes' => 'nullable|string',
-            'movement_date' => 'nullable|date', // Add validation for movement_date
+            'movement_date' => 'nullable|date',
+            'status' => 'nullable|string',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Create stock movement
             $stockMovement = $item->stockMovements()->create([
-                ...$validated,
-                'movement_date' => $validated['movement_date'] ?? now()->toDateString(), // Add movement_date with default value
+                'type' => $validated['type'],
+                'quantity' => $validated['quantity'],
+                'unit_price' => $validated['unit_price'] ?? null,
+                'total_value' => $validated['total_value'] ?? (($validated['unit_price'] ?? $item->standard_cost) ? $validated['quantity'] * ($validated['unit_price'] ?? $item->standard_cost) : null),
+                'reference_type' => $validated['reference_type'] ?? null,
+                'reference_id' => $validated['reference_id'] ?? null,
+                'reference_number' => $validated['reference_number'] ?? null,
+                'from_location' => $validated['from_location'] ?? null,
+                'to_location' => $validated['to_location'] ?? null,
+                'reason' => $validated['reason'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+                'movement_date' => $validated['movement_date'] ?? now()->toDateString(),
                 'created_by' => Auth::id(),
+                'status' => $validated['status'] ?? 'approved',
             ]);
 
             // Update stock using model methods
@@ -257,7 +290,6 @@ class ItemController extends Controller
             }
 
             DB::commit();
-            // inertia back with success message
             return redirect()
                 ->route('equipment.items.index')
                 ->with('success', 'Stock Updated successfully.');

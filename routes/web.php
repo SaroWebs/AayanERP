@@ -9,7 +9,6 @@ use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\SalesBillController;
 use App\Http\Controllers\SalesOrderController;
@@ -18,12 +17,10 @@ use App\Http\Controllers\SalesPaymentController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseIntentController;
-use App\Http\Controllers\EquipmentSeriesController;
 use App\Http\Controllers\PurchasePaymentController;
 use App\Http\Controllers\GoodsReceiptNoteController;
 use App\Models\Vendor;
 use App\Models\Item;
-use App\Models\Equipment;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -54,16 +51,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Client contacts route
         Route::get('data/clients/{client}/contacts', 'getClientContacts');
+
+        Route::patch('data/clients/{client}', 'update');
     });
 
-    Route::post('equipment/categories/store', [CategoryController::class, 'store'])->name('equipment.categories.store');
-
+    
     Route::prefix('equipment')->name('equipment.')->group(function () {
-        Route::get('/equipment/data', [EquipmentController::class, 'data'])->name('equipment.data');
-        Route::get('/equipment/list', [EquipmentController::class, 'getEquipment'])->name('equipment.list');
-        Route::resource('equipment', EquipmentController::class);
-
+        
         Route::controller(CategoryController::class)->group(function () {
+            Route::post('/categories/store', 'store')->name('categories.store');
             Route::get('/categories', 'index')->name('categories.index');
             Route::put('/categories/{category}', 'update')->name('categories.update');
             Route::put('/categories/{category}/status', 'updateStatus')->name('categories.status.update');
@@ -150,25 +146,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/data/categories', 'getCategories')->name('equipment.categories.data');
         });
 
-        // Equipment Series
-        Route::controller(EquipmentSeriesController::class)->group(function () {
-            Route::get('series', 'index')->name('equipment.series.index');
-            Route::post('series', 'store')->name('equipment.series.store');
-            Route::put('series/{equipmentSeries}', 'update')->name('equipment.series.update');
-            Route::delete('series/{equipmentSeries}', 'destroy')->name('equipment.series.destroy');
-            Route::post('series/{equipmentSeries}/restore', 'restore')->name('equipment.series.restore');
-        });
-
-        // Equipment
-        Route::controller(EquipmentController::class)->group(function () {
-            Route::get('equipment', 'index')->name('equipment.equipment.index');
-            Route::post('equipment', 'store')->name('equipment.equipment.store');
-            Route::put('equipment/{equipment}', 'update')->name('equipment.equipment.update');
-            Route::delete('equipment/{equipment}', 'destroy')->name('equipment.equipment.destroy');
-            Route::post('equipment/{equipment}/restore', 'restore')->name('equipment.equipment.restore');
-            Route::put('equipment/{equipment}/maintenance', 'updateMaintenance')->name('equipment.equipment.maintenance.update');
-        });
-
         // Items
         Route::controller(ItemController::class)->group(function () {
             Route::get('items', 'index')->name('equipment.items.index');
@@ -202,18 +179,20 @@ Route::middleware(['auth'])->group(function () {
             Route::post('enquiries/{enquiry}/submit', 'submitForReview')->name('enquiries.submit');
             Route::post('enquiries/{enquiry}/approve', 'approve')->name('enquiries.approve');
             Route::post('enquiries/{enquiry}/reject', 'reject')->name('enquiries.reject');
-            Route::post('enquiries/{enquiry}/convert', 'convertToQuotation')->name('enquiries.convert');
+            Route::post('enquiries/{enquiry}/convert', 'markAsConverted')->name('enquiries.convert');
             Route::post('enquiries/{enquiry}/cancel', 'cancel')->name('enquiries.cancel');
             Route::post('enquiries/{enquiry}/assign', 'assign')->name('enquiries.assign');
             Route::post('enquiries/{enquiry}/under-review', 'markUnderReview')->name('enquiries.under-review');
             Route::post('enquiries/{enquiry}/quoted', 'markAsQuoted')->name('enquiries.quoted');
             Route::post('enquiries/{enquiry}/pending-approval', 'markPendingApproval')->name('enquiries.pending-approval');
+            Route::post('enquiries/{enquiry}/convert-to-quotation', 'convertToQuotation')->name('enquiries.convert-to-quotation');
         });
 
         // Quotations
         Route::controller(QuotationController::class)->group(function () {
             Route::get('quotations', 'index')->name('quotations.index');
             Route::post('quotations', 'store')->name('quotations.store');
+            Route::get('quotations/{quotation}', 'show')->name('quotations.show');
             Route::put('quotations/{quotation}', 'update')->name('quotations.update');
             Route::delete('quotations/{quotation}', 'destroy')->name('quotations.destroy');
 
@@ -288,10 +267,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('data/items/all', function () {
             return Item::where('status', 'active')->get();
         })->name('items.all');
-
-        Route::get('data/equipment/all', function () {
-            return Equipment::where('status', 'active')->get();
-        })->name('equipment.all');
 
         // Purchase Intents
         Route::controller(PurchaseIntentController::class)->group(function () {

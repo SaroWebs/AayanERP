@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Item;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class EnquiryItem extends Model
 {
@@ -15,10 +16,7 @@ class EnquiryItem extends Model
 
     protected $casts = [
         'quantity' => 'integer',
-        'duration' => 'integer',
         'estimated_value' => 'decimal:2',
-        'nature_of_work' => 'string',
-        'duration_unit' => 'string'
     ];
 
     /**
@@ -32,8 +30,8 @@ class EnquiryItem extends Model
     /**
      * Get the equipment for this item.
      */
-    public function equipment(): BelongsTo
+    public function item(): BelongsTo
     {
-        return $this->belongsTo(Equipment::class);
+        return $this->belongsTo(Item::class);
     }
 } 

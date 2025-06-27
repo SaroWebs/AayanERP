@@ -13,7 +13,6 @@ import {
     ContactDetail,
     Document as VendorDocument
 } from './types';
-import { useDisclosure } from '@mantine/hooks';
 
 const EditVendor: React.FC<EditVendorProps> = ({ vendor, onClose, onUpdate }) => {
 
@@ -216,14 +215,15 @@ const EditVendor: React.FC<EditVendorProps> = ({ vendor, onClose, onUpdate }) =>
                     }
                 }
             );
+            console.log(response);
+            
+            // notifications.show({
+            //     title: 'Success',
+            //     message: response.data.message,
+            //     color: 'green',
+            // });
 
-            notifications.show({
-                title: 'Success',
-                message: response.data.message,
-                color: 'green',
-            });
-
-            onUpdate(response.data.vendor);
+            // onUpdate(response.data.vendor);
         } catch (error: any) {
             notifications.show({
                 title: 'Error',

@@ -1,14 +1,9 @@
 import { Modal, TextInput, Textarea, Select, Button, Group, Grid, NumberInput, Stack, Divider, Tabs } from '@mantine/core';
 import { useForm } from '@inertiajs/react';
-import { FormDataConvertible } from '@inertiajs/core';
 import { useEffect } from 'react';
 import axios from 'axios';
+import { FormData } from '../types';
 
-interface Category {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
 
 interface Props {
     opened: boolean;
@@ -16,98 +11,53 @@ interface Props {
     loadData: () => void;
 }
 
-interface FormData {
-    // Basic Information
-    name: string;
-    code: string;
-    description_1: string | null;
-    description_2: string | null;
-    category_id: number | null;
-    hsn: string | null;
-    type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
-    status: 'active' | 'inactive' | 'discontinued';
-    
-    // Stock Management
-    minimum_stock: number;
-    current_stock: number;
-    maximum_stock: number | null;
-    reorder_point: number | null;
-    reorder_quantity: number | null;
-    
-    // Cost and Pricing
-    standard_cost: number | null;
-    selling_price: number | null;
-    rental_rate: number | null;
-    
-    // Specifications
-    specifications: Record<string, any> | null;
-    technical_details: Record<string, any> | null;
-    safety_data: Record<string, any> | null;
-    
-    // Location and Storage
-    storage_location: string | null;
-    storage_conditions: string | null;
-    storage_instructions: string | null;
-    
-    // Additional Details
-    manufacturer: string | null;
-    supplier: string | null;
-    warranty_period: string | null;
-    last_purchase_date: string | null;
-    last_purchase_price: number | null;
-    sort_order: number;
-
-    [key: string]: FormDataConvertible;
-}
 
 export default function CreateItemModal({ opened, onClose, loadData }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm<FormData>({
-        // Basic Information
-        name: '',
         code: '',
-        description_1: '',
-        description_2: '',
+        name: '',
+        slug: '',
         category_id: null,
         hsn: '',
+        description: '',
+        make: '',
+        model_no: '',
+        max_capacity: '',
+        readability: '',
+        plateform_size: '',
+        plateform_moc: '',
+        indicator_moc: '',
+        load_plate: '',
+        indicator_mounding: '',
+        quality: '',
         type: 'consumable',
         unit: null,
-        applicable_for: 'all',
         status: 'active',
-        
-        // Stock Management
         minimum_stock: 0,
         current_stock: 0,
         maximum_stock: null,
         reorder_point: null,
         reorder_quantity: null,
-        
-        // Cost and Pricing
         standard_cost: null,
         selling_price: null,
         rental_rate: null,
-        
-        // Specifications
         specifications: null,
         technical_details: null,
         safety_data: null,
-        
-        // Location and Storage
         storage_location: '',
         storage_conditions: '',
         storage_instructions: '',
-        
-        // Additional Details
         manufacturer: '',
         supplier: '',
         warranty_period: '',
         last_purchase_date: null,
         last_purchase_price: null,
+        condition: 'new',
+        last_maintenance_date: null,
+        next_maintenance_date: null,
         sort_order: 0,
     });
 
-    // Fetch the last code when modal opens
     useEffect(() => {
         if (opened) {
             axios.get(route('equipment.items.last-code'))
@@ -134,15 +84,14 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
     return (
         <Modal opened={opened} onClose={onClose} title="Create Inventory Item" size="xl">
             <form onSubmit={handleSubmit}>
-                <Tabs defaultValue="basic">
+                <Tabs defaultValue="general">
                     <Tabs.List>
-                        <Tabs.Tab value="basic">Basic Information</Tabs.Tab>
-                        <Tabs.Tab value="stock">Stock & Pricing</Tabs.Tab>
+                        <Tabs.Tab value="general">General</Tabs.Tab>
                         <Tabs.Tab value="specifications">Specifications</Tabs.Tab>
                         <Tabs.Tab value="storage">Storage & Details</Tabs.Tab>
                     </Tabs.List>
 
-                    <Tabs.Panel value="basic">
+                    <Tabs.Panel value="general">
                         <Stack>
                             <Grid>
                                 <Grid.Col span={3}>
@@ -176,28 +125,13 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                 </Grid.Col>
                             </Grid>
 
-                            <Divider label="Descriptions" labelPosition="center" />
-
-                            <Grid>
-                                <Grid.Col span={6}>
-                                    <Textarea
-                                        label="Description 1"
-                                        placeholder="Enter primary description"
-                                        value={data.description_1 || ''}
-                                        onChange={(e) => setData('description_1', e.target.value || null)}
-                                        error={errors.description_1}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
-                                    <Textarea
-                                        label="Description 2"
-                                        placeholder="Enter secondary description"
-                                        value={data.description_2 || ''}
-                                        onChange={(e) => setData('description_2', e.target.value || null)}
-                                        error={errors.description_2}
-                                    />
-                                </Grid.Col>
-                            </Grid>
+                            <Textarea
+                                label="Description"
+                                placeholder="Enter description"
+                                value={data.description || ''}
+                                onChange={(e) => setData('description', e.target.value || null)}
+                                error={errors.description}
+                            />
 
                             <Divider label="Classification" labelPosition="center" />
 
@@ -234,34 +168,15 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                             { value: 'box', label: 'Box' },
                                             { value: 'pack', label: 'Pack' },
                                             { value: 'na', label: 'Not Applicable' },
+                                            { value: 'pcs', label: 'Pieces' },
                                         ]}
                                         value={data.unit}
-                                        onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null)}
+                                        onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | 'pcs' | null)}
                                         error={errors.unit}
                                     />
                                 </Grid.Col>
-                                <Grid.Col span={4}>
-                                    <Select
-                                        label="Applicable For"
-                                        placeholder="Select application"
-                                        data={[
-                                            { value: 'all', label: 'All' },
-                                            { value: 'equipment', label: 'Equipment' },
-                                            { value: 'scaffolding', label: 'Scaffolding' },
-                                            { value: 'refractory', label: 'Refractory' },
-                                        ]}
-                                        value={data.applicable_for}
-                                        onChange={(value) => setData('applicable_for', value as 'all' | 'equipment' | 'scaffolding' | 'refractory')}
-                                        error={errors.applicable_for}
-                                        required
-                                    />
-                                </Grid.Col>
                             </Grid>
-                        </Stack>
-                    </Tabs.Panel>
 
-                    <Tabs.Panel value="stock">
-                        <Stack>
                             <Divider label="Stock Management" labelPosition="center" />
 
                             <Grid>
@@ -330,7 +245,6 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                         onChange={(value) => setData('standard_cost', value ? Number(value) : null)}
                                         error={errors.standard_cost}
                                         min={0}
-                                        precision={2}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
@@ -341,7 +255,6 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                         onChange={(value) => setData('selling_price', value ? Number(value) : null)}
                                         error={errors.selling_price}
                                         min={0}
-                                        precision={2}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
@@ -352,7 +265,6 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                         onChange={(value) => setData('rental_rate', value ? Number(value) : null)}
                                         error={errors.rental_rate}
                                         min={0}
-                                        precision={2}
                                     />
                                 </Grid.Col>
                             </Grid>
@@ -487,7 +399,6 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                         onChange={(value) => setData('last_purchase_price', value ? Number(value) : null)}
                                         error={errors.last_purchase_price}
                                         min={0}
-                                        precision={2}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
@@ -508,9 +419,11 @@ export default function CreateItemModal({ opened, onClose, loadData }: Props) {
                                             { value: 'active', label: 'Active' },
                                             { value: 'inactive', label: 'Inactive' },
                                             { value: 'discontinued', label: 'Discontinued' },
+                                            { value: 'maintenance', label: 'Maintenance' },
+                                            { value: 'retired', label: 'Retired' },
                                         ]}
                                         value={data.status}
-                                        onChange={(value) => setData('status', value as 'active' | 'inactive' | 'discontinued')}
+                                        onChange={(value) => setData('status', value as 'active' | 'inactive' | 'discontinued' | 'maintenance' | 'retired')}
                                         error={errors.status}
                                         required
                                     />

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Stack,
     TextInput,
@@ -13,27 +13,24 @@ import {
     Paper,
     Badge,
     LoadingOverlay,
-    Table
+    Table,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
 import { format } from 'date-fns';
-import { 
-    Enquiry, 
-    EnquiryFormData, 
-    ENQUIRY_STATUS_COLORS, 
-    ENQUIRY_PRIORITY_COLORS, 
-    ENQUIRY_TYPE_LABELS, 
-    ENQUIRY_SOURCE_LABELS, 
-    NATURE_OF_WORK_LABELS,
-    NatureOfWork,
-    DurationUnit
+import {
+    Enquiry,
+    EnquiryFormData,
+    ENQUIRY_STATUS_COLORS,
+    ENQUIRY_PRIORITY_COLORS,
+    ENQUIRY_SOURCE_LABELS,
 } from './types';
-import type { Equipment } from '@/types/equipment';
+import { Item } from '@/pages/Equipment/Items/types';
 import type { ClientDetail } from '@/types/client';
 import type { ClientContactDetail } from '@/types/client-contact';
+import { PrepareQuotationModal } from './PrepareQuotationModal';
 
 interface EnquiryActionModalProps {
     action: 'view' | 'edit' | 'create' | 'assign';
@@ -47,25 +44,8 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
     const queryClient = useQueryClient();
     const isView = action === 'view';
     const isAssign = action === 'assign';
+    const [quotationModalOpen, setQuotationModalOpen] = useState(false);
 
-    const statusOptions = [
-        { value: 'draft', label: 'Draft' },
-        { value: 'pending_review', label: 'Pending Review' },
-        { value: 'under_review', label: 'Under Review' },
-        { value: 'quoted', label: 'Quoted' },
-        { value: 'pending_approval', label: 'Pending Approval' },
-        { value: 'approved', label: 'Approved' },
-        { value: 'converted', label: 'Converted' },
-        { value: 'lost', label: 'Lost' },
-        { value: 'cancelled', label: 'Cancelled' }
-    ];
-
-    const approvalStatusOptions = [
-        { value: 'pending', label: 'Pending' },
-        { value: 'approved', label: 'Approved' },
-        { value: 'rejected', label: 'Rejected' },
-        { value: 'not_required', label: 'Not Required' }
-    ];
 
     const canTransitionTo = (currentStatus: string, targetStatus: string) => {
         const validTransitions: Record<string, string[]> = {
@@ -85,65 +65,36 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
 
     const getStatusActions = (enquiry: Enquiry) => {
         const actions = [];
-
         switch (enquiry.status) {
             case 'draft':
+            case 'pending_review':
+            case 'under_review':
                 actions.push({
                     label: 'Submit for Review',
                     color: 'blue',
                     onClick: () => handleStatusChange('pending_review')
                 });
-                break;
-            case 'pending_review':
-                actions.push({
-                    label: 'Start Review',
-                    color: 'blue',
-                    onClick: () => handleStatusChange('under_review')
-                });
-                break;
-            case 'under_review':
-                actions.push({
-                    label: 'Mark as Quoted',
-                    color: 'green',
-                    onClick: () => handleStatusChange('quoted')
-                });
-                break;
-            case 'quoted':
-                actions.push({
-                    label: 'Submit for Approval',
-                    color: 'blue',
-                    onClick: () => handleStatusChange('pending_approval')
-                });
-                break;
-            case 'pending_approval':
                 actions.push({
                     label: 'Approve',
                     color: 'green',
                     onClick: () => handleStatusChange('approved')
                 });
-                actions.push({
-                    label: 'Reject',
-                    color: 'red',
-                    onClick: () => handleStatusChange('lost')
-                });
                 break;
             case 'approved':
                 actions.push({
-                    label: 'Mark as Converted',
-                    color: 'green',
-                    onClick: () => handleStatusChange('converted')
+                    label: 'Prepare Quotation',
+                    color: 'blue',
+                    onClick: () => setQuotationModalOpen(true)
                 });
                 break;
         }
-
-        if (!['converted', 'lost', 'cancelled'].includes(enquiry.status)) {
+        if (!['quoted', 'cancelled'].includes(enquiry.status)) {
             actions.push({
                 label: 'Cancel Enquiry',
                 color: 'red',
                 onClick: () => handleStatusChange('cancelled')
             });
         }
-
         return actions;
     };
 
@@ -185,7 +136,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                     break;
                 case 'lost':
                     endpoint = 'reject';
-                    payload = { rejection_remarks: form.values.rejection_remarks };
+                    payload = { approval_remarks: form.values.approval_remarks };
                     break;
                 case 'cancelled':
                     endpoint = 'cancel';
@@ -217,7 +168,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         }
     };
 
-    const form = useForm<EnquiryFormData & { rejection_remarks?: string }>({
+    const form = useForm<EnquiryFormData & { approval_remarks?: string }>({
         initialValues: {
             client_detail_id: enquiry?.client_detail_id || 0,
             contact_person_id: enquiry?.contact_person_id || null,
@@ -225,7 +176,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
             referred_by: enquiry?.referred_by || null,
             subject: enquiry?.subject || '',
             description: enquiry?.description || '',
-            type: enquiry?.type || 'equipment',
             priority: enquiry?.priority || 'medium',
             status: enquiry?.status || 'draft',
             approval_status: enquiry?.approval_status || 'not_required',
@@ -248,11 +198,8 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
             approval_remarks: enquiry?.approval_remarks || '',
             converted_date: enquiry?.converted_date || null,
             items: enquiry?.items?.map(item => ({
-                equipment_id: item.equipment_id,
+                item_id: item.item_id,
                 quantity: item.quantity,
-                nature_of_work: item.nature_of_work || 'other',
-                duration: item.duration,
-                duration_unit: item.duration_unit || 'days',
                 estimated_value: item.estimated_value,
                 notes: item.notes
             })) || []
@@ -260,7 +207,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         validate: {
             client_detail_id: (value) => (value === 0 ? 'Client is required' : null),
             subject: (value) => (!value ? 'Subject is required' : null),
-            type: (value) => (!value ? 'Type is required' : null),
             priority: (value) => (!value ? 'Priority is required' : null),
             status: (value) => (!value ? 'Status is required' : null),
             source: (value) => (!value ? 'Source is required' : null),
@@ -286,12 +232,12 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         enabled: !!form.values.client_detail_id
     });
 
-    const { data: equipment = [] } = useQuery<Equipment[]>({
-        queryKey: ['equipment'],
+    const { data: items = [] } = useQuery<Item[]>({
+        queryKey: ['items'],
         queryFn: async () => {
-            const { data } = await axios.get('/equipment/equipment/list');
+            const { data } = await axios.get('/sales/enquiries/get-equipment-list');
             return data;
-        }
+        },
     });
 
     const mutation = useMutation({
@@ -320,7 +266,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
         }
     });
 
-    const handleSubmit = (values: EnquiryFormData) => {
+    const handleSubmit = (values: typeof form.values) => {
         mutation.mutate(values);
     };
 
@@ -375,8 +321,31 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
     }
 
     if (isView && enquiry) {
+        const showQuotationActions = ['approved', 'quoted', 'converted'].includes(enquiry.status);
+        const quotations = enquiry.quotations ?? [];
+        const hasQuotation = quotations.length > 0;
+        const firstQuotation = hasQuotation ? quotations[0] : null;
         return (
             <Stack>
+                {showQuotationActions && (
+                    <Group mb="md">
+                        {!(hasQuotation && firstQuotation) ? (
+                            <Button color="blue" onClick={() => setQuotationModalOpen(true)}>
+                                Prepare Quotation
+                            </Button>
+                        ) : (
+                            <Button
+                                component="a"
+                                href={`/sales/quotations/${firstQuotation.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                color="violet"
+                            >
+                                View Quotation
+                            </Button>
+                        )}
+                    </Group>
+                )}
                 <Paper withBorder p="xl">
                     <Group justify="space-between" mb="xl">
                         <Stack gap={0}>
@@ -421,7 +390,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                         <Text span fw={500}>Client:</Text> {enquiry.client?.name}
                                     </Text>
                                     <Text size="sm">
-                                        <Text span fw={500}>Contact Person:</Text> {enquiry.contact_person?.name}
+                                        <Text span fw={500}>Contact Person:</Text> {enquiry.contact_person?.contact_person}
                                     </Text>
                                     <Text size="sm">
                                         <Text span fw={500}>Assigned To:</Text> {enquiry.assignee?.name || '-'}
@@ -434,9 +403,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                             <Paper withBorder p="md">
                                 <Text fw={500} mb="md">Enquiry Details</Text>
                                 <Stack gap="xs">
-                                    <Text size="sm">
-                                        <Text span fw={500}>Type:</Text> {ENQUIRY_TYPE_LABELS[enquiry.type]}
-                                    </Text>
                                     <Text size="sm">
                                         <Text span fw={500}>Source:</Text> {ENQUIRY_SOURCE_LABELS[enquiry.source]}
                                     </Text>
@@ -461,10 +427,8 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                     <Table striped highlightOnHover>
                                         <Table.Thead>
                                             <Table.Tr>
-                                                <Table.Th>Equipment</Table.Th>
+                                                <Table.Th>Item</Table.Th>
                                                 <Table.Th>Quantity</Table.Th>
-                                                <Table.Th>Nature of Work</Table.Th>
-                                                <Table.Th>Duration</Table.Th>
                                                 <Table.Th>Estimated Value</Table.Th>
                                                 <Table.Th>Notes</Table.Th>
                                             </Table.Tr>
@@ -472,12 +436,8 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                                         <Table.Tbody>
                                             {enquiry.items.map((item, index) => (
                                                 <Table.Tr key={index}>
-                                                    <Table.Td>{item.equipment?.name || '-'}</Table.Td>
+                                                    <Table.Td>{item.item?.name || '-'}</Table.Td>
                                                     <Table.Td>{item.quantity}</Table.Td>
-                                                    <Table.Td>{NATURE_OF_WORK_LABELS[item.nature_of_work]}</Table.Td>
-                                                    <Table.Td>
-                                                        {item.duration ? `${item.duration} ${item.duration_unit}` : '-'}
-                                                    </Table.Td>
                                                     <Table.Td>
                                                         {item.estimated_value ? `${enquiry.currency} ${item.estimated_value.toLocaleString()}` : '-'}
                                                     </Table.Td>
@@ -606,6 +566,14 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                         )}
                     </Grid>
                 </Paper>
+                {showQuotationActions && !hasQuotation && (
+                    <PrepareQuotationModal
+                        opened={quotationModalOpen}
+                        onClose={() => { setQuotationModalOpen(false); onClose(); }}
+                        enquiry={enquiry}
+                        onSuccess={() => { setQuotationModalOpen(false); onClose(); }}
+                    />
+                )}
             </Stack>
         );
     }
@@ -666,21 +634,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                         />
                     </Grid.Col>
 
-                    <Grid.Col span={4}>
-                        <Select
-                            label="Type"
-                            placeholder="Select type"
-                            data={Object.entries(ENQUIRY_TYPE_LABELS).map(([value, label]) => ({
-                                value,
-                                label
-                            }))}
-                            {...form.getInputProps('type')}
-                            required
-                            disabled={isView}
-                        />
-                    </Grid.Col>
-
-                    <Grid.Col span={4}>
+                    <Grid.Col span={6}>
                         <Select
                             label="Priority"
                             placeholder="Select priority"
@@ -694,7 +648,7 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                         />
                     </Grid.Col>
 
-                    <Grid.Col span={4}>
+                    <Grid.Col span={6}>
                         <Select
                             label="Source"
                             placeholder="Select source"
@@ -709,36 +663,23 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
 
                     <Grid.Col span={6}>
                         <Select
-                            label="Equipment"
-                            placeholder="Select equipment"
-                            data={equipment.map(item => ({
+                            label="Item"
+                            placeholder="Select item"
+                            data={items.map(item => ({
                                 value: item.id.toString(),
                                 label: item.name
                             }))}
-                            value={form.values.items[0]?.equipment_id?.toString()}
+                            value={form.values.items[0]?.item_id?.toString()}
                             onChange={(value) => {
                                 form.setFieldValue('items', [
                                     {
                                         ...form.values.items[0],
-                                        equipment_id: value ? parseInt(value) : null
+                                        item_id: value ? parseInt(value) : null
                                     }
                                 ]);
                             }}
-                            disabled={isView || form.values.type === 'scaffolding'}
-                            clearable
-                        />
-                    </Grid.Col>
-
-                    <Grid.Col span={6}>
-                        <Select
-                            label="Nature of Work"
-                            placeholder="Select nature of work"
-                            data={Object.entries(NATURE_OF_WORK_LABELS).map(([value, label]) => ({
-                                value,
-                                label
-                            }))}
-                            {...form.getInputProps('items.0.nature_of_work')}
                             disabled={isView}
+                            clearable
                         />
                     </Grid.Col>
 
@@ -750,30 +691,6 @@ export function EnquiryActionModal({ action, enquiry, onClose, onAssign, users }
                             min={1}
                             disabled={isView}
                         />
-                    </Grid.Col>
-
-                    <Grid.Col span={6}>
-                        <Group grow>
-                            <NumberInput
-                                label="Duration"
-                                placeholder="Enter duration"
-                                {...form.getInputProps('items.0.duration')}
-                                min={1}
-                                disabled={isView}
-                            />
-                            <Select
-                                label="Unit"
-                                placeholder="Select unit"
-                                data={[
-                                    { value: 'hours', label: 'Hours' },
-                                    { value: 'days', label: 'Days' },
-                                    { value: 'months', label: 'Months' },
-                                    { value: 'years', label: 'Years' }
-                                ]}
-                                {...form.getInputProps('items.0.duration_unit')}
-                                disabled={isView}
-                            />
-                        </Group>
                     </Grid.Col>
 
                     <Grid.Col span={4}>

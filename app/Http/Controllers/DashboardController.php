@@ -6,7 +6,6 @@ use App\Models\Employee;
 use App\Models\ClientDetail;
 use App\Models\Vendor;
 use App\Models\Item;
-use App\Models\Equipment;
 use App\Models\Enquiry;
 use App\Models\Quotation;
 use App\Models\SalesOrder;
@@ -41,10 +40,10 @@ class DashboardController extends Controller
         return [
             'employees' => [
                 'total' => Employee::count(),
-                'active' => Employee::whereHas('serviceDetails', function($q) {
+                'active' => Employee::whereHas('serviceDetails', function ($q) {
                     $q->whereNull('relieving_date');
                 })->count(),
-                'new_this_month' => Employee::whereHas('joiningDetails', function($q) {
+                'new_this_month' => Employee::whereHas('joiningDetails', function ($q) {
                     $q->whereMonth('joining_date', now()->month);
                 })->count(),
             ],
@@ -57,11 +56,6 @@ class DashboardController extends Controller
                 'total' => Vendor::count(),
                 'active' => Vendor::where('status', 'active')->count(),
                 'new_this_month' => Vendor::whereMonth('created_at', now()->month)->count(),
-            ],
-            'equipment' => [
-                'total' => Equipment::count(),
-                'active' => Equipment::where('status', 'active')->count(),
-                'maintenance_due' => Equipment::where('next_maintenance_date', '<=', now()->addDays(30))->count(),
             ],
             'inventory' => [
                 'total_items' => Item::count(),
@@ -92,7 +86,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get()
-            ->map(function($enquiry) {
+            ->map(function ($enquiry) {
                 return [
                     'type' => 'enquiry',
                     'id' => $enquiry->id,
@@ -109,7 +103,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get()
-            ->map(function($quotation) {
+            ->map(function ($quotation) {
                 return [
                     'type' => 'quotation',
                     'id' => $quotation->id,
@@ -122,16 +116,16 @@ class DashboardController extends Controller
             });
 
         // Recent stock movements
-        $stockMovements = StockMovement::with(['item', 'creator'])
+        $stockMovements = StockMovement::with(['movable', 'creator'])
             ->latest()
             ->limit(5)
             ->get()
-            ->map(function($movement) {
+            ->map(function ($movement) {
                 return [
                     'type' => 'stock_movement',
                     'id' => $movement->id,
-                    'title' => $movement->item->name,
-                    'description' => ucfirst($movement->type) . ' - ' . $movement->quantity . ' units',
+                    'title' => $movement->movable->name ?? 'Stock Movement',
+                    'description' => ucfirst($movement->type) . ' - ' . $movement->quantity . ' units' . ($movement->reason ? ' (' . $movement->reason . ')' : ''),
                     'status' => $movement->type,
                     'date' => $movement->created_at,
                     'user' => $movement->creator->name ?? 'System',
@@ -153,7 +147,7 @@ class DashboardController extends Controller
             ->with('category')
             ->limit(10)
             ->get()
-            ->map(function($item) {
+            ->map(function ($item) {
                 $status = $item->current_stock == 0 ? 'out_of_stock' : 'low_stock';
                 return [
                     'id' => $item->id,
@@ -176,7 +170,7 @@ class DashboardController extends Controller
             ->with(['client', 'creator'])
             ->limit(5)
             ->get()
-            ->map(function($quotation) {
+            ->map(function ($quotation) {
                 return [
                     'type' => 'quotation',
                     'id' => $quotation->id,
@@ -193,7 +187,7 @@ class DashboardController extends Controller
             ->with(['vendor', 'creator'])
             ->limit(5)
             ->get()
-            ->map(function($order) {
+            ->map(function ($order) {
                 return [
                     'type' => 'purchase_order',
                     'id' => $order->id,
@@ -236,4 +230,4 @@ class DashboardController extends Controller
 
         return $months;
     }
-} 
+}

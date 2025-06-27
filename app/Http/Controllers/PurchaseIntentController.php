@@ -403,7 +403,6 @@ class PurchaseIntentController extends Controller
             'items.*.inspection_requirements' => ['nullable', 'string'],
             'items.*.testing_requirements' => ['nullable', 'string'],
             'items.*.item_id' => ['nullable', 'exists:items,id'],
-            'items.*.equipment_id' => ['nullable', 'exists:equipment,id'],
         ]);
 
         try {
@@ -449,7 +448,6 @@ class PurchaseIntentController extends Controller
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $purchaseOrder->id,
                     'item_id' => $itemData['item_id'] ?? null,
-                    'equipment_id' => $itemData['equipment_id'] ?? null,
                     'item_name' => $itemData['item_name'],
                     'item_code' => $itemData['item_code'],
                     'description' => $itemData['description'],

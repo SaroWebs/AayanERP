@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks';
 import { Modal, Button, Tabs, Textarea, TextInput, Group } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -9,7 +9,7 @@ import ContactDetails from './partial/ContactDetails';
 import axios from 'axios';
 import { VendorForm, BankAccount, ContactDetail, Document as VendorDocument } from './types';
 
-const AddNew = () => {
+const AddNew = ({ loadVendor, total }: { loadVendor: Function, total: number }) => {
     const [opened, { open, close }] = useDisclosure(false);
     const [activeTab, setActiveTab] = useState<string | null>('basic_profile');
     const formRef = useRef<HTMLFormElement>(null);
@@ -21,46 +21,24 @@ const AddNew = () => {
 
     const form = useForm<VendorForm>({
         initialValues: {
-            name: 'vasp',
-            contact_no: '',
-            email: '',
-            gstin: '',
-            pan_no: '',
+            name: '',
+            contact_no: '1231231231',
+            email: 'test@email.com',
+            gstin: '123412341234123',
+            pan_no: 'ABCDE1234F',
             fax: '',
-            state: '',
-            address: '',
+            state: 'Assam',
+            address: 'Guwahati',
         },
         validateInputOnBlur: false,
         validateInputOnChange: false,
     });
 
-<<<<<<< HEAD
-    const handleSubmit = async (values: VendorForm) => {
-        // const { reset } = form;
-        try {
-            // Get the CSRF token from the meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    // Update form when total changes
+    useEffect(() => {
+        form.setFieldValue('name', `Test Vendor ${total + 1}`);
+    }, [total]);
 
-            // Use fetch or axios to post the vendor data
-            const response = await fetch('data/vendors/new', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '', // Include CSRF token
-                },
-                body: JSON.stringify(values),
-            });
-            console.log(response);
-            
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            close(); // Close the modal
-        } catch (error) {
-            console.error('Submission error:', error);
-            // Handle error (e.g., set errors in the form)
-=======
     const handleSubmit = (values: VendorForm) => {
         try {
             const formData = new FormData();
@@ -116,8 +94,9 @@ const AddNew = () => {
                         message: 'Vendor added successfully',
                         color: 'green',
                     });
+                    console.log(res);
+                    loadVendor();
                     close();
-                    console.log(res.data);
                 })
                 .catch(err => {
                     notifications.show({
@@ -135,7 +114,6 @@ const AddNew = () => {
                 color: 'red',
             });
             setActiveTab('basic_profile');
->>>>>>> 79e43e5d64f051e9737f31e3f9954713a29c3d4d
         }
     };
 

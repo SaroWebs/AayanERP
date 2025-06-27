@@ -9,14 +9,7 @@ class EmployeeKnownLanguage extends Model
 {
     protected $table = 'employee_known_languages';
 
-    protected $fillable = [
-        'employee_id',
-        'language_name',
-        'speak',
-        'read',
-        'write',
-        'priority'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'speak' => 'boolean',

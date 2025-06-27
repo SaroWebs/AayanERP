@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Enquiry;
-use App\Models\ClientDetail;
-use App\Models\ClientContactDetail;
+use App\Models\Item;
 use App\Models\User;
-use App\Models\Equipment;
-use App\Models\Quotation;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Models\Enquiry;
+use App\Models\Quotation;
+use App\Models\ClientDetail;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use App\Models\ClientContactDetail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class EnquiryController extends Controller
 {
@@ -32,7 +32,7 @@ class EnquiryController extends Controller
      */
     public function data(Request $request)
     {
-        $query = Enquiry::with(['client', 'contactPerson', 'creator', 'assignee', 'items.equipment'])
+        $query = Enquiry::with(['client', 'contactPerson', 'creator', 'assignee', 'items', 'quotations'])
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('enquiry_no', 'like', "%{$search}%")
@@ -49,14 +49,8 @@ class EnquiryController extends Controller
             ->when($request->priority, function ($query, $priority) {
                 $query->whereIn('priority', (array) $priority);
             })
-            ->when($request->type, function ($query, $type) {
-                $query->whereIn('type', (array) $type);
-            })
             ->when($request->source, function ($query, $source) {
                 $query->whereIn('source', (array) $source);
-            })
-            ->when($request->nature_of_work, function ($query, $nature) {
-                $query->whereIn('nature_of_work', (array) $nature);
             })
             ->when($request->client_id, function ($query, $clientId) {
                 $query->where('client_detail_id', $clientId);
@@ -78,7 +72,7 @@ class EnquiryController extends Controller
     public function getEquipment()
     {
         try {
-            $equipment = Equipment::orderBy('name')
+            $equipment = Item::orderBy('name')
                 ->get();
 
             return response()->json($equipment);
@@ -97,48 +91,59 @@ class EnquiryController extends Controller
     {
         $validated = $request->validate([
             'client_detail_id' => 'required|exists:client_details,id',
-            'contact_person_id' => 'nullable|exists:client_contacts,id',
+            'contact_person_id' => 'nullable|exists:client_contact_details,id',
             'subject' => 'nullable|string|max:255',
-            'description' => 'nullable|text',
-            'type' => 'required|in:equipment,scaffolding,both',
+            'description' => 'nullable|string',
             'priority' => 'required|in:low,medium,high,urgent',
             'source' => 'required|in:website,email,phone,referral,walk_in,other',
             'deployment_state' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
-            'site_details' => 'nullable|text',
+            'site_details' => 'nullable|string',
             'enquiry_date' => 'required|date',
             'required_date' => 'nullable|date',
             'valid_until' => 'nullable|date',
             'estimated_value' => 'nullable|numeric',
             'currency' => 'required|string|max:3',
             'next_follow_up_date' => 'nullable|date',
-            'follow_up_notes' => 'nullable|text',
-            'special_requirements' => 'nullable|text',
-            'terms_conditions' => 'nullable|text',
-            'notes' => 'nullable|text',
+            'follow_up_notes' => 'nullable|string',
+            'special_requirements' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.item_id' => 'required|exists:items,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.duration' => 'nullable|integer|min:1',
-            'items.*.duration_unit' => 'required|in:hours,days,months,years',
             'items.*.estimated_value' => 'nullable|numeric',
             'items.*.notes' => 'nullable|string',
         ]);
 
         try {
             DB::beginTransaction();
+            // Generate unique enquiry_no
+            $year = date('Y');
+            $count = Enquiry::whereYear('created_at', $year)->count() + 1;
+            do {
+                $enquiry_no = 'EN-' . $year . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+                $exists = Enquiry::where('enquiry_no', $enquiry_no)->exists();
+                $count++;
+            } while ($exists);
+            
+            $enquiry = Enquiry::create(array_merge(
+                collect($validated)->except('items')->all(),
+                [
+                    'enquiry_no'=> $enquiry_no,
+                    'status' => 'draft',
+                    'approval_status' => 'not_required',
+                    'created_by' => Auth::id(),
+                ]
+            ));
 
-            // Create the enquiry with default values
-            $enquiry = Enquiry::create(array_merge($validated, [
-                'status' => 'draft',
-                'approval_status' => 'not_required'
-            ]));
-
-            // Create enquiry items with default nature_of_work
             foreach ($validated['items'] as $item) {
-                $enquiry->items()->create(array_merge($item, [
-                    'nature_of_work' => 'other'
-                ]));
+                $enquiry->items()->create([
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'estimated_value' => $item['estimated_value'] ?? null,
+                    'notes' => $item['notes'] ?? null,
+                ]);
             }
 
             DB::commit();
@@ -148,7 +153,6 @@ class EnquiryController extends Controller
                 'message' => 'Enquiry created successfully',
                 'data' => $enquiry->load('items')
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -190,30 +194,27 @@ class EnquiryController extends Controller
     {
         $validated = $request->validate([
             'client_detail_id' => 'required|exists:client_details,id',
-            'contact_person_id' => 'nullable|exists:client_contacts,id',
+            'contact_person_id' => 'nullable|exists:client_contact_details,id',
             'subject' => 'nullable|string|max:255',
-            'description' => 'nullable|text',
-            'type' => 'required|in:equipment,scaffolding,both',
+            'description' => 'nullable|string',
             'priority' => 'required|in:low,medium,high,urgent',
             'source' => 'required|in:website,email,phone,referral,walk_in,other',
             'deployment_state' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
-            'site_details' => 'nullable|text',
+            'site_details' => 'nullable|string',
             'enquiry_date' => 'required|date',
             'required_date' => 'nullable|date',
             'valid_until' => 'nullable|date',
             'estimated_value' => 'nullable|numeric',
             'currency' => 'required|string|max:3',
             'next_follow_up_date' => 'nullable|date',
-            'follow_up_notes' => 'nullable|text',
-            'special_requirements' => 'nullable|text',
-            'terms_conditions' => 'nullable|text',
-            'notes' => 'nullable|text',
+            'follow_up_notes' => 'nullable|string',
+            'special_requirements' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.item_id' => 'required|exists:items,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.duration' => 'nullable|integer|min:1',
-            'items.*.duration_unit' => 'required|in:hours,days,months,years',
             'items.*.estimated_value' => 'nullable|numeric',
             'items.*.notes' => 'nullable|string',
         ]);
@@ -221,17 +222,19 @@ class EnquiryController extends Controller
         try {
             DB::beginTransaction();
 
-            // Update the enquiry
-            $enquiry->update($validated);
+            $enquiry->update(collect($validated)->except('items')->all());
 
             // Delete existing items
             $enquiry->items()->delete();
 
-            // Create new items with default nature_of_work
+            // Re-create items
             foreach ($validated['items'] as $item) {
-                $enquiry->items()->create(array_merge($item, [
-                    'nature_of_work' => 'other'
-                ]));
+                $enquiry->items()->create([
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'estimated_value' => $item['estimated_value'] ?? null,
+                    'notes' => $item['notes'] ?? null,
+                ]);
             }
 
             DB::commit();
@@ -241,7 +244,6 @@ class EnquiryController extends Controller
                 'message' => 'Enquiry updated successfully',
                 'data' => $enquiry->load('items')
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -345,12 +347,12 @@ class EnquiryController extends Controller
      */
     public function reject(Request $request, Enquiry $enquiry)
     {
-        if ($enquiry->status !== 'pending_review') {
-            return response()->json(['message' => 'Only pending review enquiries can be rejected'], 422);
+        if ($enquiry->status !== 'pending_approval') {
+            return response()->json(['message' => 'Only pending approval enquiries can be rejected.'], 422);
         }
 
         $validator = Validator::make($request->all(), [
-            'rejection_remarks' => 'required|string'
+            'approval_remarks' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
@@ -360,11 +362,10 @@ class EnquiryController extends Controller
         try {
             DB::beginTransaction();
 
-            // Update to use valid status values from migration
             $enquiry->update([
-                'status' => 'lost', // Using a valid status from migration
+                'status' => 'lost',
                 'approval_status' => 'rejected',
-                'approval_remarks' => $request->rejection_remarks
+                'approval_remarks' => $request->approval_remarks
             ]);
 
             DB::commit();
@@ -376,6 +377,35 @@ class EnquiryController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to reject enquiry', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Mark enquiry as converted.
+     */
+    public function markAsConverted(Request $request, Enquiry $enquiry)
+    {
+        if ($enquiry->status !== 'approved') {
+            return response()->json(['message' => 'Only approved enquiries can be converted'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $enquiry->update([
+                'status' => 'converted',
+                'converted_date' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Enquiry marked as converted successfully',
+                'enquiry' => $enquiry->load(['client', 'contactPerson', 'creator', 'assignee', 'items'])
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to update enquiry status', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -395,11 +425,8 @@ class EnquiryController extends Controller
         try {
             DB::beginTransaction();
 
-            // Update to only use fields that exist in the migration
             $enquiry->update([
                 'assigned_to' => $request->assigned_to,
-                // Remove assigned_at and assigned_by as they don't exist in the migration
-                // Or add them to the migration if needed
             ]);
 
             DB::commit();
@@ -419,14 +446,13 @@ class EnquiryController extends Controller
      */
     public function convertToQuotation(Request $request, Enquiry $enquiry)
     {
-        if ($enquiry->status !== 'approved') {
+        if (in_array($enquiry->status, ['draft', 'pending_review', 'under_review'], true)) {
             return response()->json(['message' => 'Only approved enquiries can be converted to quotation'], 422);
         }
 
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'in:equipment,scaffolding,both'],
             'quotation_date' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after:quotation_date'],
             'currency' => ['required', 'string', 'size:3'],
@@ -448,22 +474,25 @@ class EnquiryController extends Controller
             'notes' => ['nullable', 'string'],
             'client_remarks' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.equipment_id' => ['required', 'exists:equipment,id'],
+            'items.*.item_id' => ['required', 'exists:items,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.total_price' => ['required', 'numeric', 'min:0'],
-            'items.*.rental_period_unit' => ['required', 'in:hours,days,months,years'],
-            'items.*.rental_period' => ['nullable', 'integer', 'min:1'],
             'items.*.notes' => ['nullable', 'string']
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Generate unique quotation number
-            $quotationNo = 'QT-' . date('Y') . '-' . str_pad(Quotation::whereYear('created_at', date('Y'))->count() + 1, 5, '0', STR_PAD_LEFT);
+            // Generate unique quotation_no
+            $year = date('Y');
+            $count = Quotation::whereYear('created_at', $year)->count() + 1;
+            do {
+                $quotationNo = 'QT-' . $year . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+                $exists = Quotation::where('quotation_no', $quotationNo)->exists();
+                $count++;
+            } while ($exists);
 
-            // Create quotation
             $quotation = Quotation::create([
                 'quotation_no' => $quotationNo,
                 'enquiry_id' => $enquiry->id,
@@ -472,7 +501,6 @@ class EnquiryController extends Controller
                 'created_by' => Auth::id(),
                 'subject' => $validated['subject'],
                 'description' => $validated['description'],
-                'type' => $validated['type'],
                 'status' => 'draft',
                 'approval_status' => 'not_required',
                 'quotation_date' => $validated['quotation_date'],
@@ -497,20 +525,16 @@ class EnquiryController extends Controller
                 'client_remarks' => $validated['client_remarks']
             ]);
 
-            // Create quotation items
             foreach ($validated['items'] as $item) {
                 $quotation->items()->create([
-                    'equipment_id' => $item['equipment_id'],
+                    'item_id' => $item['item_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'total_price' => $item['total_price'],
-                    'rental_period_unit' => $item['rental_period_unit'],
-                    'rental_period' => $item['rental_period'],
-                    'notes' => $item['notes']
+                    'notes' => $item['notes'] ?? null,
                 ]);
             }
 
-            // Update enquiry status
             $enquiry->update([
                 'status' => 'quoted',
                 'converted_date' => now()->toDateString()
@@ -522,7 +546,6 @@ class EnquiryController extends Controller
                 'message' => 'Quotation created successfully',
                 'quotation' => $quotation->load(['client', 'contactPerson', 'creator', 'items'])
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -540,7 +563,6 @@ class EnquiryController extends Controller
         if (in_array($enquiry->status, ['cancelled'])) {
             return response()->json(['message' => 'Cannot cancel enquiry in current status'], 422);
         }
-
 
         try {
             DB::beginTransaction();

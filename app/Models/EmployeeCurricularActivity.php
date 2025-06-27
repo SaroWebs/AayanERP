@@ -9,13 +9,7 @@ class EmployeeCurricularActivity extends Model
 {
     protected $table = 'employee_curricular_activities';
 
-    protected $fillable = [
-        'employee_id',
-        'event_name',
-        'discipline',
-        'prize_awarded',
-        'event_year'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'event_year' => 'date'

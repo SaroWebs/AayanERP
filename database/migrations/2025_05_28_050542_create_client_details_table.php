@@ -25,6 +25,7 @@ return new class extends Migration
             $table->enum('company_type', ['regional', 'national', 'government'])->default('regional');
             $table->decimal('turnover', 10, 2);
             $table->enum('range', ['state', 'central', 'NA'])->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
     }

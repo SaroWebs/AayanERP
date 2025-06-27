@@ -8,18 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmpProfessionalQualification extends Model
 {
     protected $table = 'emp_professional_qualifications';
-
-    protected $fillable = [
-        'employee_id',
-        'exam_name',
-        'institution',
-        'division',
-        'completion_year',
-        'certificate_number',
-        'valid_from',
-        'valid_until',
-        'remarks'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'completion_year' => 'integer',

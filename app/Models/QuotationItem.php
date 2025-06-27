@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Item;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class QuotationItem extends Model
 {
@@ -30,10 +31,10 @@ class QuotationItem extends Model
     }
 
     /**
-     * Get the equipment for this item.
+     * Get the item for this item.
      */
-    public function equipment(): BelongsTo
+    public function item(): BelongsTo
     {
-        return $this->belongsTo(Equipment::class);
+        return $this->belongsTo(Item::class);
     }
 } 

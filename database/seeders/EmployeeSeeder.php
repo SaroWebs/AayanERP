@@ -20,7 +20,7 @@ class EmployeeSeeder extends Seeder
                 'pan_no' => 'ABCDE1234F',
                 'aadhar_no' => '123456789012',
                 'guardian_name' => 'James Doe',
-                'contact_no' => '9876543210',
+                'contact_no' => 9876543210,
                 'email' => 'john.doe@aayan.com',
                 'country' => 'India'
             ],
@@ -34,7 +34,7 @@ class EmployeeSeeder extends Seeder
                 'pan_no' => 'FGHIJ5678K',
                 'aadhar_no' => '987654321098',
                 'guardian_name' => 'Mary Smith',
-                'contact_no' => '9876543211',
+                'contact_no' => 9876543211,
                 'email' => 'jane.smith@aayan.com',
                 'country' => 'India'
             ],
@@ -48,7 +48,7 @@ class EmployeeSeeder extends Seeder
                 'pan_no' => 'LMNOP9012Q',
                 'aadhar_no' => '456789012345',
                 'guardian_name' => 'William Johnson',
-                'contact_no' => '9876543212',
+                'contact_no' => 9876543212,
                 'email' => 'robert.johnson@aayan.com',
                 'country' => 'India'
             ]

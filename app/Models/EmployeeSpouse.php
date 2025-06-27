@@ -9,17 +9,7 @@ class EmployeeSpouse extends Model
 {
     protected $table = 'employee_spouses';
 
-    protected $fillable = [
-        'employee_id',
-        'spouse_name',
-        'spouse_dob',
-        'spouse_telephone',
-        'spouse_qualification',
-        'marriage_date',
-        'spouse_job_details',
-        'mother_tongue',
-        'religion'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'spouse_dob' => 'date',

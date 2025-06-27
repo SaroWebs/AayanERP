@@ -44,6 +44,7 @@ export interface VendorBankAccount extends Omit<BankAccount, 'branch_address'> {
 
 export interface VendorContactDetail extends Omit<ContactDetail, 'department' | 'designation' | 'phone' | 'email'> {
     id: number;
+    contact_person: string | null;
     department: string | null;
     designation: string | null;
     phone: string | null;

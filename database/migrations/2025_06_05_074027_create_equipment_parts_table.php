@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('equipment_parts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('equipment_id')->constrained()->cascadeOnDelete();
             $table->foreignId('item_id')->constrained()->cascadeOnDelete();
             $table->string('part_number')->nullable();
             $table->string('location_in_equipment')->nullable();
@@ -30,7 +29,7 @@ return new class extends Migration
             $table->softDeletes();
             
             // Unique constraint to prevent duplicate parts
-            $table->unique(['equipment_id', 'item_id', 'part_number']);
+            $table->unique(['item_id', 'part_number']);
         });
     }
 

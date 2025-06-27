@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('pan_no')->nullable();
             $table->string('aadhar_no')->nullable();
             $table->string('guardian_name')->nullable();
-            $table->integer('contact_no')->nullable();
+            $table->string('contact_no')->nullable();
             $table->string('email')->nullable();
             $table->string('country')->nullable();
             $table->timestamps();

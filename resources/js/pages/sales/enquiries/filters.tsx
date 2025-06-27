@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { DatePickerInput, DatesRangeValue } from '@mantine/dates';
 import { Filter, X } from 'lucide-react';
-import { EnquiryFilters, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS, ENQUIRY_SOURCE_LABELS, NATURE_OF_WORK_LABELS } from './types';
+import { EnquiryFilters, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_SOURCE_LABELS } from './types';
 
 interface FiltersProps {
     filters: EnquiryFilters;
@@ -98,17 +98,6 @@ export function Filters({ filters, onFiltersChange, onReset, users, clients }: F
                             onChange={(value) => handleFilterChange('priority', value)}
                             clearable
                         />
-                        <MultiSelect
-                            label="Type"
-                            placeholder="Select types"
-                            data={Object.entries(ENQUIRY_TYPE_LABELS).map(([value, label]) => ({
-                                value,
-                                label
-                            }))}
-                            value={filters.type || []}
-                            onChange={(value) => handleFilterChange('type', value)}
-                            clearable
-                        />
                     </Group>
 
                     <Group grow>
@@ -123,17 +112,9 @@ export function Filters({ filters, onFiltersChange, onReset, users, clients }: F
                             onChange={(value) => handleFilterChange('source', value)}
                             clearable
                         />
-                        <MultiSelect
-                            label="Nature of Work"
-                            placeholder="Select nature of work"
-                            data={Object.entries(NATURE_OF_WORK_LABELS).map(([value, label]) => ({
-                                value,
-                                label
-                            }))}
-                            value={filters.nature_of_work || []}
-                            onChange={(value) => handleFilterChange('nature_of_work', value)}
-                            clearable
-                        />
+                    </Group>
+
+                    <Group grow>
                         <Select
                             label="Assigned To"
                             placeholder="Select user"
@@ -145,9 +126,6 @@ export function Filters({ filters, onFiltersChange, onReset, users, clients }: F
                             onChange={(value) => handleFilterChange('assigned_to', value ? parseInt(value) : undefined)}
                             clearable
                         />
-                    </Group>
-
-                    <Group grow>
                         <Select
                             label="Client"
                             placeholder="Select client"

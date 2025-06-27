@@ -8,15 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeSpecialTraining extends Model
 {
     protected $table = 'employee_special_trainings';
-
-    protected $fillable = [
-        'employee_id',
-        'training_name',
-        'training_place',
-        'organized_by',
-        'training_start_date',
-        'training_end_date'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'training_start_date' => 'date',

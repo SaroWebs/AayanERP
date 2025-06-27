@@ -7,23 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeAddress extends Model
 {
-    protected $fillable = [
-        'employee_id',
-        'type',
-        'care_of',
-        'house_number',
-        'street',
-        'landmark',
-        'police_station',
-        'post_office',
-        'city',
-        'state',
-        'pin_code',
-        'country',
-        'phone',
-        'email',
-        'is_verified'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'is_verified' => 'boolean'

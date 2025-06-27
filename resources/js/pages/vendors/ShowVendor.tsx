@@ -106,9 +106,9 @@ const ShowVendor: React.FC<ShowVendorProps> = ({ vendor }) => {
                                         <Table.Tr>
                                             <Table.Th>Name</Table.Th>
                                             <Table.Th>Designation</Table.Th>
+                                            <Table.Th>Department</Table.Th>
                                             <Table.Th>Mobile</Table.Th>
                                             <Table.Th>Email</Table.Th>
-                                            <Table.Th>Landline</Table.Th>
                                         </Table.Tr>
                                     </Table.Thead>
                                     <Table.Tbody>
@@ -116,16 +116,16 @@ const ShowVendor: React.FC<ShowVendorProps> = ({ vendor }) => {
                                             <Table.Tr key={contact.id}>
                                                 <Table.Td>
                                                     <Group gap="xs">
-                                                        {contact.name}
+                                                        {contact.contact_person}
                                                         {contact.is_primary && (
                                                             <Badge size="sm" color="blue">Primary</Badge>
                                                         )}
                                                     </Group>
                                                 </Table.Td>
                                                 <Table.Td>{contact.designation || 'N/A'}</Table.Td>
-                                                <Table.Td>{contact.mobile || 'N/A'}</Table.Td>
+                                                <Table.Td>{contact.department || 'N/A'}</Table.Td>
+                                                <Table.Td>{contact.phone || 'N/A'}</Table.Td>
                                                 <Table.Td>{contact.email || 'N/A'}</Table.Td>
-                                                <Table.Td>{contact.landline || 'N/A'}</Table.Td>
                                             </Table.Tr>
                                         ))}
                                     </Table.Tbody>

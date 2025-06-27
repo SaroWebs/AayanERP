@@ -21,7 +21,6 @@ return new class extends Migration
             // Intent Details
             $table->string('subject');
             $table->text('description')->nullable();
-            $table->enum('type', ['equipment', 'scaffolding', 'spares', 'consumables', 'other'])->default('equipment');
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
             $table->enum('status', [
                 'draft',           // Initial draft state

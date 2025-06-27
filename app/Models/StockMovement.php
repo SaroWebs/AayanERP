@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,28 +13,40 @@ class StockMovement extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'item_id',
+        'movable_id',
+        'movable_type',
         'type',
         'quantity',
+        'unit_price',
+        'total_value',
+        'from_location',
+        'to_location',
         'reference_type',
         'reference_id',
+        'reference_number',
+        'movement_date',
+        'reason',
         'notes',
         'created_by',
+        'approved_by',
+        'approved_at',
+        'status',
     ];
 
     protected $casts = [
-        'type' => 'string',
-        'quantity' => 'integer',
-        'reference_type' => 'string',
-        'reference_id' => 'string',
+        'quantity' => 'decimal:2',
+        'unit_price' => 'decimal:2',
+        'total_value' => 'decimal:2',
+        'movement_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     /**
-     * Get the item that owns the stock movement.
+     * Get the parent movable model (e.g., Item).
      */
-    public function item(): BelongsTo
+    public function movable(): MorphTo
     {
-        return $this->belongsTo(Item::class);
+        return $this->morphTo();
     }
 
     /**

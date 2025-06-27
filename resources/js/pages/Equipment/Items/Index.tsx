@@ -24,50 +24,7 @@ import { modals } from '@mantine/modals';
 import CreateItemModal from './Partials/CreateItemModal';
 import EditItemModal from './Partials/EditItemModal';
 import StockMovementModal from './Partials/StockMovementModal';
-
-
-interface Item {
-    id: number;
-    code: string;
-    name: string;
-    slug: string;
-    category_id: number | null;
-    category?: {
-        id: number;
-        name: string;
-    };
-    hsn: string | null;
-    description_1: string | null;
-    description_2: string | null;
-    type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
-    status: 'active' | 'inactive' | 'discontinued';
-    minimum_stock: number;
-    current_stock: number;
-    maximum_stock: number | null;
-    reorder_point: number | null;
-    reorder_quantity: number | null;
-    standard_cost: number | null;
-    selling_price: number | null;
-    rental_rate: number | null;
-    specifications: Record<string, any> | null;
-    technical_details: Record<string, any> | null;
-    safety_data: Record<string, any> | null;
-    storage_location: string | null;
-    storage_conditions: string | null;
-    storage_instructions: string | null;
-    manufacturer: string | null;
-    supplier: string | null;
-    warranty_period: string | null;
-    last_purchase_date: string | null;
-    last_purchase_price: number | null;
-    sort_order: number;
-    created_at: string;
-    updated_at: string;
-    deleted_at: string | null;
-    stock_status?: 'low' | 'normal' | 'excess';
-}
+import type { Item } from './types';
 
 interface Props extends PageProps {
     filters?: {
@@ -188,28 +145,11 @@ export default function Index({ filters = {} }: Props) {
         return status === 'active' ? 'green' : status === 'inactive' ? 'red' : 'gray';
     };
 
-    const getApplicableForColor = (variant: string) => {
-        switch (variant) {
-            case 'equipment': return 'blue';
-            case 'scaffolding': return 'gray';
-            case 'refractory': return 'purple';
-            default: return 'green';
-        }
-    };
-
     const getStockStatusColor = (status: string) => {
         switch (status) {
             case 'low': return 'red';
             case 'excess': return 'yellow';
             default: return 'green';
-        }
-    };
-
-    const getStockStatusLabel = (status: string) => {
-        switch (status) {
-            case 'low': return 'Low Stock';
-            case 'excess': return 'Excess Stock';
-            default: return 'Normal Stock';
         }
     };
 
@@ -308,24 +248,14 @@ export default function Index({ filters = {} }: Props) {
                                 title: 'Cost',
                                 width: 120,
                                 textAlign: 'right' as DataTableColumnTextAlign,
-                                render: (item) => item.standard_cost ? `₹${item.standard_cost.toFixed(2)}` : 'N/A',
+                                render: (item) => item.standard_cost ? `₹${Number(item.standard_cost).toFixed(2)}` : 'N/A',
                             },
                             {
                                 accessor: 'selling_price',
                                 title: 'Price',
                                 width: 120,
                                 textAlign: 'right' as DataTableColumnTextAlign,
-                                render: (item) => item.selling_price ? `₹${item.selling_price.toFixed(2)}` : 'N/A',
-                            },
-                            {
-                                accessor: 'applicable_for',
-                                title: 'Application',
-                                width: 120,
-                                render: (item) => (
-                                    <Badge color={getApplicableForColor(item.applicable_for)}>
-                                        {item.applicable_for.replace('_', ' ').toUpperCase()}
-                                    </Badge>
-                                ),
+                                render: (item) => item.selling_price ? `₹${Number(item.selling_price).toFixed(2)}` : 'N/A',
                             },
                             {
                                 accessor: 'status',

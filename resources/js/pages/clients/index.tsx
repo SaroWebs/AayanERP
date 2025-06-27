@@ -55,6 +55,7 @@ interface Client {
     address: string;
     correspondence_address: string;
     contacts: ClientContact[];
+    contact_details: ClientContact[];
     bank_accounts: ClientBankAccount[];
     documents: ClientDocument[];
     created_at: string | null;
@@ -302,9 +303,9 @@ const ClientsList = (): ReactElement => {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {client?.contacts?.length > 0 ? (
+                                                {client?.contact_details?.length > 0 ? (
                                                     <div className="flex flex-col gap-1">
-                                                        {client.contacts.map(contact => (
+                                                        {client.contact_details.map(contact => (
                                                             <div key={contact.id} className="text-xs">
                                                                 <Text fw={500}>{contact.contact_person}</Text>
                                                                 <Text size="xs" c="dimmed">

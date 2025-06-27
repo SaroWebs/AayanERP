@@ -2,27 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Item;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Category extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = [
-        'name',
-        'slug',
-        'description',
-        'status',
-        'sort_order',
-        'technical_requirements',
-        'application_areas',
-        'quality_standards',
-        'parent_id',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'status' => 'string',
@@ -61,9 +52,9 @@ class Category extends Model
     /**
      * Get all equipment for this category.
      */
-    public function equipment(): HasMany
+    public function items(): HasMany
     {
-        return $this->hasMany(Equipment::class);
+        return $this->hasMany(Item::class);
     }
 
     /**

@@ -9,21 +9,7 @@ class EmpJoiningDetail extends Model
 {
     protected $table = 'emp_joining_details';
 
-    protected $fillable = [
-        'employee_id',
-        'joining_date',
-        'category',
-        'appointment_type',
-        'employee_id_number',
-        'department',
-        'designation',
-        'reporting_to',
-        'work_location',
-        'photo_url',
-        'probation_end_date',
-        'contract_end_date',
-        'joining_remarks'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'joining_date' => 'date',

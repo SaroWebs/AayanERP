@@ -1,11 +1,11 @@
 import { Modal, Button, TextInput, Select, Textarea, Stack, Group, Grid, NumberInput, Divider, Title, LoadingOverlay, Stepper, Paper, Text, Table } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { EnquiryType, EnquiryPriority, EnquirySource, NatureOfWork, DurationUnit } from '../types';
+import { EnquiryPriority, EnquirySource } from '../types';
 import { FormEvent, useEffect, useState } from 'react';
 import axios from 'axios';
 import { DateInput } from '@mantine/dates';
-import { AlertCircleIcon, User, Package, CheckCircle } from 'lucide-react';
+import { AlertCircle as AlertCircleIcon, User, Package, CheckCircle } from 'lucide-react';
 import { ClientDetail } from '@/types/client';
 
 interface Props {
@@ -21,12 +21,6 @@ const PRIORITY_OPTIONS = [
     { value: 'urgent', label: 'Urgent' },
 ];
 
-const TYPE_OPTIONS = [
-    { value: 'equipment', label: 'Equipment' },
-    { value: 'scaffolding', label: 'Scaffolding' },
-    { value: 'both', label: 'Both' },
-];
-
 const SOURCE_OPTIONS = [
     { value: 'website', label: 'Website' },
     { value: 'email', label: 'Email' },
@@ -36,33 +30,11 @@ const SOURCE_OPTIONS = [
     { value: 'other', label: 'Other' },
 ];
 
-const NATURE_OF_WORK_OPTIONS = [
-    { value: 'soil', label: 'Soil' },
-    { value: 'rock', label: 'Rock' },
-    { value: 'limestone', label: 'Limestone' },
-    { value: 'coal', label: 'Coal' },
-    { value: 'sand', label: 'Sand' },
-    { value: 'gravel', label: 'Gravel' },
-    { value: 'construction', label: 'Construction' },
-    { value: 'demolition', label: 'Demolition' },
-    { value: 'mining', label: 'Mining' },
-    { value: 'quarry', label: 'Quarry' },
-    { value: 'other', label: 'Other' },
-];
-
-const DURATION_UNIT_OPTIONS = [
-    { value: 'hours', label: 'Hours' },
-    { value: 'days', label: 'Days' },
-    { value: 'months', label: 'Months' },
-    { value: 'years', label: 'Years' },
-];
-
-interface EnquiryItem {
-    equipment_id: number | null;
+interface FormEnquiryItem {
+    item_id: number | null;
     quantity: number;
     estimated_value: number | null;
-    duration: number | null;
-    duration_unit: DurationUnit;
+    notes: string | null;
 }
 
 export function AddNew({ opened, onClose, clients }: Props) {
@@ -70,13 +42,12 @@ export function AddNew({ opened, onClose, clients }: Props) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [contactPersons, setContactPersons] = useState<Array<{ id: number; name: string }>>([]);
     const [equipment, setEquipment] = useState<Array<{ id: number; name: string }>>([]);
-    const [items, setItems] = useState<EnquiryItem[]>([]);
-    const [currentItem, setCurrentItem] = useState<EnquiryItem>({
-        equipment_id: null,
+    const [items, setItems] = useState<FormEnquiryItem[]>([]);
+    const [currentItem, setCurrentItem] = useState<FormEnquiryItem>({
+        item_id: null,
         quantity: 1,
         estimated_value: null,
-        duration: null,
-        duration_unit: 'days'
+        notes: ''
     });
 
     const form = useForm({
@@ -85,7 +56,6 @@ export function AddNew({ opened, onClose, clients }: Props) {
             contact_person_id: null as number | null,
             subject: '',
             description: '',
-            type: 'equipment' as EnquiryType,
             priority: 'medium' as EnquiryPriority,
             source: 'other' as EnquirySource,
             deployment_state: '',
@@ -149,7 +119,7 @@ export function AddNew({ opened, onClose, clients }: Props) {
     const prevStep = () => setActive((current) => (current > 0 ? current - 1 : current));
 
     const addItem = () => {
-        if (!currentItem.equipment_id) {
+        if (!currentItem.item_id) {
             notifications.show({
                 title: 'Error',
                 message: 'Please select equipment',
@@ -160,11 +130,10 @@ export function AddNew({ opened, onClose, clients }: Props) {
         }
         setItems([...items, currentItem]);
         setCurrentItem({
-            equipment_id: null,
+            item_id: null,
             quantity: 1,
             estimated_value: null,
-            duration: null,
-            duration_unit: 'days'
+            notes: ''
         });
     };
 
@@ -175,7 +144,6 @@ export function AddNew({ opened, onClose, clients }: Props) {
     const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
         event?.preventDefault();
         
-        // Only validate the main form fields, not the item inputs
         const { hasErrors } = form.validate();
         if (hasErrors) {
             notifications.show({
@@ -193,19 +161,17 @@ export function AddNew({ opened, onClose, clients }: Props) {
             const formattedValues = {
                 ...form.values,
                 items: items.map(item => ({
-                    equipment_id: item.equipment_id,
+                    item_id: item.item_id,
                     quantity: item.quantity,
-                    duration: item.duration,
-                    duration_unit: item.duration_unit,
                     estimated_value: item.estimated_value,
-                    notes: '' // Optional field
+                    notes: item.notes
                 })),
                 enquiry_date: form.values.enquiry_date ? new Date(form.values.enquiry_date).toISOString().split('T')[0] : null,
                 required_date: form.values.required_date ? new Date(form.values.required_date).toISOString().split('T')[0] : null,
                 valid_until: form.values.valid_until ? new Date(form.values.valid_until).toISOString().split('T')[0] : null,
                 next_follow_up_date: form.values.next_follow_up_date ? new Date(form.values.next_follow_up_date).toISOString().split('T')[0] : null,
-                status: 'draft', // Initial status
-                approval_status: 'not_required' // Initial approval status
+                status: 'draft',
+                approval_status: 'not_required'
             };
 
             const response = await axios.post('/sales/enquiries', formattedValues);
@@ -262,18 +228,15 @@ export function AddNew({ opened, onClose, clients }: Props) {
                             </Grid.Col>
                         </Grid>
 
-                                <Title order={4} mt="md">Enquiry Details</Title>
+                        <Title order={4} mt="md">Enquiry Details</Title>
                         <Grid>
-                                    <Grid.Col span={3}>
+                            <Grid.Col span={4}>
                                 <TextInput label="Subject" required {...form.getInputProps('subject')} />
                             </Grid.Col>
-                                    <Grid.Col span={3}>
-                                <Select label="Type" data={TYPE_OPTIONS} required {...form.getInputProps('type')} />
-                            </Grid.Col>
-                                    <Grid.Col span={3}>
+                            <Grid.Col span={4}>
                                 <Select label="Priority" data={PRIORITY_OPTIONS} required {...form.getInputProps('priority')} />
                             </Grid.Col>
-                                    <Grid.Col span={3}>
+                            <Grid.Col span={4}>
                                 <Select label="Source" data={SOURCE_OPTIONS} required {...form.getInputProps('source')} />
                             </Grid.Col>
                             <Grid.Col span={12}>
@@ -281,7 +244,7 @@ export function AddNew({ opened, onClose, clients }: Props) {
                             </Grid.Col>
                         </Grid>
 
-                                <Title order={4} mt="md">Location Details</Title>
+                        <Title order={4} mt="md">Location Details</Title>
                         <Grid>
                             <Grid.Col span={6}>
                                 <TextInput label="State" {...form.getInputProps('deployment_state')} />
@@ -294,7 +257,7 @@ export function AddNew({ opened, onClose, clients }: Props) {
                             </Grid.Col>
                         </Grid>
 
-                                <Title order={4} mt="md">Dates</Title>
+                        <Title order={4} mt="md">Dates</Title>
                         <Grid>
                             <Grid.Col span={4}>
                                 <DateInput label="Enquiry Date" required {...form.getInputProps('enquiry_date')} />
@@ -318,8 +281,8 @@ export function AddNew({ opened, onClose, clients }: Props) {
                                             <Select
                                                 label="Equipment"
                                                 data={equipment.map(eq => ({ value: eq.id.toString(), label: eq.name }))}
-                                                value={currentItem.equipment_id?.toString()}
-                                                onChange={(value) => setCurrentItem({ ...currentItem, equipment_id: value ? parseInt(value) : null })}
+                                                value={currentItem.item_id?.toString()}
+                                                onChange={(value) => setCurrentItem({ ...currentItem, item_id: value ? parseInt(value) : null })}
                                             />
                                         </Grid.Col>
                                         <Grid.Col span={4}>
@@ -338,23 +301,14 @@ export function AddNew({ opened, onClose, clients }: Props) {
                                                 onChange={(value) => setCurrentItem({ ...currentItem, estimated_value: value ? Number(value) : null })}
                                             />
                                         </Grid.Col>
-                                        <Grid.Col span={4}>
-                                            <NumberInput
-                                                label="Duration"
-                                                min={1}
-                                                value={currentItem.duration || ''}
-                                                onChange={(value) => setCurrentItem({ ...currentItem, duration: value ? Number(value) : null })}
+                                        <Grid.Col span={12}>
+                                            <TextInput
+                                                label="Notes"
+                                                value={currentItem.notes || ''}
+                                                onChange={(event) => setCurrentItem({ ...currentItem, notes: event.currentTarget.value })}
                                             />
                                         </Grid.Col>
-                                        <Grid.Col span={4}>
-                                            <Select
-                                                label="Duration Unit"
-                                                data={DURATION_UNIT_OPTIONS}
-                                                value={currentItem.duration_unit}
-                                                onChange={(value) => setCurrentItem({ ...currentItem, duration_unit: value as DurationUnit })}
-                                            />
-                                        </Grid.Col>
-                                        <Grid.Col span={4}>
+                                        <Grid.Col span={12}>
                                             <Group justify="flex-end" h="100%" align="flex-end">
                                                 <Button onClick={addItem}>Add Item</Button>
                                             </Group>
@@ -370,17 +324,17 @@ export function AddNew({ opened, onClose, clients }: Props) {
                                                     <Table.Th>Equipment</Table.Th>
                                                     <Table.Th>Qty</Table.Th>
                                                     <Table.Th>Est. Value</Table.Th>
-                                                    <Table.Th>Duration</Table.Th>
+                                                    <Table.Th>Notes</Table.Th>
                                                     <Table.Th style={{ width: '100px' }}></Table.Th>
                                                 </Table.Tr>
                                             </Table.Thead>
                                             <Table.Tbody>
                                                 {items.map((item, index) => (
                                                     <Table.Tr key={index}>
-                                                        <Table.Td>{equipment.find(e => e.id === item.equipment_id)?.name}</Table.Td>
+                                                        <Table.Td>{equipment.find(e => e.id === item.item_id)?.name}</Table.Td>
                                                         <Table.Td>{item.quantity}</Table.Td>
                                                         <Table.Td>{item.estimated_value}</Table.Td>
-                                                        <Table.Td>{item.duration} {item.duration_unit}</Table.Td>
+                                                        <Table.Td>{item.notes}</Table.Td>
                                                         <Table.Td>
                                                             <Button variant="light" color="red" size="xs" onClick={() => removeItem(index)}>
                                                                 Remove
@@ -421,10 +375,6 @@ export function AddNew({ opened, onClose, clients }: Props) {
                                             <Text>{form.values.subject}</Text>
                                         </Grid.Col>
                                         <Grid.Col span={6}>
-                                            <Text fw={500}>Type:</Text>
-                                            <Text>{form.values.type}</Text>
-                                        </Grid.Col>
-                                        <Grid.Col span={6}>
                                             <Text fw={500}>Priority:</Text>
                                             <Text>{form.values.priority}</Text>
                             </Grid.Col>
@@ -442,7 +392,7 @@ export function AddNew({ opened, onClose, clients }: Props) {
                         <Grid>
                                                 <Grid.Col span={6}>
                                                     <Text fw={500}>Equipment:</Text>
-                                                    <Text>{equipment.find(e => e.id === item.equipment_id)?.name}</Text>
+                                                    <Text>{equipment.find(e => e.id === item.item_id)?.name}</Text>
                             </Grid.Col>
                                                 <Grid.Col span={6}>
                                                     <Text fw={500}>Quantity:</Text>

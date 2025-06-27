@@ -1,55 +1,8 @@
 import { Modal, TextInput, Textarea, Select, Button, Group, Grid, NumberInput, Stack, Divider } from '@mantine/core';
 import { useForm } from '@inertiajs/react';
-import { FormDataConvertible } from '@inertiajs/core';
 import { useEffect } from 'react';
+import { FormData, Item } from '../types';
 
-interface Category {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
-
-interface Item {
-    id: number;
-    code: string;
-    name: string;
-    slug: string;
-    category_id: number | null;
-    category?: {
-        id: number;
-        name: string;
-    };
-    hsn: string | null;
-    description_1: string | null;
-    description_2: string | null;
-    type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
-    status: 'active' | 'inactive' | 'discontinued';
-    minimum_stock: number;
-    current_stock: number;
-    maximum_stock: number | null;
-    reorder_point: number | null;
-    reorder_quantity: number | null;
-    standard_cost: number | null;
-    selling_price: number | null;
-    rental_rate: number | null;
-    specifications: Record<string, any> | null;
-    technical_details: Record<string, any> | null;
-    safety_data: Record<string, any> | null;
-    storage_location: string | null;
-    storage_conditions: string | null;
-    storage_instructions: string | null;
-    manufacturer: string | null;
-    supplier: string | null;
-    warranty_period: string | null;
-    last_purchase_date: string | null;
-    last_purchase_price: number | null;
-    sort_order: number;
-    created_at: string;
-    updated_at: string;
-    deleted_at: string | null;
-}
 
 interface Props {
     opened: boolean;
@@ -58,51 +11,26 @@ interface Props {
     loadData: () => void;
 }
 
-interface FormData {
-    name: string;
-    code: string;
-    description_1: string | null;
-    description_2: string | null;
-    category_id: number | null;
-    hsn: string | null;
-    type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
-    status: 'active' | 'inactive' | 'discontinued';
-    minimum_stock: number;
-    current_stock: number;
-    maximum_stock: number | null;
-    reorder_point: number | null;
-    reorder_quantity: number | null;
-    standard_cost: number | null;
-    selling_price: number | null;
-    rental_rate: number | null;
-    specifications: Record<string, any> | null;
-    technical_details: Record<string, any> | null;
-    safety_data: Record<string, any> | null;
-    storage_location: string | null;
-    storage_conditions: string | null;
-    storage_instructions: string | null;
-    manufacturer: string | null;
-    supplier: string | null;
-    warranty_period: string | null;
-    last_purchase_date: string | null;
-    last_purchase_price: number | null;
-    sort_order: number;
-    [key: string]: FormDataConvertible;
-}
 
 export default function EditItemModal({ opened, onClose, item, loadData }: Props) {
     const defaultValues: FormData = {
         name: '',
         code: '',
-        description_1: null,
-        description_2: null,
         category_id: null,
         hsn: null,
+        description: '',
+        make: '',
+        model_no: '',
+        max_capacity: '',
+        readability: '',
+        plateform_size: '',
+        plateform_moc: '',
+        indicator_moc: '',
+        load_plate: '',
+        indicator_mounding: '',
+        quality: '',
         type: 'consumable',
         unit: null,
-        applicable_for: 'all',
         status: 'active',
         minimum_stock: 0,
         current_stock: 0,
@@ -115,14 +43,17 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
         specifications: null,
         technical_details: null,
         safety_data: null,
-        storage_location: null,
-        storage_conditions: null,
-        storage_instructions: null,
-        manufacturer: null,
-        supplier: null,
-        warranty_period: null,
+        storage_location: '',
+        storage_conditions: '',
+        storage_instructions: '',
+        manufacturer: '',
+        supplier: '',
+        warranty_period: '',
         last_purchase_date: null,
         last_purchase_price: null,
+        condition: 'new',
+        last_maintenance_date: null,
+        next_maintenance_date: null,
         sort_order: 0,
     };
 
@@ -138,13 +69,9 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
         if (opened) {
             setData('name', item?.name || '');
             setData('code', item?.code || '');
-            setData('description_1', item?.description_1 || '');
-            setData('description_2', item?.description_2 || '');
-            setData('category_id', item?.category_id || null);
             setData('hsn', item?.hsn || '');
             setData('type', item?.type || 'consumable');
             setData('unit', item?.unit || 'set');
-            setData('applicable_for', item?.applicable_for || 'all');
             setData('status', item?.status || 'active');
             setData('minimum_stock', item?.minimum_stock || 0);
             setData('current_stock', item?.current_stock || 0);
@@ -165,6 +92,9 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
             setData('warranty_period', item?.warranty_period || '');
             setData('last_purchase_date', item?.last_purchase_date || '');
             setData('last_purchase_price', item?.last_purchase_price || null);
+            setData('condition', item?.condition || 'new');
+            setData('last_maintenance_date', item?.last_maintenance_date || '');
+            setData('next_maintenance_date', item?.next_maintenance_date || '');
             setData('sort_order', item?.sort_order || 0);
         }
     }, [item, opened]);
@@ -215,29 +145,6 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
                         </Grid.Col>
                     </Grid>
 
-                    <Divider label="Descriptions" labelPosition="center" />
-
-                    <Grid>
-                        <Grid.Col span={6}>
-                            <Textarea
-                                label="Description 1"
-                                placeholder="Enter primary description"
-                                value={data.description_1 || ''}
-                                onChange={(e) => setData('description_1', e.target.value || null)}
-                                error={errors.description_1}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <Textarea
-                                label="Description 2"
-                                placeholder="Enter secondary description"
-                                value={data.description_2 || ''}
-                                onChange={(e) => setData('description_2', e.target.value || null)}
-                                error={errors.description_2}
-                            />
-                        </Grid.Col>
-                    </Grid>
-
                     <Divider label="Stock Information" labelPosition="center" />
 
                     <Grid>
@@ -255,10 +162,11 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
                                     { value: 'ton', label: 'Ton' },
                                     { value: 'box', label: 'Box' },
                                     { value: 'pack', label: 'Pack' },
-                                    { value: 'na', label: 'Not Applicable' }
+                                    { value: 'pcs', label: 'Pieces' },
+                                    { value: 'na', label: 'Not Applicable' },
                                 ]}
                                 value={data.unit}
-                                onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null)}
+                                onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | 'pcs')}
                                 error={errors.unit}
                             />
                         </Grid.Col>
@@ -365,10 +273,12 @@ export default function EditItemModal({ opened, onClose, item, loadData }: Props
                                 data={[
                                     { value: 'active', label: 'Active' },
                                     { value: 'inactive', label: 'Inactive' },
-                                    { value: 'discontinued', label: 'Discontinued' }
+                                    { value: 'discontinued', label: 'Discontinued' },
+                                    { value: 'maintenance', label: 'Maintenance' },
+                                    { value: 'retired', label: 'Retired' }
                                 ]}
                                 value={data.status}
-                                onChange={(value) => setData('status', (value as 'active' | 'inactive' | 'discontinued') || 'active')}
+                                onChange={(value) => setData('status', (value as 'active' | 'inactive' | 'discontinued' | 'maintenance' | 'retired') || 'active')}
                                 error={errors.status}
                                 required
                             />

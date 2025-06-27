@@ -46,6 +46,8 @@ const VendorsList = () => {
         try {
             const response = await axios.get('/data/vendors');
             setVendors(response.data);
+            console.log('Vendors loaded:', response.data);
+            console.log('Total vendors:', response.data.total);
             notifications.show({
                 title: 'Vendors loaded',
                 message: 'Vendors data has been successfully loaded',
@@ -67,12 +69,22 @@ const VendorsList = () => {
         loadVendor();
     }, []);
 
+    // Debug effect to log when vendors changes
+    useEffect(() => {
+        if (vendors) {
+            console.log('Vendors state updated:', vendors.total);
+        }
+    }, [vendors]);
+
     const handleVendorUpdate = (updatedVendor: Vendor) => {
         if (updatedVendor) {
             console.log(updatedVendor);
             loadVendor();
         }
     };
+
+    // Calculate total for AddNew component
+    const totalVendors = vendors?.total || 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -81,7 +93,7 @@ const VendorsList = () => {
                 <div className="p-6 relative">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-semibold">Vendors List</h2>
-                        <AddNew />
+                        <AddNew loadVendor={loadVendor} total={totalVendors} />
                     </div>
                     <div className="relative">
                         <LoadingOverlay

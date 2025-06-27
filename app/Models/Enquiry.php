@@ -23,14 +23,9 @@ class Enquiry extends Model
         'next_follow_up_date' => 'date',
         'approved_at' => 'datetime',
         'estimated_value' => 'decimal:2',
-        'quantity' => 'integer',
-        'duration' => 'integer',
-        'type' => 'string',
         'status' => 'string',
         'priority' => 'string',
         'source' => 'string',
-        'nature_of_work' => 'string',
-        'duration_unit' => 'string',
         'approval_status' => 'string',
         'currency' => 'string'
     ];
@@ -116,14 +111,6 @@ class Enquiry extends Model
     }
 
     /**
-     * Scope a query to only include pending follow-up enquiries.
-     */
-    public function scopePendingFollowUp($query)
-    {
-        return $query->where('status', 'pending_follow_up');
-    }
-
-    /**
      * Scope a query to only include enquiries requiring approval.
      */
     public function scopePendingApproval(Builder $query): Builder
@@ -148,35 +135,11 @@ class Enquiry extends Model
     }
 
     /**
-     * Scope a query to only include enquiries by type.
-     */
-    public function scopeByType(Builder $query, string|array $type): Builder
-    {
-        return $query->whereIn('type', (array) $type);
-    }
-
-    /**
      * Scope a query to only include enquiries by source.
      */
     public function scopeBySource(Builder $query, string|array $source): Builder
     {
         return $query->whereIn('source', (array) $source);
-    }
-
-    /**
-     * Scope a query to only include enquiries by nature of work.
-     */
-    public function scopeByNatureOfWork(Builder $query, string|array $nature): Builder
-    {
-        return $query->whereIn('nature_of_work', (array) $nature);
-    }
-
-    /**
-     * Scope a query to only include enquiries assigned to a user.
-     */
-    public function scopeAssignedTo(Builder $query, int $userId): Builder
-    {
-        return $query->where('assigned_to', $userId);
     }
 
     /**
@@ -201,6 +164,14 @@ class Enquiry extends Model
     public function scopeDateRange(Builder $query, string $startDate, string $endDate): Builder
     {
         return $query->whereBetween('enquiry_date', [$startDate, $endDate]);
+    }
+
+    /**
+     * Scope a query to only include enquiries assigned to a user.
+     */
+    public function scopeAssignedTo(Builder $query, int $userId): Builder
+    {
+        return $query->where('assigned_to', $userId);
     }
 
     /**
@@ -253,28 +224,21 @@ class Enquiry extends Model
     }
 
     /**
-     * Get the formatted duration.
-     */
-    public function getFormattedDurationAttribute(): string
-    {
-        if (!$this->duration) return '-';
-        return $this->duration . ' ' . $this->duration_unit;
-    }
-
-    /**
      * Get the formatted status with color.
      */
     public function getStatusWithColorAttribute(): array
     {
         return match($this->status) {
-            'new' => ['label' => 'New', 'color' => 'blue'],
-            'pending_follow_up' => ['label' => 'Pending Follow-up', 'color' => 'yellow'],
-            'in_progress' => ['label' => 'In Progress', 'color' => 'orange'],
+            'draft' => ['label' => 'Draft', 'color' => 'gray'],
+            'pending_review' => ['label' => 'Pending Review', 'color' => 'yellow'],
+            'under_review' => ['label' => 'Under Review', 'color' => 'orange'],
             'quoted' => ['label' => 'Quoted', 'color' => 'purple'],
+            'pending_approval' => ['label' => 'Pending Approval', 'color' => 'blue'],
+            'approved' => ['label' => 'Approved', 'color' => 'cyan'],
             'converted' => ['label' => 'Converted', 'color' => 'green'],
             'lost' => ['label' => 'Lost', 'color' => 'red'],
             'cancelled' => ['label' => 'Cancelled', 'color' => 'gray'],
-            default => ['label' => ucfirst($this->status), 'color' => 'gray']
+            default => ['label' => ucfirst(str_replace('_', ' ', $this->status)), 'color' => 'gray']
         };
     }
 
@@ -293,46 +257,18 @@ class Enquiry extends Model
     }
 
     /**
-     * Get the formatted type with color.
-     */
-    public function getTypeWithColorAttribute(): array
-    {
-        return match($this->type) {
-            'sales' => ['label' => 'Sales', 'color' => 'blue'],
-            'service' => ['label' => 'Service', 'color' => 'green'],
-            'rental' => ['label' => 'Rental', 'color' => 'purple'],
-            'spare_parts' => ['label' => 'Spare Parts', 'color' => 'orange'],
-            default => ['label' => ucfirst($this->type), 'color' => 'gray']
-        };
-    }
-
-    /**
      * Get the formatted source with color.
      */
     public function getSourceWithColorAttribute(): array
     {
         return match($this->source) {
             'website' => ['label' => 'Website', 'color' => 'blue'],
-            'referral' => ['label' => 'Referral', 'color' => 'green'],
-            'direct' => ['label' => 'Direct', 'color' => 'purple'],
-            'social_media' => ['label' => 'Social Media', 'color' => 'pink'],
+            'email' => ['label' => 'Email', 'color' => 'cyan'],
+            'phone' => ['label' => 'Phone', 'color' => 'green'],
+            'referral' => ['label' => 'Referral', 'color' => 'purple'],
+            'walk_in' => ['label' => 'Walk In', 'color' => 'orange'],
             'other' => ['label' => 'Other', 'color' => 'gray'],
             default => ['label' => ucfirst($this->source), 'color' => 'gray']
-        };
-    }
-
-    /**
-     * Get the formatted nature of work with color.
-     */
-    public function getNatureOfWorkWithColorAttribute(): array
-    {
-        return match($this->nature_of_work) {
-            'new_installation' => ['label' => 'New Installation', 'color' => 'blue'],
-            'maintenance' => ['label' => 'Maintenance', 'color' => 'green'],
-            'repair' => ['label' => 'Repair', 'color' => 'orange'],
-            'upgrade' => ['label' => 'Upgrade', 'color' => 'purple'],
-            'consultation' => ['label' => 'Consultation', 'color' => 'cyan'],
-            default => ['label' => ucfirst($this->nature_of_work), 'color' => 'gray']
         };
     }
 

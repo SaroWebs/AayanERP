@@ -9,17 +9,7 @@ class EmpEducationalQualification extends Model
 {
     protected $table = 'emp_educational_qualifications';
 
-    protected $fillable = [
-        'employee_id',
-        'qualification',
-        'passing_year',
-        'institution_name',
-        'board_university',
-        'completion_date',
-        'subject',
-        'medium',
-        'marks_percentage'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'passing_year' => 'integer',

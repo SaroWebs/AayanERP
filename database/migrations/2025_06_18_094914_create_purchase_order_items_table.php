@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_order_id')->constrained('purchase_orders')->cascadeOnDelete();
             $table->foreignId('item_id')->nullable()->constrained('items')->nullOnDelete();
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
             
             // Item Details
             $table->string('item_name'); // Name of the item/equipment
@@ -51,11 +50,6 @@ return new class extends Migration
             $table->text('receipt_remarks')->nullable();
             
             $table->timestamps();
-            
-            // Indexes for better performance
-            $table->index(['purchase_order_id', 'status']);
-            $table->index(['item_id', 'status']);
-            $table->index(['equipment_id', 'status']);
         });
     }
 

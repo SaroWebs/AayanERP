@@ -192,8 +192,8 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
-        if ($category->equipment()->exists()) {
-            return back()->with('error', 'Cannot delete category with associated equipment.');
+        if ($category->items()->exists()) {
+            return back()->with('error', 'Cannot delete category with associated items.');
         }
 
         if ($category->children()->exists()) {

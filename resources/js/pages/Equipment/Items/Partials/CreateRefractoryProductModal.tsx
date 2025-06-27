@@ -1,14 +1,9 @@
 import { Modal, TextInput, Textarea, Select, Button, Group, Grid, NumberInput, Stack, Divider, Tabs } from '@mantine/core';
 import { useForm } from '@inertiajs/react';
-import { FormDataConvertible } from '@inertiajs/core';
 import { useEffect } from 'react';
 import axios from 'axios';
+import { FormData } from '../types';
 
-interface Category {
-    id: number;
-    name: string;
-    variant: 'equipment' | 'scaffolding';
-}
 
 interface Props {
     opened: boolean;
@@ -16,91 +11,50 @@ interface Props {
     loadData: () => void;
 }
 
-interface FormData {
-    // Basic Information
-    name: string;
-    code: string;
-    description_1: string | null;
-    description_2: string | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding';
-    hsn: string | null;
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'na' | null;
-    minimum_stock: number;
-    current_stock: number;
-    maximum_stock: number | null;
-    reorder_point: number | null;
-    sort_order: number;
-    status: 'active' | 'inactive';
-
-    // Technical Specifications
-    temperature_rating: number | null;
-    max_service_temperature: number | null;
-    thermal_conductivity: number | null;
-    bulk_density: number | null;
-    cold_crushing_strength: number | null;
-    porosity: number | null;
-    chemical_composition: string | null;
-    application_temperature_range: string | null;
-    thermal_expansion: number | null;
-    abrasion_resistance: string | null;
-    corrosion_resistance: string | null;
-    thermal_shock_resistance: string | null;
-
-    // Certifications and Standards
-    certifications: string | null;
-    standards_compliance: string | null;
-    quality_grade: string | null;
-
-    // Additional Information
-    installation_guide: string | null;
-    safety_data_sheet: string | null;
-    technical_data_sheet: string | null;
-    maintenance_guide: string | null;
-
-    [key: string]: FormDataConvertible;
-}
-
 export default function CreateRefractoryProductModal({ opened, onClose, loadData }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm<FormData>({
-        // Basic Information
-        name: '',
         code: '',
-        description_1: '',
-        description_2: '',
-        applicable_for: 'all',
+        name: '',
+        slug: '',
+        category_id: null,
         hsn: '',
+        description: '',
+        make: '',
+        model_no: '',
+        max_capacity: '',
+        readability: '',
+        plateform_size: '',
+        plateform_moc: '',
+        indicator_moc: '',
+        load_plate: '',
+        indicator_mounding: '',
+        quality: '',
+        type: 'consumable',
         unit: null,
+        status: 'active',
         minimum_stock: 0,
         current_stock: 0,
         maximum_stock: null,
         reorder_point: null,
+        reorder_quantity: null,
+        standard_cost: null,
+        selling_price: null,
+        rental_rate: null,
+        specifications: null,
+        technical_details: null,
+        safety_data: null,
+        storage_location: '',
+        storage_conditions: '',
+        storage_instructions: '',
+        manufacturer: '',
+        supplier: '',
+        warranty_period: '',
+        last_purchase_date: '',
+        last_purchase_price: null,
+        condition: 'new',
+        last_maintenance_date: '',
+        next_maintenance_date: '',
         sort_order: 0,
-        status: 'active',
-
-        // Technical Specifications
-        temperature_rating: null,
-        max_service_temperature: null,
-        thermal_conductivity: null,
-        bulk_density: null,
-        cold_crushing_strength: null,
-        porosity: null,
-        chemical_composition: null,
-        application_temperature_range: null,
-        thermal_expansion: null,
-        abrasion_resistance: null,
-        corrosion_resistance: null,
-        thermal_shock_resistance: null,
-
-        // Certifications and Standards
-        certifications: null,
-        standards_compliance: null,
-        quality_grade: null,
-
-        // Additional Information
-        installation_guide: null,
-        safety_data_sheet: null,
-        technical_data_sheet: null,
-        maintenance_guide: null,
     });
 
     // Fetch the last code when modal opens
@@ -134,8 +88,6 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                     <Tabs.List>
                         <Tabs.Tab value="basic">Basic Information</Tabs.Tab>
                         <Tabs.Tab value="technical">Technical Specifications</Tabs.Tab>
-                        <Tabs.Tab value="certifications">Certifications</Tabs.Tab>
-                        <Tabs.Tab value="documents">Documents</Tabs.Tab>
                     </Tabs.List>
 
                     <Tabs.Panel value="basic">
@@ -178,20 +130,11 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                             <Grid>
                                 <Grid.Col span={6}>
                                     <Textarea
-                                        label="Description 1"
-                                        placeholder="Enter primary description"
-                                        value={data.description_1 || ''}
-                                        onChange={(e) => setData('description_1', e.target.value || null)}
-                                        error={errors.description_1}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
-                                    <Textarea
-                                        label="Description 2"
-                                        placeholder="Enter secondary description"
-                                        value={data.description_2 || ''}
-                                        onChange={(e) => setData('description_2', e.target.value || null)}
-                                        error={errors.description_2}
+                                        label="Description"
+                                        placeholder="Enter product description"
+                                        value={data.description || ''}
+                                        onChange={(e) => setData('description', e.target.value || null)}
+                                        error={errors.description}
                                     />
                                 </Grid.Col>
                             </Grid>
@@ -209,10 +152,15 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                                             { value: 'rmt', label: 'Running Meter' },
                                             { value: 'sqm', label: 'Square Meter' },
                                             { value: 'ltr', label: 'Liter' },
+                                            { value: 'kg', label: 'Kilogram' },
+                                            { value: 'ton', label: 'Ton' },
+                                            { value: 'box', label: 'Box' },
+                                            { value: 'pack', label: 'Pack' },
+                                            { value: 'pcs', label: 'Pieces' },
                                             { value: 'na', label: 'Not Applicable' }
                                         ]}
                                         value={data.unit}
-                                        onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'na' | null)}
+                                        onChange={(value) => setData('unit', value as 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'pcs' | 'na' | null)}
                                         error={errors.unit}
                                     />
                                 </Grid.Col>
@@ -273,13 +221,15 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                                         label="Type"
                                         placeholder="Select type"
                                         data={[
-                                            { value: 'all', label: 'All' },
-                                            { value: 'equipment', label: 'Equipment' },
-                                            { value: 'scaffolding', label: 'Scaffolding' }
+                                            { value: 'consumable', label: 'Consumable' },
+                                            { value: 'spare_part', label: 'Spare Part' },
+                                            { value: 'tool', label: 'Tool' },
+                                            { value: 'material', label: 'Material' },
+                                            { value: 'other', label: 'Other' }
                                         ]}
-                                        value={data.applicable_for}
-                                        onChange={(value) => setData('applicable_for', (value as 'all' | 'equipment' | 'scaffolding') || 'all')}
-                                        error={errors.applicable_for}
+                                        value={data.type}
+                                        onChange={(value) => setData('type', value as 'consumable' | 'spare_part' | 'tool' | 'material' | 'other')}
+                                        error={errors.type}
                                         required
                                     />
                                 </Grid.Col>
@@ -289,10 +239,13 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                                         placeholder="Select status"
                                         data={[
                                             { value: 'active', label: 'Active' },
-                                            { value: 'inactive', label: 'Inactive' }
+                                            { value: 'inactive', label: 'Inactive' },
+                                            { value: 'discontinued', label: 'Discontinued' },
+                                            { value: 'maintenance', label: 'Maintenance' },
+                                            { value: 'retired', label: 'Retired' }
                                         ]}
                                         value={data.status}
-                                        onChange={(value) => setData('status', (value as 'active' | 'inactive') || 'active')}
+                                        onChange={(value) => setData('status', (value as 'active' | 'inactive' | 'discontinued' | 'maintenance' | 'retired') || 'active')}
                                         error={errors.status}
                                         required
                                     />
@@ -306,187 +259,189 @@ export default function CreateRefractoryProductModal({ opened, onClose, loadData
                             <Grid>
                                 <Grid.Col span={4}>
                                     <NumberInput
-                                        label="Temperature Rating (°C)"
-                                        placeholder="Enter temperature rating"
-                                        value={data.temperature_rating || undefined}
-                                        onChange={(value) => setData('temperature_rating', value ? Number(value) : null)}
-                                        error={errors.temperature_rating}
+                                        label="Standard Cost"
+                                        placeholder="Enter standard cost"
+                                        value={data.standard_cost || undefined}
+                                        onChange={(value) => setData('standard_cost', value ? Number(value) : null)}
+                                        error={errors.standard_cost}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
                                     <NumberInput
-                                        label="Max Service Temperature (°C)"
-                                        placeholder="Enter max service temperature"
-                                        value={data.max_service_temperature || undefined}
-                                        onChange={(value) => setData('max_service_temperature', value ? Number(value) : null)}
-                                        error={errors.max_service_temperature}
+                                        label="Selling Price"
+                                        placeholder="Enter selling price"
+                                        value={data.selling_price || undefined}
+                                        onChange={(value) => setData('selling_price', value ? Number(value) : null)}
+                                        error={errors.selling_price}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
                                     <NumberInput
-                                        label="Thermal Conductivity (W/m·K)"
-                                        placeholder="Enter thermal conductivity"
-                                        value={data.thermal_conductivity || undefined}
-                                        onChange={(value) => setData('thermal_conductivity', value ? Number(value) : null)}
-                                        error={errors.thermal_conductivity}
+                                        label="Rental Rate"
+                                        placeholder="Enter rental rate"
+                                        value={data.rental_rate || undefined}
+                                        onChange={(value) => setData('rental_rate', value ? Number(value) : null)}
+                                        error={errors.rental_rate}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
-                                    <NumberInput
-                                        label="Bulk Density (g/cm³)"
-                                        placeholder="Enter bulk density"
-                                        value={data.bulk_density || undefined}
-                                        onChange={(value) => setData('bulk_density', value ? Number(value) : null)}
-                                        error={errors.bulk_density}
+                                    <TextInput
+                                        label="Model Number"
+                                        placeholder="Enter model number"
+                                        value={data.model_no || ''}
+                                        onChange={(e) => setData('model_no', e.target.value)}
+                                        error={errors.model_no}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
-                                    <NumberInput
-                                        label="Cold Crushing Strength (MPa)"
-                                        placeholder="Enter cold crushing strength"
-                                        value={data.cold_crushing_strength || undefined}
-                                        onChange={(value) => setData('cold_crushing_strength', value ? Number(value) : null)}
-                                        error={errors.cold_crushing_strength}
+                                    <TextInput
+                                        label="Max Capacity"
+                                        placeholder="Enter max capacity"
+                                        value={data.max_capacity || ''}
+                                        onChange={(e) => setData('max_capacity', e.target.value || null)}
+                                        error={errors.max_capacity}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={4}>
-                                    <NumberInput
-                                        label="Porosity (%)"
-                                        placeholder="Enter porosity"
-                                        value={data.porosity || undefined}
-                                        onChange={(value) => setData('porosity', value ? Number(value) : null)}
-                                        error={errors.porosity}
+                                    <TextInput
+                                        label="Readability"
+                                        placeholder="Enter readability"
+                                        value={data.readability || ''}
+                                        onChange={(e) => setData('readability', e.target.value || null)}
+                                        error={errors.readability}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
                                     <Textarea
-                                        label="Chemical Composition"
-                                        placeholder="Enter chemical composition details"
-                                        value={data.chemical_composition || ''}
-                                        onChange={(e) => setData('chemical_composition', e.target.value || null)}
-                                        error={errors.chemical_composition}
+                                        label="Specifications"
+                                        placeholder="Enter specifications"
+                                        value={data.specifications ? JSON.stringify(data.specifications) : ''}
+                                        onChange={(e) => setData('specifications', e.target.value ? JSON.parse(e.target.value) : null)}
+                                        error={errors.specifications}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Technical Details"
+                                        placeholder="Enter technical details"
+                                        value={data.technical_details ? JSON.stringify(data.technical_details) : ''}
+                                        onChange={(e) => setData('technical_details', e.target.value ? JSON.parse(e.target.value) : null)}
+                                        error={errors.technical_details}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Safety Data"
+                                        placeholder="Enter safety data"
+                                        value={data.safety_data ? JSON.stringify(data.safety_data) : ''}
+                                        onChange={(e) => setData('safety_data', e.target.value ? JSON.parse(e.target.value) : null)}
+                                        error={errors.safety_data}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Storage Location"
+                                        placeholder="Enter storage location"
+                                        value={data.storage_location || ''}
+                                        onChange={(e) => setData('storage_location', e.target.value || null)}
+                                        error={errors.storage_location}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Storage Conditions"
+                                        placeholder="Enter storage conditions"
+                                        value={data.storage_conditions || ''}
+                                        onChange={(e) => setData('storage_conditions', e.target.value || null)}
+                                        error={errors.storage_conditions}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Storage Instructions"
+                                        placeholder="Enter storage instructions"
+                                        value={data.storage_instructions || ''}
+                                        onChange={(e) => setData('storage_instructions', e.target.value || null)}
+                                        error={errors.storage_instructions}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
                                     <TextInput
-                                        label="Application Temperature Range"
-                                        placeholder="Enter temperature range (e.g., 1000-1500°C)"
-                                        value={data.application_temperature_range || ''}
-                                        onChange={(e) => setData('application_temperature_range', e.target.value || null)}
-                                        error={errors.application_temperature_range}
+                                        label="Manufacturer"
+                                        placeholder="Enter manufacturer"
+                                        value={data.manufacturer || ''}
+                                        onChange={(e) => setData('manufacturer', e.target.value)}
+                                        error={errors.manufacturer}
                                     />
                                 </Grid.Col>
-                                <Grid.Col span={4}>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Supplier"
+                                        placeholder="Enter supplier"
+                                        value={data.supplier || ''}
+                                        onChange={(e) => setData('supplier', e.target.value || null)}
+                                        error={errors.supplier}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Warranty Period"
+                                        placeholder="Enter warranty period"
+                                        value={data.warranty_period || ''}
+                                        onChange={(e) => setData('warranty_period', e.target.value || null)}
+                                        error={errors.warranty_period}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Textarea
+                                        label="Last Purchase Date"
+                                        placeholder="Enter last purchase date"
+                                        value={data.last_purchase_date || ''}
+                                        onChange={(e) => setData('last_purchase_date', e.target.value || null)}
+                                        error={errors.last_purchase_date}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
                                     <NumberInput
-                                        label="Thermal Expansion (×10⁻⁶/°C)"
-                                        placeholder="Enter thermal expansion"
-                                        value={data.thermal_expansion || undefined}
-                                        onChange={(value) => setData('thermal_expansion', value ? Number(value) : null)}
-                                        error={errors.thermal_expansion}
+                                        label="Last Purchase Price"
+                                        placeholder="Enter last purchase price"
+                                        value={data.last_purchase_price || undefined}
+                                        onChange={(value) => setData('last_purchase_price', value ? Number(value) : null)}
+                                        error={errors.last_purchase_price}
                                     />
                                 </Grid.Col>
-                                <Grid.Col span={4}>
-                                    <TextInput
-                                        label="Abrasion Resistance"
-                                        placeholder="Enter abrasion resistance rating"
-                                        value={data.abrasion_resistance || ''}
-                                        onChange={(e) => setData('abrasion_resistance', e.target.value || null)}
-                                        error={errors.abrasion_resistance}
+                                <Grid.Col span={6}>
+                                    <Select
+                                        label="Condition"
+                                        placeholder="Select condition"
+                                        data={[
+                                            { value: 'new', label: 'New' },
+                                            { value: 'good', label: 'Good' },
+                                            { value: 'fair', label: 'Fair' },
+                                            { value: 'poor', label: 'Poor' }
+                                        ]}
+                                        value={data.condition}
+                                        onChange={(value) => setData('condition', value as 'new' | 'good' | 'fair' | 'poor')}
+                                        error={errors.condition}
+                                        required
                                     />
                                 </Grid.Col>
-                                <Grid.Col span={4}>
-                                    <TextInput
-                                        label="Corrosion Resistance"
-                                        placeholder="Enter corrosion resistance details"
-                                        value={data.corrosion_resistance || ''}
-                                        onChange={(e) => setData('corrosion_resistance', e.target.value || null)}
-                                        error={errors.corrosion_resistance}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <TextInput
-                                        label="Thermal Shock Resistance"
-                                        placeholder="Enter thermal shock resistance details"
-                                        value={data.thermal_shock_resistance || ''}
-                                        onChange={(e) => setData('thermal_shock_resistance', e.target.value || null)}
-                                        error={errors.thermal_shock_resistance}
-                                    />
-                                </Grid.Col>
-                            </Grid>
-                        </Stack>
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="certifications">
-                        <Stack>
-                            <Grid>
-                                <Grid.Col span={12}>
+                                <Grid.Col span={6}>
                                     <Textarea
-                                        label="Certifications"
-                                        placeholder="Enter product certifications"
-                                        value={data.certifications || ''}
-                                        onChange={(e) => setData('certifications', e.target.value || null)}
-                                        error={errors.certifications}
+                                        label="Last Maintenance Date"
+                                        placeholder="Enter last maintenance date"
+                                        value={data.last_maintenance_date || ''}
+                                        onChange={(e) => setData('last_maintenance_date', e.target.value || null)}
+                                        error={errors.last_maintenance_date}
                                     />
                                 </Grid.Col>
-                                <Grid.Col span={12}>
+                                <Grid.Col span={6}>
                                     <Textarea
-                                        label="Standards Compliance"
-                                        placeholder="Enter standards compliance details"
-                                        value={data.standards_compliance || ''}
-                                        onChange={(e) => setData('standards_compliance', e.target.value || null)}
-                                        error={errors.standards_compliance}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <TextInput
-                                        label="Quality Grade"
-                                        placeholder="Enter quality grade"
-                                        value={data.quality_grade || ''}
-                                        onChange={(e) => setData('quality_grade', e.target.value || null)}
-                                        error={errors.quality_grade}
-                                    />
-                                </Grid.Col>
-                            </Grid>
-                        </Stack>
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="documents">
-                        <Stack>
-                            <Grid>
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Installation Guide"
-                                        placeholder="Enter installation guide details or URL"
-                                        value={data.installation_guide || ''}
-                                        onChange={(e) => setData('installation_guide', e.target.value || null)}
-                                        error={errors.installation_guide}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Safety Data Sheet"
-                                        placeholder="Enter safety data sheet details or URL"
-                                        value={data.safety_data_sheet || ''}
-                                        onChange={(e) => setData('safety_data_sheet', e.target.value || null)}
-                                        error={errors.safety_data_sheet}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Technical Data Sheet"
-                                        placeholder="Enter technical data sheet details or URL"
-                                        value={data.technical_data_sheet || ''}
-                                        onChange={(e) => setData('technical_data_sheet', e.target.value || null)}
-                                        error={errors.technical_data_sheet}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Maintenance Guide"
-                                        placeholder="Enter maintenance guide details or URL"
-                                        value={data.maintenance_guide || ''}
-                                        onChange={(e) => setData('maintenance_guide', e.target.value || null)}
-                                        error={errors.maintenance_guide}
+                                        label="Next Maintenance Date"
+                                        placeholder="Enter next maintenance date"
+                                        value={data.next_maintenance_date || ''}
+                                        onChange={(e) => setData('next_maintenance_date', e.target.value || null)}
+                                        error={errors.next_maintenance_date}
                                     />
                                 </Grid.Col>
                             </Grid>

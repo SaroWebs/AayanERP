@@ -28,11 +28,11 @@ export default function StatsCard({
     description, 
     icon: Icon, 
     trend, 
-    color = 'blue' 
+    color = 'blue'
 }: StatsCardProps) {
     return (
-        <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-            <CardContent className="p-6">
+        <Card className={`border-sidebar-border/70 dark:border-sidebar-border bg-${color}-50`}>
+            <CardContent className={`p-6`}>
                 <div className="flex items-center justify-between">
                     <div className="flex-1">
                         <p className="text-sm font-medium text-muted-foreground">

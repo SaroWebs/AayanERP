@@ -9,15 +9,7 @@ class EmploymentDetail extends Model
 {
     protected $table = 'employment_details';
 
-    protected $fillable = [
-        'employee_id',
-        'organization',
-        'position',
-        'joining_date',
-        'relieving_date',
-        'salary',
-        'relieving_reason'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'joining_date' => 'date',

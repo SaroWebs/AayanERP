@@ -17,12 +17,12 @@ import {
     Box
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Plus, RefreshCw, Search, Eye, Edit, Trash2, UserPlus, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowRight, Check, ChevronsRight, Circle, Plus, RefreshCw, Search, Star, Target, Zap } from 'lucide-react';
 import { DataTable } from 'mantine-datatable';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { notifications } from '@mantine/notifications';
-import { Enquiry, ENQUIRY_STATUS_COLORS, ENQUIRY_PRIORITY_COLORS, ENQUIRY_TYPE_LABELS } from './types';
+import { Enquiry } from './types';
 import { EnquiryActionModal } from './EnquiryActionModal';
 import { modals } from '@mantine/modals';
 import { Head, usePage } from '@inertiajs/react';
@@ -30,20 +30,69 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, PageProps } from '@/types/index.d';
 import { AddNew } from './partials/AddNew';
 import { EditItem } from './partials/EditItem';
+import { createColumns } from './columns';
 import { PrepareQuotationModal } from './PrepareQuotationModal';
 
-// Add this new component at the top level
+// Design Variation 5: Glassmorphism Style
+function GlassmorphismStepper({ steps, currentStep }: { steps: { label: string; value: string }[]; currentStep: number }) {
+    return (
+        <div className="flex items-center justify-center gap-0 p-6 bg-transparent">
+            {steps.map((step, idx) => {
+                const isActive = idx === currentStep;
+                const isCompleted = idx < currentStep;
+                return (
+                    <div key={step.value} className="flex items-center gap-0">
+                        <div className="flex flex-col items-center gap-2">
+                            <div
+                                className={`w-8 h-8 rounded-2xl flex items-center justify-center transition-all duration-300 backdrop-blur-sm border ${isActive
+                                    ? 'bg-white/30 border-white/50 shadow-lg shadow-purple-500/20'
+                                    : isCompleted
+                                        ? 'bg-emerald-500/20 border-emerald-400/50'
+                                        : 'bg-white/10 border-white/20'
+                                    }`}
+                            >
+                                {isCompleted ? (
+                                    <Check className="text-emerald-400" size={20} />
+                                ) : isActive ? (
+                                    <Target className="text-purple-600" size={20} />
+                                ) : (
+                                    <span className="text-gray-600 font-bold">{idx + 1}</span>
+                                )}
+                            </div>
+                            <span
+                                className={`text-xs font-medium transition-colors ${isActive ? 'text-purple-700' : isCompleted ? 'text-emerald-600' : 'text-gray-600'
+                                    }`}
+                            >
+                                {step.label}
+                            </span>
+                        </div>
+                        {idx < steps.length - 1 && (
+                            <div className="w-12 h-px bg-gradient-to-r from-purple-300/50 to-pink-300/50 mx-2" />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+
 function EnquiryWorkflow({ status }: { status: Enquiry['status'] }) {
     const steps = [
-        { label: 'Draft', value: 'draft' },
         { label: 'Under Review', value: 'under_review' },
-        { label: 'Quoted', value: 'quoted' },
-        { label: 'Pending Approval', value: 'pending_approval' },
+        { label: 'Pending Approve', value: 'pending_approval' },
         { label: 'Approved', value: 'approved' },
+        { label: 'Quoted', value: 'quoted' },
         { label: 'Converted', value: 'converted' }
     ];
 
-    const currentStep = steps.findIndex(step => step.value === status);
+    // Map status to step index
+    let currentStep = steps.findIndex(step => step.value === status);
+    if (currentStep === -1) {
+        // If status is before 'under_review', highlight the first step
+        if (status === 'draft' || status === 'pending_review') currentStep = 0;
+        else currentStep = 0;
+    }
     const isLost = status === 'lost';
     const isCancelled = status === 'cancelled';
 
@@ -61,15 +110,7 @@ function EnquiryWorkflow({ status }: { status: Enquiry['status'] }) {
     return (
         <Box mt="md">
             <Text size="sm" c="dimmed" mb="xs">Workflow Progress:</Text>
-            <Stepper active={currentStep} size="sm">
-                {steps.map((step) => (
-                    <Stepper.Step
-                        key={step.value}
-                        label={step.label}
-                        state={steps.findIndex(s => s.value === status) >= steps.findIndex(s => s.value === step.value) ? 'stepCompleted' : 'stepInactive'}
-                    />
-                ))}
-            </Stepper>
+            <GlassmorphismStepper steps={steps} currentStep={currentStep} />
         </Box>
     );
 }
@@ -78,19 +119,17 @@ export default function EnquiriesPage() {
     const { auth } = usePage<PageProps>().props;
     const queryClient = useQueryClient();
 
-    // States for search and pagination
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
-    // States for selected enquiry and modals
     const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
     const [addNewModalOpened, setAddNewModalOpened] = useState(false);
     const [editModalOpened, setEditModalOpened] = useState(false);
     const [actionModalOpened, { open: openActionModal, close: closeActionModal }] = useDisclosure(false);
-    const [quotationModalOpened, setQuotationModalOpened] = useState(false);
     const [actionType, setActionType] = useState<'view' | 'edit' | 'create' | 'assign'>('view');
+    const [quotationModalOpen, setQuotationModalOpen] = useState(false);
+    const [quotationEnquiry, setQuotationEnquiry] = useState<Enquiry | null>(null);
 
-    // Fetch enquiries with search and pagination
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['enquiries', search, page],
         queryFn: async () => {
@@ -105,7 +144,6 @@ export default function EnquiriesPage() {
     const totalRecords = data?.total ?? 0;
     const recordsPerPage = data?.per_page ?? 10;
 
-    // Fetch users for assignment
     const { data: users = [] } = useQuery({
         queryKey: ['users'],
         queryFn: async () => {
@@ -114,7 +152,6 @@ export default function EnquiriesPage() {
         }
     });
 
-    // Fetch clients for dropdowns
     const { data: clients = [] } = useQuery({
         queryKey: ['clients'],
         queryFn: async () => {
@@ -123,7 +160,6 @@ export default function EnquiriesPage() {
         }
     });
 
-    // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async (id: number) => {
             await axios.delete(`/sales/enquiries/${id}`);
@@ -145,18 +181,9 @@ export default function EnquiriesPage() {
         }
     });
 
-    // Status change mutation
     const statusMutation = useMutation({
-        mutationFn: async ({ id, status, remarks }: { id: number; status: Enquiry['status']; remarks?: string }) => {
-            const endpoint = status === 'pending_review' ? 'submit' :
-                status === 'approved' ? 'approve' :
-                    status === 'converted' ? 'convert' :
-                        status === 'cancelled' ? 'cancel' :
-                            status === 'lost' ? 'reject' : 'update';
-            await axios.post(`/sales/enquiries/${id}/${endpoint}`, {
-                status,
-                approval_remarks: remarks
-            });
+        mutationFn: async ({ id, endpoint, remarks }: { id: number; endpoint: string; remarks?: string }) => {
+            await axios.post(`/sales/enquiries/${id}/${endpoint}`, { approval_remarks: remarks });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['enquiries'] });
@@ -175,7 +202,6 @@ export default function EnquiriesPage() {
         }
     });
 
-    // Assign mutation
     const assignMutation = useMutation({
         mutationFn: async ({ id, userId }: { id: number; userId: number }) => {
             await axios.post(`/sales/enquiries/${id}/assign`, { assigned_to: userId });
@@ -198,7 +224,6 @@ export default function EnquiriesPage() {
         }
     });
 
-    // Action handlers
     const handleView = useCallback((enquiry: Enquiry) => {
         setSelectedEnquiry(enquiry);
         setActionType('view');
@@ -234,10 +259,36 @@ export default function EnquiriesPage() {
         });
     }, [deleteMutation]);
 
-    const handlePrepareQuotation = useCallback((enquiry: Enquiry) => {
-        setSelectedEnquiry(enquiry);
-        setQuotationModalOpened(true);
-    }, []);
+    const handleStatusChange = useCallback((enquiry: Enquiry, status: Enquiry['status']) => {
+        const endpointMapping: Partial<Record<Enquiry['status'], string>> = {
+            pending_review: 'submit',
+            under_review: 'pending_review',
+            quoted: 'quoted',
+            pending_approval: 'pending-approval',
+            approved: 'approve',
+            converted: 'convert',
+            lost: 'reject',
+            cancelled: 'cancel',
+        };
+        const endpoint = endpointMapping[status];
+
+        if (!endpoint) {
+            notifications.show({ title: 'Error', message: 'Invalid action.', color: 'red' });
+            return;
+        }
+
+        modals.openConfirmModal({
+            title: 'Confirm Action',
+            children: (
+                <Text size="sm">
+                    Are you sure you want to {status.replace(/_/g, ' ')} enquiry {enquiry.enquiry_no}?
+                </Text>
+            ),
+            labels: { confirm: 'Confirm', cancel: 'Cancel' },
+            confirmProps: { color: 'blue' },
+            onConfirm: () => statusMutation.mutate({ id: enquiry.id, endpoint }),
+        });
+    }, [statusMutation]);
 
     const handleAssignSubmit = useCallback((userId: number) => {
         if (selectedEnquiry) {
@@ -245,135 +296,21 @@ export default function EnquiriesPage() {
         }
     }, [selectedEnquiry, assignMutation]);
 
-    // Add this function to determine available actions
-    const getAvailableActions = useCallback((enquiry: Enquiry) => {
-        const actions = [];
-        
-        // View is always available
-        actions.push({
-            icon: <Eye size={16} />,
-            label: 'View',
-            color: 'blue',
-            onClick: () => handleView(enquiry)
-        });
+    const handlePrepareQuotation = useCallback((enquiry: Enquiry) => {
+        setQuotationEnquiry(enquiry);
+        setQuotationModalOpen(true);
+    }, []);
 
-        // Edit is available for draft and pending_review
-        if (['draft', 'pending_review'].includes(enquiry.status)) {
-            actions.push({
-                icon: <Edit size={16} />,
-                label: 'Edit',
-                color: 'yellow',
-                onClick: () => handleEdit(enquiry)
-            });
-        }
-
-        // Assign is available for draft and pending_review
-        if (['draft', 'pending_review'].includes(enquiry.status)) {
-            actions.push({
-                icon: <UserPlus size={16} />,
-                label: 'Assign',
-                color: 'green',
-                onClick: () => handleAssign(enquiry)
-            });
-        }
-
-        // Prepare Quotation is available for approved status
-        if (enquiry.status === 'approved') {
-            actions.push({
-                icon: <FileText size={16} />,
-                label: 'Prepare Quotation',
-                color: 'violet',
-                onClick: () => handlePrepareQuotation(enquiry)
-            });
-        }
-
-        // Delete is only available for draft
-        if (enquiry.status === 'draft') {
-            actions.push({
-                icon: <Trash2 size={16} />,
-                label: 'Delete',
-                color: 'red',
-                onClick: () => handleDelete(enquiry)
-            });
-        }
-
-        return actions;
-    }, [handleView, handleEdit, handleAssign, handlePrepareQuotation, handleDelete]);
-
-    // Create table columns with simplified view
-    const columns = useMemo(() => [
-        {
-            accessor: 'enquiry_no',
-            title: 'Enquiry No',
-            width: 120,
-        },
-        {
-            accessor: 'client.name',
-            title: 'Client',
-            width: 200,
-        },
-        {
-            accessor: 'subject',
-            title: 'Subject',
-            width: 250,
-        },
-        {
-            accessor: 'type',
-            title: 'Type',
-            width: 120,
-            render: (enquiry: Enquiry) => (
-                <Badge color="blue" variant="light">
-                    {ENQUIRY_TYPE_LABELS[enquiry.type]}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'priority',
-            title: 'Priority',
-            width: 120,
-            render: (enquiry: Enquiry) => (
-                <Badge color={ENQUIRY_PRIORITY_COLORS[enquiry.priority]} variant="light">
-                    {enquiry.priority}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'status',
-            title: 'Status',
-            width: 150,
-            render: (enquiry: Enquiry) => (
-                <Badge color={ENQUIRY_STATUS_COLORS[enquiry.status]} variant="light">
-                    {enquiry.status.replace('_', ' ')}
-                </Badge>
-            ),
-        },
-        {
-            accessor: 'enquiry_date',
-            title: 'Date',
-            width: 120,
-            render: (enquiry: Enquiry) => new Date(enquiry.enquiry_date).toLocaleDateString(),
-        },
-        {
-            accessor: 'actions',
-            title: 'Actions',
-            width: 120,
-            render: (enquiry: Enquiry) => (
-                <Group gap={4} justify="flex-end">
-                    {getAvailableActions(enquiry).map((action, index) => (
-                        <Tooltip key={index} label={action.label}>
-                            <ActionIcon
-                                variant="light"
-                                color={action.color}
-                                onClick={action.onClick}
-                            >
-                                {action.icon}
-                            </ActionIcon>
-                        </Tooltip>
-                    ))}
-                </Group>
-            ),
-        },
-    ], [getAvailableActions]);
+    const columns = useMemo(() => createColumns({
+        onView: handleView,
+        onEdit: handleEdit,
+        onDelete: handleDelete,
+        onAssign: handleAssign,
+        onStatusChange: handleStatusChange,
+        onApprove: (enquiry) => handleStatusChange(enquiry, 'approved'),
+        onPrepareQuotation: handlePrepareQuotation,
+        currentUserId: auth.user.id
+    }), [handleView, handleEdit, handleDelete, handleAssign, handleStatusChange, handlePrepareQuotation, auth.user.id]);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -391,7 +328,6 @@ export default function EnquiriesPage() {
             <Head title="Enquiries" />
             <Container size="xl" className='w-full m-4'>
                 <Stack>
-                    {/* Header Section with Search and Add Button */}
                     <Group justify="space-between" align="center">
                         <Title order={2}>Enquiries</Title>
                         <Group>
@@ -421,7 +357,6 @@ export default function EnquiriesPage() {
                         </Group>
                     </Group>
 
-                    {/* Enquiries Table */}
                     <Paper pos="relative" withBorder>
                         <LoadingOverlay visible={isLoading} />
                         <DataTable
@@ -443,7 +378,6 @@ export default function EnquiriesPage() {
                     </Paper>
                 </Stack>
 
-                {/* Modals */}
                 {addNewModalOpened && (
                     <AddNew
                         opened={addNewModalOpened}
@@ -474,7 +408,7 @@ export default function EnquiriesPage() {
                         actionType === 'view' ? 'View Enquiry' :
                             actionType === 'assign' ? 'Assign Enquiry' : ''
                     }
-                    size="xl"
+                    size="100%"
                 >
                     {selectedEnquiry && actionType === 'view' && (
                         <Stack>
@@ -499,20 +433,15 @@ export default function EnquiriesPage() {
                     )}
                 </Modal>
 
-                {quotationModalOpened && selectedEnquiry && (
+                {quotationModalOpen && quotationEnquiry && (
                     <PrepareQuotationModal
-                        opened={quotationModalOpened}
-                        onClose={() => {
-                            setQuotationModalOpened(false);
-                            refetch();
-                        }}
-                        enquiry={selectedEnquiry}
+                        opened={quotationModalOpen}
+                        onClose={() => setQuotationModalOpen(false)}
+                        enquiry={quotationEnquiry}
                         onSuccess={() => {
-                            statusMutation.mutate({
-                                id: selectedEnquiry.id,
-                                status: 'quoted'
-                            });
-                            setQuotationModalOpened(false);
+                            setQuotationModalOpen(false);
+                            setQuotationEnquiry(null);
+                            refetch();
                         }}
                     />
                 )}

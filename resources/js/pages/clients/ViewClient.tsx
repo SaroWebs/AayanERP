@@ -118,7 +118,7 @@ const ViewClient = ({ client, opened, onClose }: ViewClientProps) => {
 
                     <Tabs.Panel value="contact_details">
                         <Paper shadow="xs" p="md">
-                            {client.contacts.length > 0 ? (
+                            {client.contacts?.length > 0 ? (
                                 <Table>
                                     <Table.Thead>
                                         <Table.Tr>

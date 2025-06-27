@@ -76,37 +76,51 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
         }
     };
 
-    const handleSubmit = async (values: ClientForm) => {
+    // Modular save handlers
+    const handleSaveBasicProfile = async () => {
+        setLoading(true);
         try {
+            const values = form.values;
+            const response = await axios.patch(`/data/clients/${client.id}/basic`, values);
+            notifications.show({ title: 'Success', message: 'Basic profile updated', color: 'green' });
+            onUpdate(response.data.client);
+        } catch (error: any) {
+            notifications.show({ title: 'Error', message: error.response?.data?.message || 'Failed to update basic profile', color: 'red' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveBankDetails = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.patch(`/data/clients/${client.id}/bank-accounts`, { bank_accounts: bankAccounts });
+            notifications.show({ title: 'Success', message: 'Bank details updated', color: 'green' });
+            onUpdate(response.data.client);
+        } catch (error: any) {
+            notifications.show({ title: 'Error', message: error.response?.data?.message || 'Failed to update bank details', color: 'red' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveContactDetails = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.patch(`/data/clients/${client.id}/contact-details`, { contact_details: contacts });
+            notifications.show({ title: 'Success', message: 'Contact details updated', color: 'green' });
+            onUpdate(response.data.client);
+        } catch (error: any) {
+            notifications.show({ title: 'Error', message: error.response?.data?.message || 'Failed to update contact details', color: 'red' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveDocuments = async () => {
             setLoading(true);
+        try {
             const formData = new FormData();
-
-            // Basic client details
-            Object.entries(values).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    formData.append(key, value.toString());
-                }
-            });
-
-            // Append bank accounts
-            bankAccounts.forEach((account, index) => {
-                Object.entries(account).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        formData.append(`bank_accounts[${index}][${key}]`, value.toString());
-                    }
-                });
-            });
-
-            // Append contacts
-            contacts.forEach((contact, index) => {
-                Object.entries(contact).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        formData.append(`contact_details[${index}][${key}]`, value.toString());
-                    }
-                });
-            });
-
-            // Append documents
             documents.forEach((doc, index) => {
                 Object.entries(doc).forEach(([key, value]) => {
                     if (value !== null && value !== undefined) {
@@ -118,37 +132,15 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
                     }
                 });
             });
-
-            const response = await axios.put(`/data/clients/${client.id}`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
+            const response = await axios.patch(`/data/clients/${client.id}/documents`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
-
-            notifications.show({
-                title: 'Success',
-                message: 'Client updated successfully',
-                color: 'green',
-            });
+            notifications.show({ title: 'Success', message: 'Documents updated', color: 'green' });
             onUpdate(response.data.client);
-            onClose();
         } catch (error: any) {
-            notifications.show({
-                title: 'Error',
-                message: error.response?.data?.message || 'Failed to update client',
-                color: 'red',
-            });
+            notifications.show({ title: 'Error', message: error.response?.data?.message || 'Failed to update documents', color: 'red' });
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleSaveClient = () => {
-        if (formRef.current) {
-            setActiveTab('basic_profile');
-            setTimeout(() => {
-                formRef.current?.requestSubmit();
-            }, 100);
         }
     };
 
@@ -170,7 +162,7 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
 
                 <Stack gap="lg" mt="md">
                     <Tabs.Panel value="basic_profile">
-                        <form ref={formRef} onSubmit={form.onSubmit(handleSubmit)}>
+                        <form ref={formRef} onSubmit={form.onSubmit(handleSaveBasicProfile)}>
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 gap-6">
                                     <TextInput
@@ -270,6 +262,9 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
                                         disabled={sameAsAddress}
                                     />
                                 </div>
+                                <Group justify="flex-end" mt="md">
+                                    <Button type="submit" loading={loading}>Save Basic Profile</Button>
+                                </Group>
                             </div>
                         </form>
                     </Tabs.Panel>
@@ -279,6 +274,9 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
                             bankAccounts={bankAccounts}
                             onBankAccountsChange={setBankAccounts}
                         />
+                        <Group justify="flex-end" mt="md">
+                            <Button onClick={handleSaveBankDetails} loading={loading}>Save Bank Details</Button>
+                        </Group>
                     </Tabs.Panel>
 
                     <Tabs.Panel value="contact_details">
@@ -286,6 +284,9 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
                             contacts={contacts}
                             onContactsChange={setContacts}
                         />
+                        <Group justify="flex-end" mt="md">
+                            <Button onClick={handleSaveContactDetails} loading={loading}>Save Contact Details</Button>
+                        </Group>
                     </Tabs.Panel>
 
                     <Tabs.Panel value="documents">
@@ -293,15 +294,15 @@ const EditClient = ({ client, opened, onClose, onUpdate }: EditClientProps) => {
                             documents={documents}
                             onDocumentsChange={setDocuments}
                         />
+                        <Group justify="flex-end" mt="md">
+                            <Button onClick={handleSaveDocuments} loading={loading}>Save Documents</Button>
+                        </Group>
                     </Tabs.Panel>
                 </Stack>
             </Tabs>
 
             <Group justify="flex-end" mt="xl">
                 <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={handleSaveClient} loading={loading}>
-                    Save Changes
-                </Button>
             </Group>
         </Modal>
     );

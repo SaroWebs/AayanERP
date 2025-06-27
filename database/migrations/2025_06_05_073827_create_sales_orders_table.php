@@ -24,7 +24,6 @@ return new class extends Migration
             // Order Details
             $table->string('subject')->nullable();
             $table->text('description')->nullable();
-            $table->enum('type', ['equipment', 'scaffolding', 'both'])->default('equipment');
             $table->enum('status', [
                 'draft',           // Initial draft state
                 'pending_review',  // Waiting for review
@@ -75,14 +74,6 @@ return new class extends Migration
             $table->integer('payment_terms_days')->default(0);
             $table->text('payment_terms')->nullable();
             $table->text('payment_remarks')->nullable();
-            
-            // Equipment Details
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
-            $table->integer('quantity')->default(1);
-            $table->decimal('unit_price', 12, 2)->default(0);
-            $table->decimal('total_price', 12, 2)->default(0);
-            $table->enum('rental_period_unit', ['hours', 'days', 'months', 'years'])->default('days');
-            $table->integer('rental_period')->nullable();
             
             // Delivery Details
             $table->string('delivery_state')->nullable();

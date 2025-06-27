@@ -6,13 +6,13 @@ import RecentActivities from '@/components/widgets/dashboard/RecentActivities';
 import StockAlerts from '@/components/widgets/dashboard/StockAlerts';
 import PendingApprovals from '@/components/widgets/dashboard/PendingApprovals';
 import MonthlyChart from '@/components/widgets/dashboard/MonthlyChart';
-import { 
-    Users, 
-    Building2, 
-    Truck, 
-    Wrench, 
-    Package, 
-    FileText, 
+import {
+    Users,
+    Building2,
+    Truck,
+    Wrench,
+    Package,
+    FileText,
     ShoppingCart,
     AlertTriangle,
     Clock,
@@ -72,19 +72,19 @@ interface DashboardProps {
     }>;
 }
 
-export default function Dashboard({ 
-    stats, 
-    recentActivities, 
-    stockAlerts, 
-    pendingApprovals, 
-    monthlyData 
+export default function Dashboard({
+    stats,
+    recentActivities,
+    stockAlerts,
+    pendingApprovals,
+    monthlyData
 }: DashboardProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <StatsCard
                         title="Total Employees"
                         value={stats.employees.total}
@@ -106,13 +106,6 @@ export default function Dashboard({
                         icon={Truck}
                         color="orange"
                     />
-                    <StatsCard
-                        title="Total Equipment"
-                        value={stats.equipment.total}
-                        description={`${stats.equipment.active} active, ${stats.equipment.maintenance_due} need maintenance`}
-                        icon={Wrench}
-                        color="purple"
-                    />
                 </div>
 
                 {/* Second Row Stats */}
@@ -129,21 +122,21 @@ export default function Dashboard({
                         value={stats.sales.enquiries}
                         description={`${stats.sales.quotations} quotations, ${stats.sales.pending_quotations} pending`}
                         icon={FileText}
-                        color="blue"
+                        color="orange"
                     />
                     <StatsCard
                         title="Sales Orders"
                         value={stats.sales.orders}
                         description="Total confirmed orders"
                         icon={ShoppingCart}
-                        color="green"
+                        color="purple"
                     />
                     <StatsCard
                         title="Purchase Orders"
                         value={stats.purchases.orders}
                         description={`${stats.purchases.pending_orders} pending approval`}
                         icon={Truck}
-                        color="orange"
+                        color="green"
                     />
                 </div>
 

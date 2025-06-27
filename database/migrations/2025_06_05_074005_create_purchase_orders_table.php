@@ -22,16 +22,16 @@ return new class extends Migration
             
             // Order Details
             $table->date('po_date');
-            $table->date('expected_delivery_date');
-            $table->string('delivery_location');
-            $table->string('payment_terms');
-            $table->string('delivery_terms');
+            $table->date('expected_delivery_date')->nullable();
+            $table->string('delivery_location')->nullable();
+            $table->string('payment_terms')->nullable();
+            $table->string('delivery_terms')->nullable();
             $table->string('warranty_terms')->nullable();
             $table->text('special_instructions')->nullable();
             
             // Financial Details
             $table->decimal('total_amount', 15, 2);
-            $table->decimal('tax_amount', 15, 2);
+            $table->decimal('tax_amount', 15, 2)->default(0);
             $table->decimal('freight_amount', 15, 2)->default(0);
             $table->decimal('insurance_amount', 15, 2)->default(0);
             $table->decimal('grand_total', 15, 2);
@@ -67,12 +67,6 @@ return new class extends Migration
             // Soft deletes for data retention
             $table->softDeletes();
             $table->timestamps();
-            
-            // Indexes for better performance
-            $table->index(['po_no', 'status']);
-            $table->index(['vendor_id', 'status']);
-            $table->index(['department_id', 'status']);
-            $table->index('expected_delivery_date');
         });
     }
 

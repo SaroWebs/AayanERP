@@ -9,18 +9,7 @@ class EmpDocument extends Model
 {
     protected $table = 'emp_documents';
 
-    protected $fillable = [
-        'employee_id',
-        'category',
-        'name',
-        'number',
-        'type',
-        'remarks',
-        'sharing_option',
-        'issued_by',
-        'issued_date',
-        'document_url'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'issued_date' => 'date'

@@ -9,13 +9,7 @@ class EmployeeChild extends Model
 {
     protected $table = 'employee_children';
 
-    protected $fillable = [
-        'employee_id',
-        'children_name',
-        'children_dob',
-        'children_gender',
-        'qualification'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'children_dob' => 'date'

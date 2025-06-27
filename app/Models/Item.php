@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Category;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Item extends Model
 {
@@ -14,35 +16,116 @@ class Item extends Model
 
     protected $guarded = [];
 
-    protected $casts = [
-        'status' => 'string',
-        'unit' => 'string',
-        'applicable_for' => 'string',
-        'minimum_stock' => 'integer',
-        'maximum_stock' => 'integer',
-        'reorder_point' => 'integer',
-        'sort_order' => 'integer',
-        'current_stock' => 'integer',
+    protected $fillable = [
+        'code',
+        'name',
+        'slug',
+        'category_id',
+        'hsn',
+        'description',
+        'make',
+        'model_no',
+        'max_capacity',
+        'readability',
+        'plateform_size',
+        'plateform_moc',
+        'indicator_moc',
+        'load_plate',
+        'indicator_mounding',
+        'quality',
+        'type',
+        'unit',
+        'status',
+        'minimum_stock',
+        'current_stock',
+        'maximum_stock',
+        'reorder_point',
+        'reorder_quantity',
+        'standard_cost',
+        'selling_price',
+        'rental_rate',
+        'specifications',
+        'technical_details',
+        'safety_data',
+        'storage_location',
+        'storage_conditions',
+        'storage_instructions',
+        'manufacturer',
+        'supplier',
+        'warranty_period',
+        'last_purchase_date',
+        'last_purchase_price',
+        'sort_order'
     ];
 
-    /**
-     * Validation rules for the model.
-     */
-    public static $rules = [
-        'name' => 'required|string|max:255',
-        'code' => 'required|string|max:50|unique:items',
-        'description_1' => 'nullable|string',
-        'description_2' => 'nullable|string',
-        'applicable_for' => 'required|in:all,equipment,scaffolding',
-        'hsn' => 'nullable|string|max:50',
-        'unit' => 'nullable|in:set,nos,rmt,sqm,ltr,na',
-        'minimum_stock' => 'required|integer|min:0',
-        'current_stock' => 'required|integer|min:0',
-        'maximum_stock' => 'nullable|integer|min:0|gt:minimum_stock',
-        'reorder_point' => 'nullable|integer|min:0',
-        'sort_order' => 'integer|min:0',
-        'status' => 'required|in:active,inactive',
+    protected $casts = [
+        'category_id' => 'integer',
+        'minimum_stock' => 'decimal:2',
+        'current_stock' => 'decimal:2',
+        'maximum_stock' => 'decimal:2',
+        'reorder_point' => 'decimal:2',
+        'reorder_quantity' => 'decimal:2',
+        'standard_cost' => 'decimal:2',
+        'selling_price' => 'decimal:2',
+        'rental_rate' => 'decimal:2',
+        'specifications' => 'array',
+        'technical_details' => 'array',
+        'safety_data' => 'array',
+        'last_purchase_date' => 'date',
+        'last_purchase_price' => 'decimal:2',
+        'sort_order' => 'integer',
+        'status' => 'string',
+        'type' => 'string',
+        'unit' => 'string',
     ];
+
+    public static $rules = [
+        'code' => 'required|string|max:50|unique:items,code',
+        'name' => 'required|string|max:255|unique:items,name',
+        'slug' => 'nullable|string|max:255|unique:items,slug',
+        'category_id' => 'nullable|exists:categories,id',
+        'hsn' => 'nullable|string|max:50',
+        'description' => 'nullable|string',
+        'make' => 'nullable|string|max:255',
+        'model_no' => 'nullable|string|max:255',
+        'max_capacity' => 'nullable|string|max:255',
+        'readability' => 'nullable|string|max:255',
+        'plateform_size' => 'nullable|string|max:255',
+        'plateform_moc' => 'nullable|string|max:255',
+        'indicator_moc' => 'nullable|string|max:255',
+        'load_plate' => 'nullable|string|max:255',
+        'indicator_mounding' => 'nullable|string|max:255',
+        'quality' => 'nullable|string|max:255',
+        'type' => 'required|in:consumable,spare_part,tool,material,other',
+        'unit' => 'nullable|in:set,nos,rmt,sqm,ltr,kg,ton,box,pack,pcs,na',
+        'status' => 'required|in:active,inactive,discontinued',
+        'minimum_stock' => 'nullable|numeric|min:0',
+        'current_stock' => 'nullable|numeric|min:0',
+        'maximum_stock' => 'nullable|numeric|min:0',
+        'reorder_point' => 'nullable|numeric|min:0',
+        'reorder_quantity' => 'nullable|numeric|min:0',
+        'standard_cost' => 'nullable|numeric|min:0',
+        'selling_price' => 'nullable|numeric|min:0',
+        'rental_rate' => 'nullable|numeric|min:0',
+        'specifications' => 'nullable|array',
+        'technical_details' => 'nullable|array',
+        'safety_data' => 'nullable|array',
+        'storage_location' => 'nullable|string|max:255',
+        'storage_conditions' => 'nullable|string|max:255',
+        'storage_instructions' => 'nullable|string',
+        'manufacturer' => 'nullable|string|max:255',
+        'supplier' => 'nullable|string|max:255',
+        'warranty_period' => 'nullable|string|max:255',
+        'last_purchase_date' => 'nullable|date',
+        'last_purchase_price' => 'nullable|numeric|min:0',
+        'sort_order' => 'nullable|integer|min:0',
+    ];
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
 
     /**
      * Get the stock movements for the item.
@@ -68,13 +151,6 @@ class Item extends Model
         return $query->where('status', 'active');
     }
 
-    /**
-     * Scope a query to filter by applicable type.
-     */
-    public function scopeApplicableFor($query, $type)
-    {
-        return $query->where('applicable_for', $type);
-    }
 
     /**
      * Scope a query to order by sort order.

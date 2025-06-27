@@ -9,12 +9,7 @@ class EmployeeReference extends Model
 {
     protected $table = 'employee_refferences';
 
-    protected $fillable = [
-        'employee_id',
-        'reference_name',
-        'designation',
-        'reference_address'
-    ];
+    protected $guarded = [];
 
     public function employee(): BelongsTo
     {

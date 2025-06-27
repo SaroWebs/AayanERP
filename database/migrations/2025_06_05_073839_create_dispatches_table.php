@@ -51,12 +51,6 @@ return new class extends Migration
             $table->date('actual_delivery_date')->nullable();
             $table->date('return_date')->nullable();
             
-            // Equipment Details
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
-            $table->integer('quantity')->default(1);
-            $table->enum('rental_period_unit', ['hours', 'days', 'months', 'years'])->default('days');
-            $table->integer('rental_period')->nullable();
-            
             // Transport Details
             $table->enum('transport_mode', [
                 'road',           // Road transport

@@ -38,14 +38,6 @@ class PurchaseOrderItem extends Model
     }
 
     /**
-     * Get the equipment for this purchase order item.
-     */
-    public function equipment(): BelongsTo
-    {
-        return $this->belongsTo(Equipment::class);
-    }
-
-    /**
      * Scope a query to only include pending items.
      */
     public function scopePending($query)

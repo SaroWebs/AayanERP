@@ -19,7 +19,7 @@ class RoleAndPermissionSeeder extends Seeder
         // Create permissions for each module
         $modules = [
             'users', 'roles', 'departments', 'categories',
-            'employees', 'items', 'equipment', 'vendors',
+            'employees', 'items', 'vendors',
             'clients', 'enquiries', 'quotations', 'sales_orders',
             'sales_bills', 'dispatches', 'purchase_intents',
             'purchase_orders', 'goods_receipt_notes'

@@ -23,7 +23,6 @@ return new class extends Migration
             // Enquiry Details
             $table->string('subject')->nullable();
             $table->text('description')->nullable();
-            $table->enum('type', ['equipment', 'scaffolding', 'both'])->default('equipment');
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
             
             // Status Management

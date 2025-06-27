@@ -10,15 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Department extends Model
 {
     use SoftDeletes;
-
-    protected $fillable = [
-        'name',
-        'code',
-        'description',
-        'status',
-        'parent_id',
-        'sort_order'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'sort_order' => 'integer',

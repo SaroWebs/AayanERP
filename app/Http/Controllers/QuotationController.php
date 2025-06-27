@@ -64,6 +64,15 @@ class QuotationController extends Controller
         ]);
     }
 
+    public function show(Request $request, Quotation $quotation)
+    {
+        $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'approver', 'items']);
+
+        return Inertia::render('sales/quotations/show', [
+            'quotation' => $quotation,
+        ]);
+    }
+
     /**
      * Store a newly created quotation in storage.
      */
@@ -96,7 +105,7 @@ class QuotationController extends Controller
             'notes' => ['nullable', 'string'],
             'client_remarks' => ['nullable', 'string'],
             'items' => 'required|array|min:1',
-            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.item_id' => 'required|exists:items,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
@@ -129,7 +138,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation created successfully',
-                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.equipment'])
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items'])
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -170,7 +179,7 @@ class QuotationController extends Controller
             'client_remarks' => ['nullable', 'string'],
             'items' => 'required|array|min:1',
             'items.*.id' => 'nullable|exists:quotation_items,id',
-            'items.*.equipment_id' => 'required|exists:equipment,id',
+            'items.*.item_id' => 'required|exists:items,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
@@ -211,7 +220,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation updated successfully',
-                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.equipment'])
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items'])
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

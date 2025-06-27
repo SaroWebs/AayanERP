@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Vendor;
-use App\Models\VendorBankAccount;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Vendor;
+use Illuminate\Http\Request;
+use App\Models\VendorBankAccount;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -63,7 +64,118 @@ class VendorController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        // Validate basic vendor information
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:vendors,email',
+            'contact_no' => 'nullable|string|max:20',
+            'gstin' => 'nullable|string|max:15|unique:vendors,gstin',
+            'pan_no' => 'nullable|string|max:10|unique:vendors,pan_no',
+            'fax' => 'nullable|string|max:20',
+            'state' => 'nullable|string|max:100',
+            'address' => 'nullable|string|max:500',
+
+            // Bank accounts validation
+            'bank_accounts' => 'nullable|array',
+            'bank_accounts.*.account_holder_name' => 'required_with:bank_accounts.*|string|max:255',
+            'bank_accounts.*.account_number' => 'required_with:bank_accounts.*|string|max:50|unique:vendor_bank_accounts,account_number',
+            'bank_accounts.*.bank_name' => 'required_with:bank_accounts.*|string|max:255',
+            'bank_accounts.*.ifsc' => 'required_with:bank_accounts.*|string|max:11',
+            'bank_accounts.*.branch_address' => 'nullable|string|max:500',
+
+            // Contact details validation (frontend field names)
+            'contact_details' => 'nullable|array',
+            'contact_details.*.name' => 'required_with:contact_details.*|string|max:255',
+            'contact_details.*.designation' => 'nullable|string|max:100',
+            'contact_details.*.mobile' => 'nullable|string|max:20',
+            'contact_details.*.email' => 'nullable|email|max:255',
+            'contact_details.*.landline' => 'nullable|string|max:20',
+            'contact_details.*.is_primary' => 'boolean',
+
+            // Documents validation
+            'documents' => 'nullable|array',
+            'documents.*.document_type' => 'required_with:documents.*|string|max:100',
+            'documents.*.document_name' => 'nullable|string|max:255',
+            'documents.*.document_number' => 'nullable|string|max:100',
+            'documents.*.remarks' => 'nullable|string|max:500',
+            'documents.*.sharing_option' => 'required_with:documents.*|in:public,private',
+            'documents.*.file' => 'nullable|file|max:10240', // 10MB max
+        ]);
+
+        DB::transaction(function () use ($request) {
+            // Create the vendor
+            $vendor = Vendor::create([
+                'name' => $request->name,
+                'code' => 'V' . str_pad(Vendor::count() + 1, 4, '0', STR_PAD_LEFT), // Generate vendor code
+                'type' => 'supplier', // Default type
+                'status' => 'active',
+                'contact_no' => $request->contact_no,
+                'email' => $request->email,
+                'gstin' => $request->gstin,
+                'pan_no' => $request->pan_no,
+                'fax' => $request->fax,
+                'state' => $request->state,
+                'address' => $request->address,
+            ]);
+
+            // Create bank accounts if provided
+            if ($request->has('bank_accounts') && is_array($request->bank_accounts)) {
+                foreach ($request->bank_accounts as $bankAccount) {
+                    $vendor->bankAccounts()->create([
+                        'account_holder_name' => $bankAccount['account_holder_name'],
+                        'account_number' => $bankAccount['account_number'],
+                        'bank_name' => $bankAccount['bank_name'],
+                        'ifsc' => $bankAccount['ifsc'],
+                        'branch_address' => $bankAccount['branch_address'] ?? null,
+                    ]);
+                }
+            }
+
+            // Create contact details if provided
+            if ($request->has('contact_details') && is_array($request->contact_details)) {
+                foreach ($request->contact_details as $contactDetail) {
+                    // Map frontend fields to database fields
+                    $phone = null;
+                    if (!empty($contactDetail['mobile'])) {
+                        $phone = $contactDetail['mobile'];
+                    } elseif (!empty($contactDetail['landline'])) {
+                        $phone = $contactDetail['landline'];
+                    }
+
+                    $vendor->contactDetails()->create([
+                        'contact_person' => $contactDetail['name'], // Map 'name' to 'contact_person'
+                        'department' => null, // Not provided in form
+                        'designation' => $contactDetail['designation'] ?? null,
+                        'phone' => $phone, // Use mobile or landline as phone
+                        'email' => $contactDetail['email'] ?? null,
+                    ]);
+                }
+            }
+
+            // Create documents if provided
+            if ($request->has('documents') && is_array($request->documents)) {
+                foreach ($request->documents as $index => $document) {
+                    $filePath = null;
+                    if (isset($document['file']) && $document['file'] instanceof UploadedFile) {
+                        $filePath = $document['file']->store('vendor_documents', 'public');
+                    }
+
+                    $vendor->documents()->create([
+                        'document_type' => $document['document_type'],
+                        'document_name' => $document['document_name'] ?? null,
+                        'document_number' => $document['document_number'] ?? null,
+                        'remarks' => $document['remarks'] ?? null,
+                        'sharing_option' => $document['sharing_option'],
+                        'document_path' => $filePath,
+                    ]);
+                }
+            }
+        });
+
+        return response()->json([
+            'message' => 'Vendor created successfully.',
+            'success' => true
+        ]);
     }
 
     /**
@@ -72,7 +184,7 @@ class VendorController extends Controller
     public function show(Vendor $vendor)
     {
         $vendor->load(['bankAccounts', 'contactDetails', 'documents']);
-        
+
         return inertia('vendors/ShowVendor', [
             'vendor' => $vendor
         ]);
@@ -181,6 +293,7 @@ class VendorController extends Controller
                         'document_path' => $filePath,
                     ]);
                 }
+                return response()->json(['data' => $vendor->documents(), 'message' => 'Vendor updated successfully.']);
             }
         });
 
@@ -237,7 +350,7 @@ class VendorController extends Controller
         DB::transaction(function () use ($vendor, $validated) {
             // Delete existing bank accounts
             VendorBankAccount::where('vendor_id', $vendor->id)->delete();
-            
+
             // Create new bank accounts if any exist
             if (!empty($validated['bank_accounts'])) {
                 foreach ($validated['bank_accounts'] as $account) {
@@ -277,7 +390,7 @@ class VendorController extends Controller
         DB::transaction(function () use ($vendor, $validated) {
             // Delete existing contact details
             $vendor->contactDetails()->delete();
-            
+
             // Create new contact details if any exist
             if (!empty($validated['contact_details'])) {
                 foreach ($validated['contact_details'] as $contact) {
@@ -315,7 +428,7 @@ class VendorController extends Controller
                 }
             }
             $vendor->documents()->delete();
-            
+
             // Create new documents if any exist
             if (!empty($validated['documents'])) {
                 foreach ($request->documents as $index => $document) {
@@ -336,7 +449,7 @@ class VendorController extends Controller
 
         return response()->json([
             'message' => 'Documents updated successfully',
-            'vendor' => $vendor->fresh(['bankAccounts', 'contactDetails', 'documents'])
+            'vendor' => $vendor->documents()
         ]);
     }
 

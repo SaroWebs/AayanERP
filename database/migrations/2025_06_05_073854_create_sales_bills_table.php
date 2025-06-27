@@ -68,16 +68,6 @@ return new class extends Migration
             $table->decimal('balance_amount', 12, 2)->default(0);
             $table->string('currency', 3)->default('INR');
             
-            // Equipment Details
-            $table->foreignId('equipment_id')->nullable()->constrained('equipment')->nullOnDelete();
-            $table->integer('quantity')->default(1);
-            $table->decimal('unit_price', 12, 2)->default(0);
-            $table->decimal('total_price', 12, 2)->default(0);
-            $table->enum('rental_period_unit', ['hours', 'days', 'months', 'years'])->default('days');
-            $table->integer('rental_period')->nullable();
-            $table->date('rental_start_date')->nullable();
-            $table->date('rental_end_date')->nullable();
-            
             // Billing Details
             $table->string('billing_state')->nullable();
             $table->string('billing_address')->nullable();

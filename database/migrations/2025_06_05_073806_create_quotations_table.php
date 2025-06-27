@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('quotations', function (Blueprint $table) {
             $table->id();
-            $table->string('quotation_no')->unique(); // Auto-generated unique quotation number
-            $table->foreignId('enquiry_id')->constrained('enquiries')->cascadeOnDelete();
+            $table->string('quotation_no')->unique();
+            $table->foreignId('enquiry_id')->nullable()->constrained('enquiries')->nullOnDelete();
             $table->foreignId('client_detail_id')->constrained('client_details')->cascadeOnDelete();
             $table->foreignId('contact_person_id')->nullable()->constrained('client_contact_details')->nullOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
@@ -23,7 +23,6 @@ return new class extends Migration
             // Quotation Details
             $table->string('subject')->nullable();
             $table->text('description')->nullable();
-            $table->enum('type', ['equipment', 'scaffolding', 'both'])->default('equipment');
             $table->enum('status', [
                 'draft',           // Initial draft state
                 'pending_review',  // Waiting for review
@@ -49,7 +48,7 @@ return new class extends Migration
             
             // Dates
             $table->date('quotation_date');
-            $table->date('valid_until');
+            $table->date('valid_until')->nullable();
             $table->date('accepted_date')->nullable();
             $table->date('converted_date')->nullable();
             
@@ -60,7 +59,7 @@ return new class extends Migration
             $table->decimal('discount_percentage', 5, 2)->default(0);
             $table->decimal('discount_amount', 12, 2)->default(0);
             $table->decimal('total_amount', 12, 2)->default(0);
-            $table->string('currency', 3)->default('INR');
+            $table->string('currency')->default('INR');
             
             // Payment Terms
             $table->integer('payment_terms_days')->default(0); // Net days for payment
