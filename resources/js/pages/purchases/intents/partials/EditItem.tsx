@@ -16,13 +16,6 @@ interface Props {
     loading: boolean;
 }
 
-const TYPE_OPTIONS = [
-    { value: 'equipment', label: 'Equipment' },
-    { value: 'materials', label: 'Materials' },
-    { value: 'services', label: 'Services' },
-    { value: 'software', label: 'Software' },
-    { value: 'other', label: 'Other' },
-];
 
 const PRIORITY_OPTIONS = [
     { value: 'low', label: 'Low' },
@@ -36,7 +29,6 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
         initialValues: {
             subject: '',
             description: '',
-            type: 'equipment',
             priority: 'medium',
             intent_date: format(new Date(), 'yyyy-MM-dd'),
             required_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -51,7 +43,6 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
         },
         validate: {
             subject: (value) => (!value ? 'Subject is required' : null),
-            type: (value) => (!value ? 'Type is required' : null),
             priority: (value) => (!value ? 'Priority is required' : null),
             intent_date: (value) => (!value ? 'Intent date is required' : null),
             currency: (value) => (!value ? 'Currency is required' : null),
@@ -64,7 +55,6 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
             form.setValues({
                 subject: intent.subject,
                 description: intent.description || '',
-                type: intent.type,
                 priority: intent.priority,
                 intent_date: intent.intent_date,
                 required_date: intent.required_date || '',
@@ -81,12 +71,27 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
     }, [opened, intent]);
 
     const handleSubmit = (values: Partial<PurchaseIntent>) => {
-        router.put(route('purchases.intents.update', intent.id), values, {
+        const payload = {
+            subject: values.subject,
+            description: values.description,
+            priority: values.priority,
+            intent_date: values.intent_date,
+            required_date: values.required_date,
+            estimated_cost: values.estimated_cost,
+            currency: values.currency,
+            budget_details: values.budget_details,
+            justification: values.justification,
+            specifications: values.specifications,
+            terms_conditions: values.terms_conditions,
+            notes: values.notes,
+            department_id: values.department_id,
+        };
+        router.put(route('purchases.intents.update', intent.id), payload, {
             onSuccess: () => {
                 notifications.show({ message: 'Purchase intent updated successfully', color: 'green' });
                 onClose();
             },
-            onError: (errors) => {
+            onError: () => {
                 notifications.show({ message: 'Failed to update purchase intent', color: 'red' });
             }
         });
@@ -108,7 +113,7 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
                         <Grid>
                             <Grid.Col span={12}>
                                 <TextInput
-                                    label="Subject *"
+                                    label="Subject"
                                     placeholder="Enter intent subject"
                                     value={form.values.subject || ''}
                                     onChange={(e) => form.setFieldValue('subject', e.target.value)}
@@ -126,17 +131,7 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
                             </Grid.Col>
                             <Grid.Col span={6}>
                                 <Select
-                                    label="Type *"
-                                    placeholder="Select type"
-                                    data={TYPE_OPTIONS}
-                                    value={form.values.type || ''}
-                                    onChange={(value) => form.setFieldValue('type', value as PurchaseIntent['type'] || 'equipment')}
-                                    required
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={6}>
-                                <Select
-                                    label="Priority *"
+                                    label="Priority"
                                     placeholder="Select priority"
                                     data={PRIORITY_OPTIONS}
                                     value={form.values.priority || ''}
@@ -159,7 +154,7 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
                             </Grid.Col>
                             <Grid.Col span={6}>
                                 <DateInput
-                                    label="Intent Date *"
+                                    label="Intent Date"
                                     placeholder="Select date"
                                     value={form.values.intent_date ? new Date(form.values.intent_date) : null}
                                     onChange={(value) => form.setFieldValue('intent_date', value ? format(value, 'yyyy-MM-dd') : '')}
@@ -193,7 +188,7 @@ export function EditItem({ opened, onClose, intent, departments, loading }: Prop
                             </Grid.Col>
                             <Grid.Col span={6}>
                                 <Select
-                                    label="Currency *"
+                                    label="Currency"
                                     placeholder="Select currency"
                                     data={getCurrencyOptions()}
                                     value={form.values.currency || DEFAULT_CURRENCY}

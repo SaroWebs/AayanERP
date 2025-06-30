@@ -67,6 +67,12 @@ class ItemController extends Controller
 
         return response()->json($items);
     }
+
+    public function getAllData(Request $request)
+    {
+        $items = Item::get();
+        return response()->json($items);
+    }
     /**
      * Store a newly created resource in storage.
      */

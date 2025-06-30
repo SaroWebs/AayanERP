@@ -16,9 +16,9 @@ interface Props {
 
 const TYPE_OPTIONS = [
     { value: 'equipment', label: 'Equipment' },
-    { value: 'materials', label: 'Materials' },
-    { value: 'services', label: 'Services' },
-    { value: 'software', label: 'Software' },
+    { value: 'scaffolding', label: 'Scaffolding' },
+    { value: 'spares', label: 'Spares' },
+    { value: 'consumables', label: 'Consumables' },
     { value: 'other', label: 'Other' },
 ];
 
@@ -57,7 +57,11 @@ export function AddNew({ opened, onClose, departments, loading }: Props) {
     });
 
     const handleSubmit = (values: Partial<PurchaseIntent>) => {
-        router.post(route('purchases.intents.store'), values, {
+        // Only send primitive fields, exclude any relation fields
+        const {
+            creator, approver, department, ...payload
+        } = values;
+        router.post(route('purchases.intents.store'), payload, {
             onSuccess: () => {
                 notifications.show({ message: 'Purchase intent created successfully', color: 'green' });
                 onClose();
@@ -101,16 +105,7 @@ export function AddNew({ opened, onClose, departments, loading }: Props) {
                                     rows={3}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={6}>
-                                <Select
-                                    label="Type"
-                                    placeholder="Select type"
-                                    data={TYPE_OPTIONS}
-                                    value={form.values.type || ''}
-                                    onChange={(value) => form.setFieldValue('type', value as PurchaseIntent['type'] || 'equipment')}
-                                    required
-                                />
-                            </Grid.Col>
+                            
                             <Grid.Col span={6}>
                                 <Select
                                     label="Priority"

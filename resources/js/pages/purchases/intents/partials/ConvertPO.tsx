@@ -1,7 +1,7 @@
-import { Department, Equipment, Item, PurchaseIntent, Vendor } from '@/types/purchase';
+import { Department, Item, PurchaseIntent, Vendor } from '@/types/purchase';
 import { Button, Grid, Group, Modal, NumberInput, Paper, Select, Stack, Table, Text, Textarea, TextInput, Title, ActionIcon as TableActionIcon } from '@mantine/core'
 import { DateInput } from '@mantine/dates';
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns';
 import { useForm } from '@mantine/form';
 import { router } from '@inertiajs/react';
@@ -9,6 +9,7 @@ import { notifications } from '@mantine/notifications';
 import { formatCurrency } from '@/utils/format';
 import { Plus, Trash2 } from 'lucide-react';
 import { getCurrencyOptions, getCurrencySymbol, DEFAULT_CURRENCY } from '@/utils/currencies';
+import axios from 'axios';
 
 interface PurchaseOrderItemForm {
     item_name: string;
@@ -29,8 +30,171 @@ interface PurchaseOrderItemForm {
     inspection_requirements?: string;
     testing_requirements?: string;
     item_id?: number;
-    equipment_id?: number;
+    status?: string;
+    received_quantity?: number;
+    received_date?: string;
+    receipt_remarks?: string;
 }
+
+interface ItemFormProps {
+    onAddItem: (item: PurchaseOrderItemForm) => void;
+    items: Item[];
+}
+
+const ItemForm = ({ onAddItem, items }: ItemFormProps) => {
+    const itemForm = useForm<PurchaseOrderItemForm>({
+        initialValues: {
+            item_name: '',
+            item_code: '',
+            description: '',
+            specifications: '',
+            quantity: 1,
+            unit: '',
+            unit_price: 0,
+            total_price: 0,
+            notes: '',
+            brand: '',
+            model: '',
+            warranty_period: '',
+            expected_delivery_date: '',
+            delivery_location: '',
+            quality_requirements: '',
+            inspection_requirements: '',
+            testing_requirements: '',
+            item_id: undefined,
+            status: 'pending',
+            received_quantity: 0,
+            received_date: undefined,
+            receipt_remarks: '',
+        },
+        validate: {
+            item_name: (value) => (!value ? 'Item name is required' : null),
+            quantity: (value) => (!value || value <= 0 ? 'Quantity must be greater than 0' : null),
+            unit_price: (value) => (!value || value <= 0 ? 'Unit price must be greater than 0' : null),
+            total_price: (value) => (!value || value <= 0 ? 'Total price must be greater than 0' : null),
+        },
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const validation = itemForm.validate();
+        if (validation.hasErrors) {
+            return;
+        }
+        onAddItem(itemForm.values);
+        itemForm.reset();
+    };
+
+    const handleItemSelect = (itemId: string | null) => {
+        if (!itemId) return;
+        
+        const selectedItem = items.find(item => item.id.toString() === itemId);
+        if (selectedItem) {
+            itemForm.setValues({
+                ...itemForm.values,
+                item_id: selectedItem.id,
+                item_name: selectedItem.name,
+                item_code: selectedItem.code,
+                description: selectedItem.description || '',
+                unit: selectedItem.unit || '',
+                unit_price: selectedItem.standard_cost || 0,
+                total_price: (selectedItem.standard_cost || 0) * itemForm.values.quantity,
+                brand: selectedItem.manufacturer || '',
+                model: selectedItem.model_no || '',
+                warranty_period: selectedItem.warranty_period || '',
+                specifications: selectedItem.specifications || '',
+            });
+        }
+    };
+
+    return (
+        <div>
+            <Title order={5} mb="md">Add Item</Title>
+            <Grid>
+                <Grid.Col span={3}>
+                    <Select
+                        label="Select Item"
+                        placeholder="Choose an item"
+                        data={items.map(item => ({
+                            value: item.id.toString(),
+                            label: item.name
+                        }))}
+                        onChange={handleItemSelect}
+                        searchable
+                        required
+                    />
+                </Grid.Col>
+                <Grid.Col span={3}>
+                    <TextInput
+                        label="Item Name"
+                        placeholder="Enter item name"
+                        value={itemForm.values.item_name}
+                        onChange={(e) => {
+                            itemForm.setFieldValue('item_name', e.target.value);
+                        }}
+                        required
+                        readOnly
+                    />
+                </Grid.Col>
+                <Grid.Col span={1}>
+                    <TextInput
+                        label="Item Code"
+                        placeholder="Enter item code"
+                        value={itemForm.values.item_code || ''}
+                        readOnly
+                    />
+                </Grid.Col>
+                <Grid.Col span={1}>
+                    <NumberInput
+                        label="Quantity"
+                        placeholder="1"
+                        value={itemForm.values.quantity}
+                        onChange={(value) => {
+                            const numValue = typeof value === 'number' ? value : 1;
+                            itemForm.setFieldValue('quantity', numValue);
+                            itemForm.setFieldValue('total_price', numValue * itemForm.values.unit_price);
+                        }}
+                        min={1}
+                        required
+                    />
+                </Grid.Col>
+                <Grid.Col span={2}>
+                    <TextInput
+                        label="Unit"
+                        value={itemForm.values.unit || ''}
+                        readOnly
+                    />
+                </Grid.Col>
+                <Grid.Col span={2}>
+                    <NumberInput
+                        label="Unit Price"
+                        placeholder="0.00"
+                        value={itemForm.values.unit_price}
+                        readOnly
+                    />
+                </Grid.Col>
+                <Grid.Col span={12}>
+                    <Textarea
+                        label="Description"
+                        placeholder="Enter item description"
+                        value={itemForm.values.description || ''}
+                        onChange={(e) => itemForm.setFieldValue('description', e.target.value)}
+                        rows={2}
+                        readOnly
+                    />
+                </Grid.Col>
+
+                <Grid.Col span={12}>
+                    <Group justify="flex-end">
+                        <Button onClick={handleSubmit} leftSection={<Plus size={16} />}>
+                            Add Item
+                        </Button>
+                    </Group>
+                </Grid.Col>
+            </Grid>
+        </div>
+    );
+};
 
 interface PurchaseOrderForm {
     vendor_id: number | null;
@@ -54,7 +218,9 @@ interface PurchaseOrderForm {
     tax_amount: number;
     freight_amount: number;
     insurance_amount: number;
+    total_amount: number;
     grand_total: number;
+    status: string;
     items: PurchaseOrderItemForm[];
 }
 
@@ -65,17 +231,9 @@ interface Props {
     departments: Department[];
     vendors: Vendor[];
     items: Item[];
-    equipment: Equipment[];
 }
 
-const handleConvert = (event: { preventDefault: () => void; }) => {
-    event.preventDefault();
-
-    console.log("Submitting...");
-
-};
-
-const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equipment }: Props) => {
+const ConvertPO = ({ opened, onClose, intent, departments, vendors, items }: Props) => {
     const [converting, setConverting] = useState(false);
 
     const form = useForm<PurchaseOrderForm>({
@@ -101,7 +259,9 @@ const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equip
             tax_amount: 0,
             freight_amount: 0,
             insurance_amount: 0,
+            total_amount: 0,
             grand_total: intent.estimated_cost || 0,
+            status: 'draft',
             items: []
         },
         validate: {
@@ -121,38 +281,10 @@ const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equip
         },
     });
 
-    const itemForm = useForm<PurchaseOrderItemForm>({
-        initialValues: {
-            item_name: '',
-            item_code: '',
-            description: '',
-            specifications: '',
-            quantity: 1,
-            unit: '',
-            unit_price: 0,
-            total_price: 0,
-            notes: '',
-            brand: '',
-            model: '',
-            warranty_period: '',
-            expected_delivery_date: '',
-            delivery_location: '',
-            quality_requirements: '',
-            inspection_requirements: '',
-            testing_requirements: '',
-            item_id: undefined,
-            equipment_id: undefined,
-        },
-        validate: {
-            item_name: (value) => (!value ? 'Item name is required' : null),
-            quantity: (value) => (!value || value <= 0 ? 'Quantity must be greater than 0' : null),
-            unit_price: (value) => (!value || value <= 0 ? 'Unit price must be greater than 0' : null),
-            total_price: (value) => (!value || value <= 0 ? 'Total price must be greater than 0' : null),
-        },
-    });
-
     const itemsTotal = useMemo(() => {
-        return form.values.items.reduce((sum, item) => sum + item.total_price, 0);
+        const total = form.values.items.reduce((sum, item) => sum + item.total_price, 0);
+        form.setFieldValue('total_amount', total);
+        return total;
     }, [form.values.items]);
 
     const grandTotal = useMemo(() => {
@@ -161,27 +293,87 @@ const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equip
         return total;
     }, [itemsTotal, form.values.tax_amount, form.values.freight_amount, form.values.insurance_amount]);
 
-    const addItem = () => {
-        const validation = itemForm.validate();
-        if (validation.hasErrors) {
-            console.log('Item form validation errors:', validation.errors);
-            return;
-        }
-
-        const itemData = { ...itemForm.values };
-        console.log('Adding item:', itemData);
-
-        form.setFieldValue('items', [...form.values.items, itemData]);
-        itemForm.reset();
-
-        console.log('Items after adding:', form.values.items);
+    const addItem = (item: PurchaseOrderItemForm) => {
+        form.setFieldValue('items', [...form.values.items, item]);
     };
 
     const removeItem = (index: number) => {
         form.setFieldValue('items', form.values.items.filter((_, i) => i !== index));
     };
 
-    const handleConvert = (event: { preventDefault: () => void; }) => {
+    const allowedOrderFields = [
+        'vendor_id',
+        'department_id',
+        'po_date',
+        'expected_delivery_date',
+        'delivery_location',
+        'payment_terms',
+        'delivery_terms',
+        'warranty_terms',
+        'special_instructions',
+        'quality_requirements',
+        'inspection_requirements',
+        'testing_requirements',
+        'certification_requirements',
+        'quotation_reference',
+        'contract_reference',
+        'project_reference',
+        'currency',
+        'exchange_rate',
+        'tax_amount',
+        'freight_amount',
+        'insurance_amount',
+        'grand_total',
+        'total_amount',
+        'status',
+        'items',
+    ];
+
+    const allowedItemFields = [
+        'item_id',
+        'item_name',
+        'item_code',
+        'description',
+        'specifications',
+        'quantity',
+        'unit',
+        'unit_price',
+        'total_price',
+        'notes',
+        'brand',
+        'model',
+        'warranty_period',
+        'expected_delivery_date',
+        'delivery_location',
+        'quality_requirements',
+        'inspection_requirements',
+        'testing_requirements',
+        'status',
+    ];
+
+    const filterOrderData = (data: any) => {
+        const filtered: any = {};
+        allowedOrderFields.forEach((key) => {
+            if (key === 'items' && Array.isArray(data.items)) {
+                filtered.items = data.items.map((item: any) => filterItemData(item));
+            } else if (data[key] !== undefined) {
+                filtered[key] = data[key];
+            }
+        });
+        return filtered;
+    };
+
+    const filterItemData = (item: any) => {
+        const filtered: any = {};
+        allowedItemFields.forEach((key) => {
+            if (item[key] !== undefined) {
+                filtered[key] = item[key];
+            }
+        });
+        return filtered;
+    };
+
+    const handleConvert = async (event: { preventDefault: () => void; }) => {
         event.preventDefault();
 
         if (form.validate().hasErrors) {
@@ -189,22 +381,21 @@ const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equip
             return;
         }
 
-        console.log('Submitting form with data:', form.values);
+        const filteredData = filterOrderData(form.values);
+        console.log('Submitting filtered form data:', filteredData);
 
         setConverting(true);
-        router.post(route('purchases.intents.convert', intent.id), form.values as Record<string, any>, {
-            onSuccess: () => {
-                notifications.show({ message: 'Purchase order created successfully', color: 'green' });
-                onClose();
-            },
-            onError: (errors) => {
-                console.error('Conversion errors:', errors);
-                notifications.show({ message: 'Failed to create purchase order', color: 'red' });
-            },
-            onFinish: () => setConverting(false)
-        });
+        try {
+            await axios.post(route('purchases.intents.convert', intent.id), filteredData);
+            notifications.show({ message: 'Purchase order created successfully', color: 'green' });
+            onClose();
+        } catch (error: any) {
+            console.error('Conversion errors:', error);
+            notifications.show({ message: 'Failed to create purchase order', color: 'red' });
+        } finally {
+            setConverting(false);
+        }
     };
-
 
     return (
         <Modal
@@ -294,163 +485,11 @@ const ConvertPO = ({ opened, onClose, intent, departments, vendors, items, equip
                         </Grid>
                     </Paper>
 
-
                     {/* Items */}
                     <Paper p="md" withBorder mb="md">
                         <Title order={4} mb="md">Items</Title>
-                        <Title order={5} mb="md">Add Item</Title>
-                        <form onSubmit={(e) => { e.preventDefault(); addItem(); }}>
-                            <Grid>
-                                <Grid.Col span={3}>
-                                    <Select
-                                        label="Equipment/Item"
-                                        placeholder="Select equipment or item"
-                                        data={[
-                                            ...equipment.map(eq => ({
-                                                value: `equipment_${eq.id}`,
-                                                label: eq.name,
-                                                type: 'equipment',
-                                                data: eq
-                                            })),
-                                            ...items.map(item => ({
-                                                value: `item_${item.id}`,
-                                                label: item.name,
-                                                type: 'item',
-                                                data: item
-                                            }))
-                                        ]}
-                                        value={itemForm.values.item_id ? `item_${itemForm.values.item_id}` :
-                                            itemForm.values.equipment_id ? `equipment_${itemForm.values.equipment_id}` : ''}
-                                        onChange={(value) => {
-                                            if (!value) {
-                                                itemForm.reset();
-                                                return;
-                                            }
-
-                                            const [type, id] = value.split('_');
-                                            const numId = Number(id);
-
-                                            if (type === 'equipment') {
-                                                const selectedEquipment = equipment.find(eq => eq.id === numId);
-                                                if (selectedEquipment) {
-                                                    itemForm.setValues({
-                                                        ...itemForm.values,
-                                                        item_name: selectedEquipment.name,
-                                                        item_code: selectedEquipment.code || '',
-                                                        description: selectedEquipment.details || '',
-                                                        unit_price: selectedEquipment.purchase_price || 0,
-                                                        total_price: (selectedEquipment.purchase_price || 0) * itemForm.values.quantity,
-                                                        equipment_id: numId,
-                                                        item_id: undefined
-                                                    });
-                                                }
-                                            } else if (type === 'item') {
-                                                const selectedItem = items.find(item => item.id === numId);
-                                                if (selectedItem) {
-                                                    itemForm.setValues({
-                                                        ...itemForm.values,
-                                                        item_name: selectedItem.name,
-                                                        item_code: selectedItem.code,
-                                                        description: selectedItem.description_1 || selectedItem.description_2 || '',
-                                                        unit_price: selectedItem.standard_cost || 0,
-                                                        total_price: (selectedItem.standard_cost || 0) * itemForm.values.quantity,
-                                                        unit: selectedItem.unit || '',
-                                                        item_id: numId,
-                                                        equipment_id: undefined
-                                                    });
-                                                }
-                                            }
-                                        }}
-                                        searchable
-                                        clearable
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={3}>
-                                    <TextInput
-                                        label="Item Name"
-                                        placeholder="Enter item name"
-                                        value={itemForm.values.item_name}
-                                        onChange={(e) => itemForm.setFieldValue('item_name', e.target.value)}
-                                        required
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={1}>
-                                    <TextInput
-                                        label="Item Code"
-                                        placeholder="Enter item code"
-                                        value={itemForm.values.item_code || ''}
-                                        onChange={(e) => itemForm.setFieldValue('item_code', e.target.value)}
-                                        readOnly
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={1}>
-                                    <NumberInput
-                                        label="Quantity"
-                                        placeholder="1"
-                                        value={itemForm.values.quantity}
-                                        onChange={(value) => {
-                                            const numValue = typeof value === 'number' ? value : 1;
-                                            itemForm.setFieldValue('quantity', numValue);
-                                            itemForm.setFieldValue('total_price', numValue * itemForm.values.unit_price);
-                                        }}
-                                        min={1}
-                                        required
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={2}>
-                                    <Select
-                                        label="Unit"
-                                        placeholder="Select unit"
-                                        data={[
-                                            { value: 'set', label: 'Set' },
-                                            { value: 'nos', label: 'Numbers' },
-                                            { value: 'rmt', label: 'Running Meter' },
-                                            { value: 'sqm', label: 'Square Meter' },
-                                            { value: 'ltr', label: 'Liter' },
-                                            { value: 'kg', label: 'Kilogram' },
-                                            { value: 'ton', label: 'Ton' },
-                                            { value: 'box', label: 'Box' },
-                                            { value: 'pack', label: 'Pack' },
-                                            { value: 'na', label: 'Not Applicable' }
-                                        ]}
-                                        value={itemForm.values.unit || ''}
-                                        onChange={(value) => itemForm.setFieldValue('unit', value || '')}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={2}>
-                                    <NumberInput
-                                        label="Unit Price"
-                                        placeholder="0.00"
-                                        value={itemForm.values.unit_price}
-                                        onChange={(value) => {
-                                            const numValue = typeof value === 'number' ? value : 0;
-                                            itemForm.setFieldValue('unit_price', numValue);
-                                            itemForm.setFieldValue('total_price', numValue * itemForm.values.quantity);
-                                        }}
-                                        min={0}
-                                        required
-                                        readOnly
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Description"
-                                        placeholder="Enter item description"
-                                        value={itemForm.values.description || ''}
-                                        onChange={(e) => itemForm.setFieldValue('description', e.target.value)}
-                                        rows={2}
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={12}>
-                                    <Group justify="flex-end">
-                                        <Button type="submit" leftSection={<Plus size={16} />}>
-                                            Add Item
-                                        </Button>
-                                    </Group>
-                                </Grid.Col>
-                            </Grid>
-                        </form>
+                        <ItemForm onAddItem={addItem} items={items} />
+                        
                         {/* Items Table */}
                         {form.values.items.length > 0 && (
                             <Table>

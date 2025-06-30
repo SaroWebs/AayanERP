@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Paper, Title, Button, Group, Stack, Container } from '@mantine/core';
+import { Paper, Title, Button, Group, Stack, Container, Box } from '@mantine/core';
 import { DataTable } from 'mantine-datatable';
 import { Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -117,7 +117,7 @@ export default function Index({ intents, filters }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Purchase Intents" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <Container size="lg" py="xl">
+                <Box className='p-4 w-full'>
                     <Group justify="space-between" mb="md">
                         <Title order={2}>Purchase Intents</Title>
                         <Button
@@ -145,7 +145,7 @@ export default function Index({ intents, filters }: Props) {
                             pinLastColumn
                         />
                     </Stack>
-                </Container>
+                </Box>
 
                 <AddNew
                     opened={addModalOpened}

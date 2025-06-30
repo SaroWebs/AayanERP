@@ -6,7 +6,7 @@ import { Item } from '@/pages/Equipment/Items/types';
 export type QuotationStatus = 'draft' | 'pending_review' | 'pending_approval' | 'approved' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
 export type QuotationCurrency = 'INR' | 'USD' | 'EUR' | 'GBP';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'not_required';
-export type RentalPeriodUnit = 'hours' | 'days' | 'months' | 'years';
+export type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel';
 
 export interface Quotation {
     id: number;

@@ -9,14 +9,12 @@ import {
     Badge,
     Text,
     Container,
-    ActionIcon,
-    Tooltip,
     Divider,
     Box
 } from '@mantine/core';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/utils/format';
-import { PurchaseIntent, Department, Vendor, Item, Equipment } from '@/types/purchase';
+import { PurchaseIntent, Department, Vendor, Item } from '@/types/purchase';
 import {
     Calendar,
     Clock,
@@ -51,7 +49,6 @@ export default function Show({ intent }: Props) {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [items, setItems] = useState<Item[]>([]);
-    const [equipment, setEquipment] = useState<Equipment[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -63,18 +60,15 @@ export default function Show({ intent }: Props) {
 
         setLoading(true);
         try {
-            const [departmentsRes, vendorsRes, itemsRes, equipmentRes] = await Promise.all([
+            const [departmentsRes, vendorsRes, itemsRes] = await Promise.all([
                 axios.get('/purchases/data/departments/all'),
                 axios.get('/purchases/data/vendors/all'),
                 axios.get('/purchases/data/items/all'),
-                axios.get('/purchases/data/equipment/all'),
             ]);
 
             setDepartments(departmentsRes.data || []);
             setVendors(vendorsRes.data || []);
             setItems(itemsRes.data || []);
-            setEquipment(equipmentRes.data || []);
-
         } catch (error) {
             console.error('Failed to load data:', error);
             notifications.show({ message: 'Failed to load data', color: 'red' });
@@ -82,7 +76,6 @@ export default function Show({ intent }: Props) {
             setDepartments([]);
             setVendors([]);
             setItems([]);
-            setEquipment([]);
         } finally {
             setLoading(false);
         }
@@ -106,7 +99,7 @@ export default function Show({ intent }: Props) {
             pending: 'yellow',
             approved: 'green',
             rejected: 'red',
-            not_required: 'gray'
+            not_required: 'blue'
         };
         return colors[status] || 'gray'; // Fallback to gray if status is undefined
     };
@@ -119,17 +112,6 @@ export default function Show({ intent }: Props) {
             urgent: 'red'
         };
         return colors[priority] || 'gray'; // Fallback to gray if priority is undefined
-    };
-
-    const getTypeColor = (type: PurchaseIntent['type']) => {
-        const colors: Record<PurchaseIntent['type'], string> = {
-            equipment: 'blue',
-            scaffolding: 'green',
-            spares: 'orange',
-            consumables: 'purple',
-            other: 'gray'
-        };
-        return colors[type] || 'gray'; // Fallback to gray if type is undefined
     };
 
     const handleAction = (action: string) => {
@@ -182,7 +164,6 @@ export default function Show({ intent }: Props) {
         },
     ];
 
-    // Handle case where intent is not available
     if (!intent) {
         return (
             <AppLayout breadcrumbs={[]}>
@@ -199,7 +180,8 @@ export default function Show({ intent }: Props) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
                 <Head title={`Purchase Intent - ${intent.intent_no}`} />
-                <Container size="lg" py="xl">
+                <Box className='p-4'>
+                    <Box className='p-4 w-full'>
                     <Paper p="md" withBorder mb="lg">
                         <Group justify="space-between" mb="md">
                             <Group>
@@ -210,51 +192,55 @@ export default function Show({ intent }: Props) {
                                 >
                                     Back to List
                                 </Button>
-                                <Title order={2}>{intent.intent_no}</Title>
                             </Group>
                             <Group>
-                                <Badge color={getStatusColor(intent.status)} size="lg">
-                                    {intent.status?.replace('_', ' ').charAt(0).toUpperCase() +
-                                        intent.status?.replace('_', ' ').slice(1)}
-                                </Badge>
-                                <Badge color={getApprovalStatusColor(intent.approval_status)}>
-                                    {intent.approval_status?.replace('_', ' ').charAt(0).toUpperCase() +
-                                        intent.approval_status?.replace('_', ' ').slice(1)}
-                                </Badge>
+                                <Stack gap={2}>
+                                    <Group gap={4}>
+                                        <Text size="xs" c="dimmed">Intent Status:</Text>
+                                        <span className={`text-sm text-${getStatusColor(intent.status)}-600`}>
+                                        {intent.status
+                                                ? intent.status
+                                                    .replace(/_/g, ' ')
+                                                    .replace(/\b\w/g, l => l.toUpperCase())
+                                                : 'Unknown'}
+                                        </span>
+                                    </Group>
+                                    <Group gap={4}>
+                                        <Text size="xs" c="dimmed">Approval Status:</Text>
+                                        <span className={`text-sm text-${getApprovalStatusColor(intent.approval_status)}-600`}>
+                                        {intent.approval_status === 'approved'
+                                                ? 'Approved'
+                                                : intent.approval_status === 'rejected'
+                                                    ? 'Rejected'
+                                                    : intent.approval_status === 'not_required'
+                                                        ? 'Not Required'
+                                                        : 'Pending'}
+                                        </span>
+                                    </Group>
+                                </Stack>
                             </Group>
                         </Group>
-
+                            {/* Meta Info Section */}
+                            <Divider my="sm" />
                         <Grid>
-                            <Grid.Col span={8}>
-                                <Text size="xl" fw={600} mb="xs">{intent.subject}</Text>
-                                {intent.description && (
-                                    <Text c="dimmed" mb="md">{intent.description}</Text>
+                                <Grid.Col span={3}>
+                                    <div className="flex flex-col">
+                                        <Text size="xs" c="dimmed">#{intent.intent_no}</Text>
+                                        <Text>
+                                            {intent.subject}
+                                        </Text>
+                                    </div>
+                                </Grid.Col>
+                                <Grid.Col span={3}><Text size="xs" c="dimmed">Created At</Text><Text>{format(new Date(intent.created_at), 'dd/MM/yyyy HH:mm')}</Text></Grid.Col>
+                                <Grid.Col span={3}><Text size="xs" c="dimmed">Updated At</Text><Text>{format(new Date(intent.updated_at), 'dd/MM/yyyy HH:mm')}</Text></Grid.Col>
+                                {intent.deleted_at && (
+                                    <Grid.Col span={3}><Text size="xs" c="red">Deleted At</Text><Text c="red">{format(new Date(intent.deleted_at), 'dd/MM/yyyy HH:mm')}</Text></Grid.Col>
                                 )}
-                            </Grid.Col>
-                            <Grid.Col span={4}>
-                                <Stack gap="xs">
-                                    <Group gap="xs">
-                                        <Badge color={getTypeColor(intent.type)}>
-                                            {intent.type?.charAt(0).toUpperCase() + intent.type?.slice(1)}
-                                        </Badge>
-                                        <Badge color={getPriorityColor(intent.priority)}>
-                                            {intent.priority?.charAt(0).toUpperCase() + intent.priority?.slice(1)}
-                                        </Badge>
-                                    </Group>
-                                    {intent.priority === 'urgent' && (
-                                        <Group gap="xs">
-                                            <AlertTriangle size={14} color="red" />
-                                            <Text size="sm" c="red" fw={500}>Urgent Priority</Text>
-                                        </Group>
-                                    )}
-                                </Stack>
-                            </Grid.Col>
                         </Grid>
                     </Paper>
 
-                    <Grid>
-                        {/* Main Content */}
-                        <Grid.Col span={8}>
+                        <div className="flex flex-col-reverse lg:flex-row gap-6">
+                            <div className="flex-1 w-full">
                             <Stack gap="lg">
                                 {/* Basic Details */}
                                 <Paper p="md" withBorder>
@@ -379,133 +365,153 @@ export default function Show({ intent }: Props) {
                                     </Paper>
                                 )}
 
-                                {/* Approval Remarks */}
-                                {intent.approval_remarks && (
+                                    {/* Approval Details */}
                                     <Paper p="md" withBorder>
-                                        <Title order={4} mb="md">Approval Remarks</Title>
-                                        <Text>{intent.approval_remarks}</Text>
+                                        <Title order={4} mb="md">Approval Details</Title>
+                                        <Grid>
+                                            <Grid.Col span={6}>
+                                                <Group gap="xs" mb="xs">
+                                                    <User size={16} />
+                                                    <Text fw={500}>Approved By</Text>
+                                                </Group>
+                                                <Text c="dimmed">{intent.approver?.name || 'Not approved'}</Text>
+                                            </Grid.Col>
+                                            <Grid.Col span={6}>
+                                                <Group gap="xs" mb="xs">
+                                                    <Calendar size={16} />
+                                                    <Text fw={500}>Approved At</Text>
+                                                </Group>
+                                                <Text c="dimmed">{intent.approved_at ? format(new Date(intent.approved_at), 'dd/MM/yyyy HH:mm') : 'Not approved'}</Text>
+                                            </Grid.Col>
+                                            {intent.approval_remarks && (
+                                                <Grid.Col span={12}>
+                                                    <Group gap="xs" mb="xs">
+                                                        <Text fw={500}>Approval Remarks</Text>
+                                                    </Group>
+                                                    <Text c="dimmed">{intent.approval_remarks}</Text>
+                                                </Grid.Col>
+                                            )}
+                                        </Grid>
                                     </Paper>
-                                )}
                             </Stack>
-                        </Grid.Col>
-                        {/* Sidebar Actions */}
-                        <Grid.Col span={4}>
-                            <Stack gap="md">
-                            <Button onClick={()=>setConvertModalOpened(true)}>Open PO (DEV)</Button>
-                                {/* Actions */}
-                                <Paper p="md" withBorder>
-                                    <Title order={4} mb="md">Actions</Title>
-                                    <Stack gap="xs">
-                                        {intent.status === 'draft' && (
-                                            <>
-                                                <Button
-                                                    leftSection={<Edit size={16} />}
-                                                    variant="outline"
-                                                    fullWidth
-                                                    onClick={() => handleAction('edit')}
-                                                >
-                                                    Edit Intent
-                                                </Button>
-                                                <Button
-                                                    leftSection={<RefreshCw size={16} />}
-                                                    variant="outline"
-                                                    fullWidth
-                                                    onClick={() => handleAction('submit')}
-                                                >
-                                                    Submit for Review
-                                                </Button>
-                                            </>
-                                        )}
+                            </div>
+                            {intent.status != 'converted' ? 
+                            <div className="w-full lg:w-1/3 mb-6 lg:mb-0">
+                                <Stack gap="md">
+                                    <Paper p="md" withBorder>
+                                        <Title order={4} mb="md">Actions</Title>
+                                        <Stack gap="xs">
+                                            {intent.status === 'draft' && (
+                                                <>
+                                                    <Button
+                                                        leftSection={<Edit size={16} />}
+                                                        variant="outline"
+                                                        fullWidth
+                                                        onClick={() => handleAction('edit')}
+                                                    >
+                                                        Edit Intent
+                                                    </Button>
+                                                    <Button
+                                                        leftSection={<RefreshCw size={16} />}
+                                                        variant="outline"
+                                                        fullWidth
+                                                        onClick={() => handleAction('submit')}
+                                                    >
+                                                        Submit for Review
+                                                    </Button>
+                                                </>
+                                            )}
 
-                                        {intent.approval_status === 'pending' && (
-                                            <>
+                                            {intent.approval_status === 'pending' && (
+                                                <>
+                                                    <Button
+                                                        leftSection={<CheckCircle size={16} />}
+                                                        color="green"
+                                                        fullWidth
+                                                        onClick={() => handleAction('approve')}
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                    <Button
+                                                        leftSection={<XCircle size={16} />}
+                                                        color="red"
+                                                        variant="outline"
+                                                        fullWidth
+                                                        onClick={() => handleAction('reject')}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                </>
+                                            )}
+
+                                            {intent.status === 'approved' && (
                                                 <Button
-                                                    leftSection={<CheckCircle size={16} />}
-                                                    color="green"
+                                                    leftSection={<ShoppingCart size={16} />}
+                                                    color="blue"
                                                     fullWidth
-                                                    onClick={() => handleAction('approve')}
+                                                    onClick={() => handleAction('convert')}
                                                 >
-                                                    Approve
+                                                    Convert to PO
                                                 </Button>
+                                            )}
+
+                                            {['draft', 'pending_review', 'pending_approval'].includes(intent.status || '') && (
                                                 <Button
                                                     leftSection={<XCircle size={16} />}
                                                     color="red"
                                                     variant="outline"
                                                     fullWidth
-                                                    onClick={() => handleAction('reject')}
+                                                    onClick={() => handleAction('cancel')}
                                                 >
-                                                    Reject
-                                                </Button>
-                                            </>
-                                        )}
-
-                                        {intent.status === 'approved' && (
-                                            <Button
-                                                leftSection={<ShoppingCart size={16} />}
-                                                color="blue"
-                                                fullWidth
-                                                onClick={() => handleAction('convert')}
-                                            >
-                                                Convert to PO
-                                            </Button>
-                                        )}
-
-                                        {['draft', 'pending_review', 'pending_approval'].includes(intent.status || '') && (
-                                            <Button
-                                                leftSection={<XCircle size={16} />}
-                                                color="red"
-                                                variant="outline"
-                                                fullWidth
-                                                onClick={() => handleAction('cancel')}
-                                            >
-                                                Cancel Intent
-                                            </Button>
-                                        )}
-
-                                        {/* Debug info - remove this after fixing */}
-                                        {!intent.status && (
-                                            <Text size="sm" c="red">
-                                                Status is undefined - Check console for debug info
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                </Paper>
-
-                                {/* Documents */}
-                                {(intent.document_path || intent.specification_document_path) && (
-                                    <Paper p="md" withBorder>
-                                        <Title order={4} mb="md">Documents</Title>
-                                        <Stack gap="xs">
-                                            {intent.document_path && (
-                                                <Button
-                                                    leftSection={<FileDown size={16} />}
-                                                    variant="outline"
-                                                    fullWidth
-                                                    component="a"
-                                                    href={`/storage/${intent.document_path}`}
-                                                    target="_blank"
-                                                >
-                                                    Download Document
+                                                    Cancel Intent
                                                 </Button>
                                             )}
-                                            {intent.specification_document_path && (
-                                                <Button
-                                                    leftSection={<FileDown size={16} />}
-                                                    variant="outline"
-                                                    fullWidth
-                                                    component="a"
-                                                    href={`/storage/${intent.specification_document_path}`}
-                                                    target="_blank"
-                                                >
-                                                    Download Specifications
-                                                </Button>
+
+                                            {/* Debug info - remove this after fixing */}
+                                            {!intent.status && (
+                                                <Text size="sm" c="red">
+                                                    Status is undefined - Check console for debug info
+                                                </Text>
                                             )}
                                         </Stack>
                                     </Paper>
-                                )}
-                            </Stack>
-                        </Grid.Col>
-                    </Grid>
+
+                                    {/* Documents */}
+                                    {(intent.document_path || intent.specification_document_path) && (
+                                        <Paper p="md" withBorder>
+                                            <Title order={4} mb="md">Documents</Title>
+                                            <Stack gap="xs">
+                                                {intent.document_path && (
+                                                    <Button
+                                                        leftSection={<FileDown size={16} />}
+                                                        variant="outline"
+                                                        fullWidth
+                                                        component="a"
+                                                        href={`/storage/${intent.document_path}`}
+                                                        target="_blank"
+                                                    >
+                                                        Download Document
+                                                    </Button>
+                                                )}
+                                                {intent.specification_document_path && (
+                                                    <Button
+                                                        leftSection={<FileDown size={16} />}
+                                                        variant="outline"
+                                                        fullWidth
+                                                        component="a"
+                                                        href={`/storage/${intent.specification_document_path}`}
+                                                        target="_blank"
+                                                    >
+                                                        Download Specifications
+                                                    </Button>
+                                                )}
+                                            </Stack>
+                                        </Paper>
+                                    )}
+                                </Stack>
+                            </div>
+                            :null}
+                        </div>
 
                     <EditItem
                         opened={editModalOpened}
@@ -522,9 +528,9 @@ export default function Show({ intent }: Props) {
                         departments={departments}
                         vendors={vendors}
                         items={items}
-                        equipment={equipment}
                     />
-                </Container>
+                    </Box>
+                </Box>
             </AppLayout>
         );
     }

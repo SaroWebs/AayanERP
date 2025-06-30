@@ -142,7 +142,6 @@ class PurchaseIntentController extends Controller
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', Rule::in(['equipment', 'scaffolding', 'spares', 'consumables', 'other'])],
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
             'intent_date' => ['required', 'date'],
             'required_date' => ['nullable', 'date', 'after_or_equal:intent_date'],
@@ -202,7 +201,6 @@ class PurchaseIntentController extends Controller
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', Rule::in(['equipment', 'scaffolding', 'spares', 'consumables', 'other'])],
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
             'intent_date' => ['required', 'date'],
             'required_date' => ['nullable', 'date', 'after_or_equal:intent_date'],
@@ -351,12 +349,15 @@ class PurchaseIntentController extends Controller
      */
     public function convertToPurchaseOrder(Request $request, PurchaseIntent $purchaseIntent)
     {
-        if ($purchaseIntent->status !== 'approved') {
-            return back()->with('error', 'Only approved intents can be converted to purchase orders.');
+        if ($purchaseIntent->status != 'approved') {
+            return response()->json([
+                'message'=>"Only approved intents can be converted to purchase orders.",
+                'intent'=>$purchaseIntent
+            ]);
         }
 
         if ($purchaseIntent->purchaseOrders()->exists()) {
-            return back()->with('error', 'This intent has already been converted to a purchase order.');
+            return response()->json(['message'=>"This intent has already been converted to a purchase order."]);
         }
 
         $validated = $request->validate([
@@ -382,7 +383,6 @@ class PurchaseIntentController extends Controller
             'freight_amount' => ['required', 'numeric', 'min:0'],
             'insurance_amount' => ['required', 'numeric', 'min:0'],
             'grand_total' => ['required', 'numeric', 'min:0'],
-            
             // Items validation
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_name' => ['required', 'string', 'max:255'],
@@ -411,62 +411,41 @@ class PurchaseIntentController extends Controller
             // Generate PO number
             $poNumber = $this->generatePONumber();
 
+            // Define allowed fields for purchase_orders table
+            $allowedOrderFields = [
+                'vendor_id', 'department_id', 'po_date', 'expected_delivery_date', 'delivery_location',
+                'payment_terms', 'delivery_terms', 'warranty_terms', 'special_instructions',
+                'quality_requirements', 'inspection_requirements', 'testing_requirements',
+                'certification_requirements', 'quotation_reference', 'contract_reference', 'project_reference',
+                'currency', 'exchange_rate', 'tax_amount', 'freight_amount', 'insurance_amount',
+                'grand_total', 'total_amount', 'status'
+            ];
+
+            // Filter validated data for only allowed fields
+            $orderData = array_intersect_key($validated, array_flip($allowedOrderFields));
+            $orderData['po_no'] = $poNumber;
+            $orderData['purchase_intent_id'] = $purchaseIntent->id;
+            $orderData['created_by'] = Auth::id();
+            $orderData['total_amount'] = $validated['grand_total'] - $validated['tax_amount'] - $validated['freight_amount'] - $validated['insurance_amount'];
+            $orderData['status'] = 'draft';
+
             // Create purchase order
-            $purchaseOrder = PurchaseOrder::create([
-                'po_no' => $poNumber,
-                'purchase_intent_id' => $purchaseIntent->id,
-                'vendor_id' => $validated['vendor_id'],
-                'department_id' => $validated['department_id'],
-                'created_by' => Auth::id(),
-                'po_date' => $validated['po_date'],
-                'expected_delivery_date' => $validated['expected_delivery_date'],
-                'delivery_location' => $validated['delivery_location'],
-                'payment_terms' => $validated['payment_terms'],
-                'delivery_terms' => $validated['delivery_terms'],
-                'warranty_terms' => $validated['warranty_terms'],
-                'special_instructions' => $validated['special_instructions'],
-                'quality_requirements' => $validated['quality_requirements'],
-                'inspection_requirements' => $validated['inspection_requirements'],
-                'testing_requirements' => $validated['testing_requirements'],
-                'certification_requirements' => $validated['certification_requirements'],
-                'quotation_reference' => $validated['quotation_reference'],
-                'contract_reference' => $validated['contract_reference'],
-                'project_reference' => $validated['project_reference'],
-                'currency' => $validated['currency'],
-                'exchange_rate' => $validated['exchange_rate'],
-                'tax_amount' => $validated['tax_amount'],
-                'freight_amount' => $validated['freight_amount'],
-                'insurance_amount' => $validated['insurance_amount'],
-                'grand_total' => $validated['grand_total'],
-                'total_amount' => $validated['grand_total'] - $validated['tax_amount'] - $validated['freight_amount'] - $validated['insurance_amount'],
-                'status' => 'draft',
-                'approval_status' => 'not_required',
-            ]);
+            $purchaseOrder = PurchaseOrder::create($orderData);
+
+            // Define allowed fields for purchase_order_items table
+            $allowedItemFields = [
+                'item_id', 'item_name', 'item_code', 'description', 'specifications', 'quantity', 'unit',
+                'unit_price', 'total_price', 'notes', 'brand', 'model', 'warranty_period',
+                'expected_delivery_date', 'delivery_location', 'quality_requirements',
+                'inspection_requirements', 'testing_requirements', 'status'
+            ];
 
             // Create purchase order items
             foreach ($validated['items'] as $itemData) {
-                PurchaseOrderItem::create([
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'item_id' => $itemData['item_id'] ?? null,
-                    'item_name' => $itemData['item_name'],
-                    'item_code' => $itemData['item_code'],
-                    'description' => $itemData['description'],
-                    'specifications' => $itemData['specifications'],
-                    'quantity' => $itemData['quantity'],
-                    'unit' => $itemData['unit'],
-                    'unit_price' => $itemData['unit_price'],
-                    'total_price' => $itemData['total_price'],
-                    'notes' => $itemData['notes'],
-                    'brand' => $itemData['brand'],
-                    'model' => $itemData['model'],
-                    'warranty_period' => $itemData['warranty_period'],
-                    'expected_delivery_date' => $itemData['expected_delivery_date'],
-                    'delivery_location' => $itemData['delivery_location'],
-                    'quality_requirements' => $itemData['quality_requirements'],
-                    'inspection_requirements' => $itemData['inspection_requirements'],
-                    'testing_requirements' => $itemData['testing_requirements'],
-                    'status' => 'pending',
-                ]);
+                $item = array_intersect_key($itemData, array_flip($allowedItemFields));
+                $item['purchase_order_id'] = $purchaseOrder->id;
+                $item['status'] = 'pending';
+                PurchaseOrderItem::create($item);
             }
 
             // Update purchase intent status
@@ -476,13 +455,11 @@ class PurchaseIntentController extends Controller
             ]);
 
             DB::commit();
-
-            return redirect()->route('purchases.orders.show', $purchaseOrder->id)
-                ->with('success', 'Purchase order created successfully from intent.');
+            return response()->json(['message'=>"Created.."], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to create purchase order: ' . $e->getMessage());
+            return response()->json(['message'=>"not created", 'error'=>$e]);
         }
     }
 

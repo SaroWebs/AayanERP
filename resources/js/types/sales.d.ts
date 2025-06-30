@@ -1,34 +1,28 @@
+import { ClientContactDetail, ClientDetail } from "./client";
+
 export interface Quotation {
     id: number;
     quotation_no: string;
     enquiry_id: number | null;
     client_detail_id: number;
     contact_person_id: number | null;
+    created_by: number;
+    approved_by: number | null;
     subject: string | null;
     description: string | null;
-    type: 'equipment' | 'scaffolding' | 'both';
     status: 'draft' | 'pending_review' | 'pending_approval' | 'approved' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'cancelled';
     approval_status: 'pending' | 'approved' | 'rejected' | 'not_required';
-    created_at: string;
-    updated_at: string;
-    created_by: {
-        id: number;
-        name: string;
-    };
-    approved_by: {
-        id: number;
-        name: string;
-    } | null;
     approved_at: string | null;
+    approval_remarks: string | null;
     quotation_date: string;
-    valid_until: string;
+    valid_until: string | null;
     accepted_date: string | null;
     converted_date: string | null;
     subtotal: number;
     tax_percentage: number;
     tax_amount: number;
-    discount_percentage: number | null;
-    discount_amount: number | null;
+    discount_percentage: number;
+    discount_amount: number;
     total_amount: number;
     currency: string;
     payment_terms_days: number;
@@ -47,28 +41,44 @@ export interface Quotation {
     sent_by: string | null;
     sent_via: string | null;
     deleted_at: string | null;
+    created_at: string;
+    updated_at: string;
     items: {
-        equipment_id: number;
+        id: number;
+        quotation_id: number;
+        item_id: number | null;
         quantity: number;
         unit_price: number;
         total_price: number;
-        rental_period?: number;
-        rental_period_unit?: 'hours' | 'days' | 'months' | 'years';
-        notes?: string;
+        notes: string | null;
+        created_at: string;
+        updated_at: string;
+        deleted_at: string | null;
+        item?: {
+            id: number;
+            name: string;
+            description?: string;
+            category_id?: number;
+            unit?: string;
+            purchase_price?: number;
+            rental_rate?: number;
+        };
     }[];
     // Relations
     enquiry?: {
         id: number;
         enquiry_no: string;
     };
-    client?: {
+    client?: ClientDetail;
+    contact_person?: ClientContactDetail;
+    creator?: {
         id: number;
         name: string;
     };
-    contact_person?: {
+    approver?: {
         id: number;
         name: string;
-    };
+    } | null;
 }
 
 export type QuotationAction = 'view' | 'edit' | 'submit' | 'approve' | 'reject' | 'convert' | 'cancel'; 

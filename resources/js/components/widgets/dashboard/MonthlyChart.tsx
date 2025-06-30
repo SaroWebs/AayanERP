@@ -32,14 +32,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function MonthlyChart({ data }: MonthlyChartProps) {
     return (
-        <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-            <CardHeader>
+        <Card className="border-sidebar-border/70 dark:border-sidebar-border gap-0">
+            <CardHeader className='shadow-md pb-4'>
                 <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
                     Monthly Trends
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className='pt-2'>
                 <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data}>

@@ -1,11 +1,10 @@
 import { Badge, Group, Text, ActionIcon, Menu, Stack, Tooltip } from '@mantine/core';
 import { MoreHorizontal, Eye, Edit, Send, Check, X, FileText, Ban, Calendar, Clock, DollarSign, User } from 'lucide-react';
-import { Link } from '@inertiajs/react';
 import { formatCurrency } from '@/utils/format';
-import { format, isAfter, isBefore } from 'date-fns';
+import { format, isBefore } from 'date-fns';
 import { Quotation, QuotationAction } from '@/types/sales';
 
-export const getStatusColor = (status: Quotation['status']) => {
+export const getStatusColor = (status: Quotation['status']): string => {
     const colors: Record<Quotation['status'], string> = {
         draft: 'gray',
         pending_review: 'yellow',
@@ -21,7 +20,7 @@ export const getStatusColor = (status: Quotation['status']) => {
     return colors[status];
 };
 
-export const getApprovalStatusColor = (status: Quotation['approval_status']) => {
+export const getApprovalStatusColor = (status: Quotation['approval_status']): string => {
     const colors: Record<Quotation['approval_status'], string> = {
         pending: 'yellow',
         approved: 'green',
@@ -31,8 +30,13 @@ export const getApprovalStatusColor = (status: Quotation['approval_status']) => 
     return colors[status];
 };
 
-const isQuotationExpired = (validUntil: string) => {
+const isQuotationExpired = (validUntil: string | null): boolean => {
+    if (!validUntil) return false;
     return isBefore(new Date(validUntil), new Date());
+};
+
+const formatStatusText = (status: string): string => {
+    return status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1);
 };
 
 export const columns = (handleAction: (quotation: Quotation, action: QuotationAction) => void) => [
@@ -70,32 +74,13 @@ export const columns = (handleAction: (quotation: Quotation, action: QuotationAc
         ),
     },
     {
-        accessor: 'type',
-        title: 'Type',
-        width: 120,
-        render: (quotation: Quotation) => (
-            <Badge
-                color={
-                    quotation.type === 'equipment'
-                        ? 'blue'
-                        : quotation.type === 'scaffolding'
-                            ? 'green'
-                            : 'grape'
-                }
-            >
-                {quotation.type.charAt(0).toUpperCase() + quotation.type.slice(1)}
-            </Badge>
-        ),
-    },
-    {
         accessor: 'status',
         title: 'Status',
         width: 120,
         render: (quotation: Quotation) => (
             <Stack gap={4}>
                 <Badge color={getStatusColor(quotation.status)}>
-                    {quotation.status.replace('_', ' ').charAt(0).toUpperCase() +
-                        quotation.status.replace('_', ' ').slice(1)}
+                    {formatStatusText(quotation.status)}
                 </Badge>
                 {quotation.status === 'sent' && isQuotationExpired(quotation.valid_until) && (
                     <Badge color="red" variant="light" size="sm">Expired</Badge>
@@ -110,13 +95,12 @@ export const columns = (handleAction: (quotation: Quotation, action: QuotationAc
         render: (quotation: Quotation) => (
             <Stack gap={4}>
                 <Badge color={getApprovalStatusColor(quotation.approval_status)}>
-                    {quotation.approval_status.replace('_', ' ').charAt(0).toUpperCase() +
-                        quotation.approval_status.replace('_', ' ').slice(1)}
+                    {formatStatusText(quotation.approval_status)}
                 </Badge>
-                {quotation.approved_by && (
+                {quotation.approver && (
                     <Group gap={4}>
                         <User size={14} />
-                        <Text size="sm" c="dimmed">{quotation.approved_by.name}</Text>
+                        <Text size="sm" c="dimmed">{quotation.approver.name}</Text>
                     </Group>
                 )}
             </Stack>
@@ -157,10 +141,12 @@ export const columns = (handleAction: (quotation: Quotation, action: QuotationAc
                     <Calendar size={14} />
                     <Text size="sm">Quotation: {format(new Date(quotation.quotation_date), 'dd/MM/yyyy')}</Text>
                 </Group>
-                <Group gap={4}>
-                    <Clock size={14} />
-                    <Text size="sm">Valid until: {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}</Text>
-                </Group>
+                {quotation.valid_until && (
+                    <Group gap={4}>
+                        <Clock size={14} />
+                        <Text size="sm">Valid until: {format(new Date(quotation.valid_until), 'dd/MM/yyyy')}</Text>
+                    </Group>
+                )}
             </Stack>
         ),
     },

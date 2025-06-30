@@ -1,3 +1,5 @@
+import { User } from './user';
+
 export interface PurchaseOrder {
     id: number;
     po_no: string;
@@ -9,10 +11,10 @@ export interface PurchaseOrder {
     
     // Order Details
     po_date: string;
-    expected_delivery_date: string;
-    delivery_location: string;
-    payment_terms: string;
-    delivery_terms: string;
+    expected_delivery_date: string | null;
+    delivery_location: string | null;
+    payment_terms: string | null;
+    delivery_terms: string | null;
     warranty_terms: string | null;
     special_instructions: string | null;
     
@@ -32,8 +34,8 @@ export interface PurchaseOrder {
     certification_requirements: string | null;
     
     // Status and Tracking
-    status: 'draft' | 'pending_approval' | 'approved' | 'sent' | 'acknowledged' | 'partial_received' | 'received' | 'cancelled' | 'closed';
-    approval_status: 'pending' | 'approved' | 'rejected' | 'not_required';
+    status: string;
+    approval_status: string;
     approval_date: string | null;
     sent_date: string | null;
     acknowledgement_date: string | null;
@@ -58,29 +60,11 @@ export interface PurchaseOrder {
     deleted_at: string | null;
     
     // Relations
-    purchase_intent?: {
-        id: number;
-        intent_no: string;
-        subject: string;
-    };
-    vendor?: {
-        id: number;
-        name: string;
-        contact_no: string;
-        email: string;
-    };
-    department?: {
-        id: number;
-        name: string;
-    };
-    creator?: {
-        id: number;
-        name: string;
-    };
-    approver?: {
-        id: number;
-        name: string;
-    } | null;
+    purchase_intent?: any;
+    vendor?: any;
+    department?: any;
+    creator?: any;
+    approver?: any;
     
     // Items (if any)
     items?: PurchaseOrderItem[];
@@ -90,7 +74,6 @@ export interface PurchaseOrderItem {
     id: number;
     purchase_order_id: number;
     item_id: number | null;
-    equipment_id: number | null;
     
     // Item Details
     item_name: string;
@@ -120,7 +103,7 @@ export interface PurchaseOrderItem {
     testing_requirements: string | null;
     
     // Status Tracking
-    status: 'pending' | 'ordered' | 'received' | 'cancelled';
+    status: string;
     received_quantity: number;
     received_date: string | null;
     receipt_remarks: string | null;
@@ -129,19 +112,12 @@ export interface PurchaseOrderItem {
     updated_at: string;
     
     // Relations
-    item?: {
-        id: number;
-        name: string;
-        code: string;
-        unit: string;
-    };
-    equipment?: {
-        id: number;
-        name: string;
-        code: string;
-    };
+    item?: any;
 }
 
+/**
+ * Represents a purchase intent as per the database schema.
+ */
 export interface PurchaseIntent {
     id: number;
     intent_no: string;
@@ -150,7 +126,6 @@ export interface PurchaseIntent {
     department_id: number | null;
     subject: string;
     description: string | null;
-    type: 'equipment' | 'scaffolding' | 'spares' | 'consumables' | 'other';
     priority: 'low' | 'medium' | 'high' | 'urgent';
     status: 'draft' | 'pending_review' | 'pending_approval' | 'approved' | 'converted' | 'rejected' | 'cancelled';
     approval_status: 'pending' | 'approved' | 'rejected' | 'not_required';
@@ -168,14 +143,12 @@ export interface PurchaseIntent {
     notes: string | null;
     document_path: string | null;
     specification_document_path: string | null;
+    deleted_at: string | null;
     created_at: string;
     updated_at: string;
-    deleted_at: string | null;
-    
-    // Relations
-    creator?: { id: number; name: string };
-    approver?: { id: number; name: string } | null;
-    department?: { id: number; name: string } | null;
+    creator?: User | null;
+    approver?: User | null;
+    department?: Department | null;
 }
 
 export interface Vendor {
@@ -231,31 +204,56 @@ export interface Item {
     slug: string;
     category_id: number | null;
     hsn: string | null;
-    description_1: string | null;
-    description_2: string | null;
+
+    // Core Details
+    description: string | null;
+    make: string | null;
+    model_no: string | null;
+    max_capacity: string | null;
+    readability: string | null;
+    plateform_size: string | null;
+    plateform_moc: string | null;
+    indicator_moc: string | null;
+    load_plate: string | null;
+    indicator_mounding: string | null;
+    quality: string | null;
+
     type: 'consumable' | 'spare_part' | 'tool' | 'material' | 'other';
-    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'na' | null;
-    applicable_for: 'all' | 'equipment' | 'scaffolding' | 'refractory';
-    status: 'active' | 'inactive' | 'discontinued';
+    unit: 'set' | 'nos' | 'rmt' | 'sqm' | 'ltr' | 'kg' | 'ton' | 'box' | 'pack' | 'pcs' | 'na' | null;
+    status: 'active' | 'inactive' | 'discontinued' | 'maintenance' | 'retired';
+
+    // Stock Management
     minimum_stock: number;
     current_stock: number;
     maximum_stock: number | null;
     reorder_point: number | null;
     reorder_quantity: number | null;
+
+    // Cost and Pricing
     standard_cost: number | null;
     selling_price: number | null;
     rental_rate: number | null;
+
+    // Specifications
     specifications: any | null;
     technical_details: any | null;
     safety_data: any | null;
+
+    // Location and Storage
     storage_location: string | null;
     storage_conditions: string | null;
     storage_instructions: string | null;
+
+    // Additional Details
     manufacturer: string | null;
     supplier: string | null;
     warranty_period: string | null;
     last_purchase_date: string | null;
     last_purchase_price: number | null;
+    condition: 'new' | 'good' | 'fair' | 'poor';
+    last_maintenance_date: string | null;
+    next_maintenance_date: string | null;
+
     sort_order: number;
     created_at: string;
     updated_at: string;

@@ -150,6 +150,7 @@ Route::middleware(['auth'])->group(function () {
         Route::controller(ItemController::class)->group(function () {
             Route::get('items', 'index')->name('equipment.items.index');
             Route::get('data/items', 'getData')->name('equipment.items.data');
+            Route::get('data/items/all', 'getAllData')->name('equipment.items.data.all');
             Route::get('data/items/{item}', 'getItem')->name('equipment.items.get');
             Route::post('items', 'store')->name('equipment.items.store');
             Route::get('items/{item}', 'show')->name('equipment.items.show');
@@ -281,7 +282,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('data/intents/{purchaseIntent}/submit', 'submitForReview')->name('intents.submit');
             Route::post('data/intents/{purchaseIntent}/approve', 'approve')->name('intents.approve');
             Route::post('data/intents/{purchaseIntent}/reject', 'reject')->name('intents.reject');
-            Route::post('data/intents/{intent}/convert', 'convertToPurchaseOrder')->name('intents.convert');
+            Route::post('data/intents/{purchaseIntent}/convert', 'convertToPurchaseOrder')->name('intents.convert');
             Route::post('data/intents/{purchaseIntent}/cancel', 'cancel')->name('intents.cancel');
         });
 
@@ -289,14 +290,13 @@ Route::middleware(['auth'])->group(function () {
 
         // Purchase Orders
         Route::controller(PurchaseOrderController::class)->group(function () {
-            Route::get('orders', 'index')->name('orders.index');
-            Route::get('data/orders', 'paginatedList')->name('orders.data');
-            Route::post('data/orders', 'store')->name('orders.store');
-            Route::get('orders/{order}', 'show')->name('orders.show');
-            Route::put('data/orders/{order}', 'update')->name('orders.update');
-            Route::delete('data/orders/{order}', 'destroy')->name('orders.destroy');
-
-            // Workflow actions
+            Route::get('orders', 'index')->name('orders.index'); // Inertia view
+            Route::get('data/orders', 'paginatedList')->name('orders.data'); // JSON
+            Route::post('data/orders', 'store')->name('orders.store'); // JSON
+            Route::get('orders/{order}', 'show')->name('orders.show'); // Inertia view
+            Route::put('data/orders/{order}', 'update')->name('orders.update'); // JSON
+            Route::delete('data/orders/{order}', 'destroy')->name('orders.destroy'); // JSON
+            // Workflow actions (all JSON)
             Route::post('data/orders/{order}/submit', 'submitForReview')->name('orders.submit');
             Route::post('data/orders/{order}/approve', 'approve')->name('orders.approve');
             Route::post('data/orders/{order}/reject', 'reject')->name('orders.reject');

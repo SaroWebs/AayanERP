@@ -46,17 +46,6 @@ export function ViewItem({ opened, onClose, intent, departments, loading }: Prop
         return colors[priority];
     };
 
-    const getTypeColor = (type: PurchaseIntent['type']) => {
-        const colors: Record<PurchaseIntent['type'], string> = {
-            equipment: 'blue',
-            scaffolding: 'green',
-            spares: 'orange',
-            consumables: 'purple',
-            other: 'gray'
-        };
-        return colors[type];
-    };
-
     return (
         <Modal
             opened={opened}
@@ -91,20 +80,9 @@ export function ViewItem({ opened, onClose, intent, departments, loading }: Prop
                         </Grid.Col>
                         <Grid.Col span={4}>
                             <Stack gap="xs">
-                                <Group gap="xs">
-                                    <Badge color={getTypeColor(intent.type)}>
-                                        {intent.type.charAt(0).toUpperCase() + intent.type.slice(1)}
-                                    </Badge>
-                                    <Badge color={getPriorityColor(intent.priority)}>
-                                        {intent.priority.charAt(0).toUpperCase() + intent.priority.slice(1)}
-                                    </Badge>
-                                </Group>
-                                {intent.priority === 'urgent' && (
-                                    <Group gap="xs">
-                                        <AlertTriangle size={14} color="red" />
-                                        <Text size="sm" c="red" fw={500}>Urgent Priority</Text>
-                                    </Group>
-                                )}
+                                <Badge color={getPriorityColor(intent.priority)}>
+                                    {intent.priority.charAt(0).toUpperCase() + intent.priority.slice(1)}
+                                </Badge>
                             </Stack>
                         </Grid.Col>
                     </Grid>

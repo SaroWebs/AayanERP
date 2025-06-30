@@ -41,14 +41,14 @@ const getStatusColor = (status: string) => {
 
 export default function PendingApprovals({ approvals }: PendingApprovalsProps) {
     return (
-        <Card className="border-sidebar-border/70 dark:border-sidebar-border">
-            <CardHeader>
+        <Card className="border-sidebar-border/70 dark:border-sidebar-border gap-0">
+            <CardHeader  className='shadow-md pb-4'>
                 <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-yellow-600" />
                     Pending Approvals
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className='pt-4 max-h-80 overflow-y-auto'>
                 <div className="space-y-3">
                     {approvals.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">

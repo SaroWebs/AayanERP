@@ -122,4 +122,12 @@ class PurchaseOrder extends Model
     {
         return $query->whereNotIn('status', ['cancelled', 'closed']);
     }
+
+    public function department(){
+        return $this->belongsTo(Department::class);
+    }
+    
+    public function items(){
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
 }

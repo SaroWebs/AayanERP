@@ -1,32 +1,25 @@
-import { Head, router, Link } from '@inertiajs/react';
-import { Paper, Title, Button, Group, Stack, Container } from '@mantine/core';
+import { Head, router } from '@inertiajs/react';
+import { Title, Button, Group, Stack, Container } from '@mantine/core';
 import { DataTable } from 'mantine-datatable';
 import { Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { columns } from './columns';
-import { QuotationFilters } from './filters';
 import { AddNew } from './partials/AddNew';
 import { EditItem } from './partials/EditItem';
-import { ViewItem } from './partials/ViewItem';
 import AppLayout from '@/layouts/app-layout';
 import { notifications } from '@mantine/notifications';
 import { BreadcrumbItem, PageProps } from '@/types/index.d';
+import { ClientDetail } from '@/types/client';
 import { Quotation, QuotationAction } from '@/types/sales';
-import axios from 'axios';
 
-// Set up CSRF token for axios
-const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-if (token) {
-    axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
-}
 
-interface Client {
+interface Item {
     id: number;
     name: string;
-    contact_details?: Array<{
-        id: number;
-        contact_person: string;
-    }>;
+    description?: string;
+    unit?: string;
+    purchase_price?: number;
+    rental_rate?: number;
 }
 
 interface Props extends PageProps {
@@ -37,6 +30,8 @@ interface Props extends PageProps {
         per_page: number;
         current_page: number;
     };
+    clients: ClientDetail[];
+    items: Item[];
     filters: {
         status?: string;
         approval_status?: string;
@@ -47,75 +42,87 @@ interface Props extends PageProps {
     };
 }
 
-export default function Index({ quotations, filters }: Props) {
-    const [addModalOpened, setAddModalOpened] = useState(false);
+export default function Index({ quotations, items, clients, filters }: Props) {
     const [editModalOpened, setEditModalOpened] = useState(false);
-    const [viewModalOpened, setViewModalOpened] = useState(false);
     const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
-    const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-    useEffect(() => {
-        loadClients();
-    }, []);
-
-    const loadClients = async () => {
+    const handlePageChange = useCallback((page: number) => {
+        if (page === quotations.current_page) return;
         setLoading(true);
-        try {
-            const response = await axios.get('/data/clients/all');
-            setClients(response.data);
-        } catch (error) {
-            notifications.show({ message: 'Failed to load clients', color: 'red' });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handlePageChange = (page: number) => {
         router.get(
             route('sales.quotations.index'),
             { ...filters, page },
-            { preserveState: true, preserveScroll: true }
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => setLoading(false)
+            }
         );
-    };
+    }, [quotations.current_page, filters]);
 
-    const handleAction = (quotation: Quotation, action: QuotationAction) => {
+    const handleAction = useCallback((quotation: Quotation, action: QuotationAction) => {
+        setActionLoading(quotation.id);
+        const handleSuccess = (message: string) => {
+            notifications.show({ message, color: 'green' });
+            setActionLoading(null);
+        };
+
+        const handleError = (message: string) => {
+            notifications.show({ message, color: 'red' });
+            setActionLoading(null);
+        };
+
         switch (action) {
             case 'view':
-                setSelectedQuotation(quotation);
-                setViewModalOpened(true);
+                router.visit(route('sales.quotations.show', quotation.id));
                 break;
             case 'edit':
                 setSelectedQuotation(quotation);
                 setEditModalOpened(true);
+                setActionLoading(null);
                 break;
             case 'submit':
                 router.put(route('sales.quotations.submit', quotation.id), {}, {
-                    onSuccess: () => notifications.show({ message: 'Quotation submitted for review', color: 'green' })
+                    onSuccess: () => handleSuccess('Quotation submitted for review'),
+                    onError: () => handleError('Failed to submit quotation'),
+                    onFinish: () => setActionLoading(null)
                 });
                 break;
             case 'approve':
                 router.put(route('sales.quotations.approve', quotation.id), {}, {
-                    onSuccess: () => notifications.show({ message: 'Quotation approved', color: 'green' })
+                    onSuccess: () => handleSuccess('Quotation approved'),
+                    onError: () => handleError('Failed to approve quotation'),
+                    onFinish: () => setActionLoading(null)
                 });
                 break;
             case 'reject':
                 router.put(route('sales.quotations.reject', quotation.id), {}, {
-                    onSuccess: () => notifications.show({ message: 'Quotation rejected', color: 'red' })
+                    onSuccess: () => handleSuccess('Quotation rejected'),
+                    onError: () => handleError('Failed to reject quotation'),
+                    onFinish: () => setActionLoading(null)
                 });
                 break;
             case 'convert':
                 router.post(route('sales.quotations.convert', quotation.id), {}, {
-                    onSuccess: () => notifications.show({ message: 'Converted to sales order', color: 'green' })
+                    onSuccess: () => handleSuccess('Converted to sales order'),
+                    onError: () => handleError('Failed to convert quotation'),
+                    onFinish: () => setActionLoading(null)
                 });
                 break;
             case 'cancel':
                 router.put(route('sales.quotations.cancel', quotation.id), {}, {
-                    onSuccess: () => notifications.show({ message: 'Quotation cancelled', color: 'red' })
+                    onSuccess: () => handleSuccess('Quotation cancelled'),
+                    onError: () => handleError('Failed to cancel quotation'),
+                    onFinish: () => setActionLoading(null)
                 });
                 break;
+            default:
+                setActionLoading(null);
+                break;
         }
-    };
+    }, []);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -131,15 +138,10 @@ export default function Index({ quotations, filters }: Props) {
                 <Container size="lg" py="xl">
                     <Group justify="space-between" mb="md">
                         <Title order={2}>Quotations</Title>
-                        <Button
-                            leftSection={<Plus size={16} />}
-                            onClick={() => setAddModalOpened(true)}
-                        >
-                            Add New
-                        </Button>
+                        <AddNew items={items} clients={clients} loading={loading} />
+
                     </Group>
                     <Stack gap="md">
-                        {/* <QuotationFilters filters={filters} /> */}
                         <DataTable
                             columns={columns(handleAction)}
                             records={quotations.data}
@@ -158,13 +160,6 @@ export default function Index({ quotations, filters }: Props) {
                     </Stack>
                 </Container>
 
-                <AddNew
-                    opened={addModalOpened}
-                    onClose={() => setAddModalOpened(false)}
-                    clients={clients}
-                    loading={loading}
-                />
-
                 {selectedQuotation && (
                     <>
                         <EditItem
@@ -175,17 +170,7 @@ export default function Index({ quotations, filters }: Props) {
                             }}
                             quotation={selectedQuotation}
                             clients={clients}
-                            loading={loading}
-                        />
-
-                        <ViewItem
-                            opened={viewModalOpened}
-                            onClose={() => {
-                                setViewModalOpened(false);
-                                setSelectedQuotation(null);
-                            }}
-                            quotation={selectedQuotation}
-                            clients={clients}
+                            items={items}
                             loading={loading}
                         />
                     </>

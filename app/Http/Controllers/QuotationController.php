@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Item;
+use Inertia\Inertia;
 use App\Models\Enquiry;
 use App\Models\Quotation;
-use Illuminate\Http\Request;
 use App\Models\ClientDetail;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
 
 class QuotationController extends Controller
 {
@@ -19,7 +20,7 @@ class QuotationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Quotation::with(['enquiry', 'client', 'contactPerson', 'creator', 'approver'])
+        $query = Quotation::with(['enquiry', 'client', 'contactPerson', 'creator', 'approver', 'items.item'])
             ->latest();
 
         // Filter by status
@@ -55,18 +56,20 @@ class QuotationController extends Controller
         }
 
         $quotations = $query->paginate(10)->withQueryString();
-        $clients = ClientDetail::all();
+        $clients = ClientDetail::with('contactDetails')->get();
+        $items = Item::get();
 
         return Inertia::render('sales/quotations/index', [
             'quotations' => $quotations,
             'clients' => $clients,
+            'items' => $items,
             'filters' => $request->only(['status', 'approval_status', 'client_id', 'from_date', 'to_date', 'search'])
         ]);
     }
 
     public function show(Request $request, Quotation $quotation)
     {
-        $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'approver', 'items']);
+        $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'approver', 'items.item']);
 
         return Inertia::render('sales/quotations/show', [
             'quotation' => $quotation,
@@ -81,11 +84,11 @@ class QuotationController extends Controller
         $validated = $request->validate([
             'client_detail_id' => ['required', 'exists:client_details,id'],
             'contact_person_id' => ['nullable', 'exists:client_contact_details,id'],
+            'enquiry_id' => ['nullable', 'exists:enquiries,id'],
             'subject' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'in:equipment,scaffolding,both'],
             'quotation_date' => ['required', 'date'],
-            'valid_until' => ['required', 'date', 'after:quotation_date'],
+            'valid_until' => ['nullable', 'date', 'after_or_equal:quotation_date'],
             'currency' => ['required', 'string', 'size:3'],
             'subtotal' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'tax_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -109,24 +112,22 @@ class QuotationController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
-            'items.*.rental_period_unit' => ['required', 'in:hours,days,months,years'],
-            'items.*.rental_period' => 'nullable|integer|min:1',
             'items.*.notes' => 'nullable|string'
         ]);
 
         try {
             DB::beginTransaction();
 
-            // if discount_percentage is not a number then is 0
-            if (!is_numeric($request->discount_percentage)) {
-                $request->merge(['discount_percentage' => 0]);
-            }
+            // Set default values
+            $data = $request->except('items');
+            $data['discount_percentage'] = $data['discount_percentage'] ?? 0;
+            $data['discount_amount'] = $data['discount_amount'] ?? 0;
 
             // Create quotation
             $quotation = Quotation::create([
                 'quotation_no' => $this->generateQuotationNumber(),
                 'created_by' => Auth::id(),
-                ...$request->except('items')
+                ...$data
             ]);
 
             // Create quotation items
@@ -138,7 +139,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation created successfully',
-                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items'])
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.item'])
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -154,11 +155,11 @@ class QuotationController extends Controller
         $validated = $request->validate([
             'client_detail_id' => ['required', 'exists:client_details,id'],
             'contact_person_id' => ['nullable', 'exists:client_contact_details,id'],
+            'enquiry_id' => ['nullable', 'exists:enquiries,id'],
             'subject' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'in:equipment,scaffolding,both'],
             'quotation_date' => ['required', 'date'],
-            'valid_until' => ['required', 'date', 'after:quotation_date'],
+            'valid_until' => ['nullable', 'date', 'after_or_equal:quotation_date'],
             'currency' => ['required', 'string', 'size:3'],
             'subtotal' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'tax_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -183,16 +184,19 @@ class QuotationController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
-            'items.*.rental_period_unit' => ['required', 'in:hours,days,months,years'],
-            'items.*.rental_period' => 'nullable|integer|min:1',
             'items.*.notes' => 'nullable|string'
         ]);
 
         try {
             DB::beginTransaction();
 
+            // Set default values
+            $data = $request->except('items');
+            $data['discount_percentage'] = $data['discount_percentage'] ?? 0;
+            $data['discount_amount'] = $data['discount_amount'] ?? 0;
+
             // Update quotation
-            $quotation->update($request->except('items'));
+            $quotation->update($data);
 
             // Update quotation items
             $existingItemIds = $quotation->items()->pluck('id')->toArray();
@@ -210,7 +214,7 @@ class QuotationController extends Controller
                 }
             }
 
-            // Delete items that were not updated
+            // Delete items that are no longer in the list
             $itemsToDelete = array_diff($existingItemIds, $updatedItemIds);
             if (!empty($itemsToDelete)) {
                 $quotation->items()->whereIn('id', $itemsToDelete)->delete();
@@ -220,7 +224,7 @@ class QuotationController extends Controller
 
             return response()->json([
                 'message' => 'Quotation updated successfully',
-                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items'])
+                'quotation' => $quotation->load(['enquiry', 'client', 'contactPerson', 'creator', 'items.item'])
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

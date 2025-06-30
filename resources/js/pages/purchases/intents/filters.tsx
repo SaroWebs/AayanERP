@@ -114,14 +114,6 @@ export function PurchaseIntentFilters({ filters }: Props) {
                         style={{ minWidth: 150 }}
                     />
                     <Select
-                        placeholder="Type"
-                        data={TYPE_OPTIONS}
-                        value={localFilters.type || ''}
-                        onChange={(value) => handleFilterChange('type', value)}
-                        clearable
-                        style={{ minWidth: 120 }}
-                    />
-                    <Select
                         placeholder="Priority"
                         data={PRIORITY_OPTIONS}
                         value={localFilters.priority || ''}
