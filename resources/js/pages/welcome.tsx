@@ -1,13 +1,14 @@
 import { type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle, Building2, Package, FileText, Users, BarChart3 } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import InputError from '@/components/input-error';
 import AppLogoIcon from '@/components/app-logo-icon';
+import BgBlur from '@/components/design/BgBlur';
 
 type LoginForm = {
     email: string;
@@ -36,8 +37,9 @@ export default function Welcome() {
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>
-            <div className="min-h-screen bg-gradient-to-b from-[#ffffff] via-[#fff] to-[#999999]">
-                <div className="container mx-auto px-4 py-8">
+            <div className="relative min-h-screen overflow-hidden">
+                <BgBlur/>
+                <div className="container mx-auto px-4 py-8 relative z-10">
                     <header className="mb-12">
                         <nav className="flex items-center justify-between">
                             <div className="flex items-center gap-2">

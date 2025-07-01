@@ -90,7 +90,7 @@ const VendorsList = () => {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Vendors" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="p-6 relative">
+                <div className="p-6 relative bg-white dark:text-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-semibold">Vendors List</h2>
                         <AddNew loadVendor={loadVendor} total={totalVendors} />

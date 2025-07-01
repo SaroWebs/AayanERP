@@ -269,10 +269,10 @@ export interface Item {
 export interface Department {
     id: number;
     name: string;
-    description: string | null;
-    status: 'active' | 'inactive';
-    created_at: string;
-    updated_at: string;
+    description?: string | null;
+    status?: 'active' | 'inactive';
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Equipment {

@@ -24,7 +24,7 @@ class Vendor extends Model
      */
     public function contactDetails()
     {
-        return $this->hasMany(VendorContactDetail::class);
+        return $this->hasOne(VendorContactDetail::class);
     }
     
     /**

@@ -79,6 +79,7 @@ export default function Index({ filters = {} }: Props) {
                 params: requestParams
             });
             setItems(response.data);
+            console.log(response.data);
         } catch (error) {
             console.error('Error loading items:', error);
         } finally {
@@ -95,7 +96,7 @@ export default function Index({ filters = {} }: Props) {
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             loadItems({ page: 1 });
-        }, 300); // Debounce search
+        }, 500); // Debounce search
 
         return () => clearTimeout(timeoutId);
     }, [search]);

@@ -23,7 +23,7 @@ class ItemController extends Controller
 
     public function getData(Request $request)
     {
-        $query = Item::query();
+        $query = Item::with('category'); // Eager load category
 
         if ($request->has('applicable_for')) {
             $query->applicableFor($request->applicable_for);
@@ -62,6 +62,8 @@ class ItemController extends Controller
         // Add stock status to each item
         $items->getCollection()->transform(function ($item) {
             $item->stock_status = $item->getStockLevelStatus();
+            // Ensure category is included in the response
+            $item->category = $item->category;
             return $item;
         });
 

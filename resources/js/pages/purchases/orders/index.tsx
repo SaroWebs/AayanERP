@@ -9,11 +9,13 @@ import { EditOrderItem } from './partials/EditItem';
 import AppLayout from '@/layouts/app-layout';
 import { notifications } from '@mantine/notifications';
 import { BreadcrumbItem, PageProps } from '@/types/index.d';
-import { PurchaseOrder, Department, Item } from '@/types/purchase';
+import { PurchaseOrder, Department, Item, PurchaseIntent, Vendor } from '@/types/purchase';
+
 import axios from 'axios';
 
 interface Props extends PageProps {
   items: Item[];
+  purchaseIntents: PurchaseIntent[];
   orders: {
     data: PurchaseOrder[];
     links: any[];
@@ -29,20 +31,20 @@ interface Props extends PageProps {
     to_date?: string;
     search?: string;
   };
+  vendors: Vendor[];
+  departments: Department[];
 }
 
-export default function OrdersIndex({ orders, items, filters }: Props) {
+export default function OrdersIndex({ orders, items, purchaseIntents, vendors, departments }: Props) {
   const [ordersState, setOrdersState] = useState<PurchaseOrder[]>([]);
   const [pagination, setPagination] = useState({ total: 0, per_page: 10, current_page: 1 });
   const [addModalOpened, setAddModalOpened] = useState(false);
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchOrders(1);
-    loadDepartments();
   }, []);
 
   const fetchOrders = async (page = 1) => {
@@ -57,18 +59,6 @@ export default function OrdersIndex({ orders, items, filters }: Props) {
       });
     } catch (error) {
       notifications.show({ message: 'Failed to load purchase orders', color: 'red' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDepartments = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('/purchases/data/departments/all');
-      setDepartments(response.data);
-    } catch (error) {
-      notifications.show({ message: 'Failed to load departments', color: 'red' });
     } finally {
       setLoading(false);
     }
@@ -140,7 +130,10 @@ export default function OrdersIndex({ orders, items, filters }: Props) {
           opened={addModalOpened}
           onClose={() => setAddModalOpened(false)}
           departments={departments}
+          vendors={vendors}
           loading={loading}
+          purchaseIntents={purchaseIntents}
+          products={items}
         />
 
         {selectedOrder && (
@@ -152,7 +145,9 @@ export default function OrdersIndex({ orders, items, filters }: Props) {
             }}
             order={selectedOrder}
             departments={departments}
+            vendors={vendors}
             loading={loading}
+            products={items}
           />
         )}
       </div>

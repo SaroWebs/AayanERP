@@ -31,7 +31,7 @@ export default function StatsCard({
     color = 'blue'
 }: StatsCardProps) {
     return (
-        <Card className={`border-sidebar-border/70 dark:border-sidebar-border bg-${color}-50`}>
+        <Card className={`border-sidebar-border/70 dark:border-sidebar-border bg-${color}-50 dark:bg-${color}-900/20 relative`}>
             <CardContent className={`p-6`}>
                 <div className="flex items-center justify-between">
                     <div className="flex-1">

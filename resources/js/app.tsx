@@ -9,11 +9,53 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
-import { MantineProvider } from '@mantine/core';
+import { createTheme, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+const theme = createTheme({
+    // TODO: Add theme here
+    primaryColor: 'blue',
+    primaryShade: 6,
+    fontFamily: 'nunito, Inter, sans-serif',
+    headings: {
+        fontFamily: 'nunito, Inter, sans-serif',
+    },
+    components: {
+        TextInput: {
+            defaultProps: {
+                classNames: {
+                    input: 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                    label: 'dark:text-gray-100',
+                },
+            },
+        },
+        Textarea: {
+            defaultProps: {
+                classNames: {
+                    input: 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                    label: 'dark:text-gray-100',
+                },
+            },
+        },
+        Button: {
+            defaultProps: {
+                className: 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100',
+            },
+        },
+        Select: {
+            defaultProps: {
+                classNames: {
+                    input: 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                    label: 'dark:text-gray-100',
+                },
+            },
+        },
+    },
+});
+
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -22,7 +64,7 @@ createInertiaApp({
         const root = createRoot(el);
         const queryClient = new QueryClient()
         root.render(
-            <MantineProvider>
+            <MantineProvider theme={theme}>
                 <QueryClientProvider client={queryClient}>
                     <App {...props} />
                 </QueryClientProvider>

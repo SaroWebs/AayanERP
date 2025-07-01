@@ -180,57 +180,72 @@ const ClientsList = (): ReactElement => {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Clients" />
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <Paper shadow="xs" p="md" withBorder>
+                <div className="p-4 bg-white dark:text-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-semibold">Clients List</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Clients List</h2>
                         <AddNew />
                     </div>
 
-                    <div className="mb-6 space-y-4">
-                        <Group>
-                            <TextInput
-                                placeholder="Search clients..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                leftSection={<Search size={16} />}
-                                style={{ flex: 1 }}
-                            />
-                            <Select
-                                placeholder="Company Type"
+                    <div className="mb-6">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative flex-1 min-w-[180px]">
+                                <span
+                                    style={{
+                                        position: 'absolute',
+                                        left: 12,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        color: 'rgb(107 114 128)', // text-gray-500
+                                        pointerEvents: 'none',
+                                        zIndex: 2,
+                                    }}
+                                >
+                                    <Search size={16} />
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder="Search clients..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full py-1 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xs border border-gray-300 dark:border-gray-700 px-10 focus:outline-none transition"
+                                />
+                            </div>
+                            <select
                                 value={filters.company_type}
-                                onChange={(value) => setFilters(prev => ({ ...prev, company_type: value || '' }))}
-                                data={[
-                                    { value: 'regional', label: 'Regional' },
-                                    { value: 'national', label: 'National' },
-                                    { value: 'government', label: 'Government' },
-                                ]}
-                                clearable
-                            />
-                            <Select
-                                placeholder="Range"
+                                onChange={e => setFilters(prev => ({ ...prev, company_type: e.target.value }))}
+                                className="rounded-xs py-1 px-2 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700 min-w-[130px]"
+                            >
+                                <option value="">Company Type</option>
+                                <option value="regional">Regional</option>
+                                <option value="national">National</option>
+                                <option value="government">Government</option>
+                            </select>
+                            <select
                                 value={filters.range}
-                                onChange={(value) => setFilters(prev => ({ ...prev, range: value || '' }))}
-                                data={[
-                                    { value: 'state', label: 'State' },
-                                    { value: 'central', label: 'Central' },
-                                    { value: 'NA', label: 'Not Applicable' },
-                                ]}
-                                clearable
-                            />
+                                onChange={e => setFilters(prev => ({ ...prev, range: e.target.value }))}
+                                className="rounded-xs py-1 px-2 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700 min-w-[110px]"
+                            >
+                                <option value="">Range</option>
+                                <option value="state">State</option>
+                                <option value="central">Central</option>
+                                <option value="NA">Not Applicable</option>
+                            </select>
                             <Button
                                 variant="light"
                                 leftSection={<Filter size={16} />}
                                 onClick={() => setFilters({ company_type: '', range: '', state: '' })}
+                                className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                style={{ height: '32px' }}
                             >
                                 Clear Filters
                             </Button>
-                        </Group>
+                        </div>
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-8">Loading...</div>
+                        <div className="text-center py-8 text-gray-900 dark:text-gray-100">Loading...</div>
                     ) : clients?.data.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">No clients found</div>
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">No clients found</div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm table-auto divide-y divide-gray-200 dark:divide-gray-700">
@@ -250,12 +265,12 @@ const ClientsList = (): ReactElement => {
                                         <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <Text fw={500}>{client.name}</Text>
+                                                    <Text fw={500} className="text-gray-900 dark:text-gray-100">{client.name}</Text>
                                                     <Group gap="xs">
-                                                        <Badge size="sm" variant="light">
+                                                        <Badge size="sm" variant="light" className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                                                             {client.company_type}
                                                         </Badge>
-                                                        <Text size="xs" c="dimmed">
+                                                        <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                             {client.state}
                                                         </Text>
                                                     </Group>
@@ -263,9 +278,9 @@ const ClientsList = (): ReactElement => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <Text>{client.contact_no}</Text>
+                                                    <Text className="text-gray-900 dark:text-gray-100">{client.contact_no}</Text>
                                                     {client.fax && (
-                                                        <Text size="xs" c="dimmed">
+                                                        <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                             Fax: {client.fax}
                                                         </Text>
                                                     )}
@@ -273,14 +288,14 @@ const ClientsList = (): ReactElement => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <Text>{client.email}</Text>
+                                                    <Text className="text-gray-900 dark:text-gray-100">{client.email}</Text>
                                                     {client.gstin_no && (
-                                                        <Text size="xs" c="dimmed">
+                                                        <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                             GSTIN: {client.gstin_no}
                                                         </Text>
                                                     )}
                                                     {client.pan_no && (
-                                                        <Text size="xs" c="dimmed">
+                                                        <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                             PAN: {client.pan_no}
                                                         </Text>
                                                     )}
@@ -291,15 +306,15 @@ const ClientsList = (): ReactElement => {
                                                     <div className="flex flex-col gap-1">
                                                         {client.bank_accounts.map(account => (
                                                             <div key={account.id} className="text-xs">
-                                                                <Text fw={500}>{account.bank_name}</Text>
-                                                                <Text size="xs" c="dimmed">
+                                                                <Text fw={500} className="text-gray-900 dark:text-gray-100">{account.bank_name}</Text>
+                                                                <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                                     {account.account_number} • {account.ifsc}
                                                                 </Text>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <Text size="xs" c="dimmed">No bank accounts</Text>
+                                                    <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">No bank accounts</Text>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
@@ -307,26 +322,26 @@ const ClientsList = (): ReactElement => {
                                                     <div className="flex flex-col gap-1">
                                                         {client.contact_details.map(contact => (
                                                             <div key={contact.id} className="text-xs">
-                                                                <Text fw={500}>{contact.contact_person}</Text>
-                                                                <Text size="xs" c="dimmed">
+                                                                <Text fw={500} className="text-gray-900 dark:text-gray-100">{contact.contact_person}</Text>
+                                                                <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                                     {contact.designation}
                                                                 </Text>
-                                                                <Text size="xs" c="dimmed">
+                                                                <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                                     {contact.phone} • {contact.email}
                                                                 </Text>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <Text size="xs" c="dimmed">No contacts</Text>
+                                                    <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">No contacts</Text>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
-                                                    <Text size="xs">
+                                                    <Text size="xs" className="text-gray-900 dark:text-gray-100">
                                                         Total: {client.documents.length}
                                                     </Text>
-                                                    <Text size="xs" c="dimmed">
+                                                    <Text size="xs" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                                         {client.documents.filter(doc => doc.sharing_option === 'public').length} public
                                                     </Text>
                                                 </div>
@@ -334,20 +349,22 @@ const ClientsList = (): ReactElement => {
                                             <td className="px-6 py-4">
                                                 <Menu position="bottom-end">
                                                     <Menu.Target>
-                                                        <ActionIcon variant="subtle">
+                                                        <ActionIcon variant="subtle" className="text-gray-900 dark:text-gray-100">
                                                             <MoreVertical size={16} />
                                                         </ActionIcon>
                                                     </Menu.Target>
-                                                    <Menu.Dropdown>
+                                                    <Menu.Dropdown className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                                                         <Menu.Item
                                                             leftSection={<Eye size={16} />}
                                                             onClick={() => handleView(client)}
+                                                            className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             View
                                                         </Menu.Item>
                                                         <Menu.Item
                                                             leftSection={<Edit size={16} />}
                                                             onClick={() => handleEdit(client)}
+                                                            className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             Edit
                                                         </Menu.Item>
@@ -355,6 +372,7 @@ const ClientsList = (): ReactElement => {
                                                             leftSection={<Trash2 size={16} />}
                                                             color="red"
                                                             onClick={() => handleDelete(client.id)}
+                                                            className="text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             Delete
                                                         </Menu.Item>
@@ -370,7 +388,7 @@ const ClientsList = (): ReactElement => {
 
                     {clients && clients.data.length > 0 && (
                         <div className="mt-4 flex items-center justify-between">
-                            <Text size="sm" c="dimmed">
+                            <Text size="sm" c="dimmed" className="text-gray-500 dark:text-gray-400">
                                 Showing {clients.from} to {clients.to} of {clients.total} results
                             </Text>
                             <Group gap="xs">
@@ -382,6 +400,7 @@ const ClientsList = (): ReactElement => {
                                         variant={link.active ? 'filled' : 'light'}
                                         size="xs"
                                         disabled={!link.url}
+                                        className={link.active ? 'bg-blue-600 dark:bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'}
                                     >
                                         <span dangerouslySetInnerHTML={{ __html: link.label }} />
                                     </Button>
@@ -389,7 +408,7 @@ const ClientsList = (): ReactElement => {
                             </Group>
                         </div>
                     )}
-                </Paper>
+                </div>
             </div>
 
             {selectedClient && (

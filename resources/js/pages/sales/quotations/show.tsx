@@ -4,18 +4,18 @@ import { PageProps } from "@/types";
 import { Quotation } from "@/types/sales";
 import { Head } from "@inertiajs/react";
 import { useEffect, useState } from "react";
-import { 
-    Loader, 
-    Center, 
-    Stack, 
-    Group, 
-    Text, 
-    Badge, 
-    Divider, 
-    Grid, 
-    Paper, 
-    Table, 
-    Button, 
+import {
+    Loader,
+    Center,
+    Stack,
+    Group,
+    Text,
+    Badge,
+    Divider,
+    Grid,
+    Paper,
+    Table,
+    Button,
     ActionIcon,
     Container,
     Box,
@@ -25,13 +25,14 @@ import {
     Avatar,
     ThemeIcon,
     Alert,
-    RingProgress,
-    Progress
+    Modal,
+    TextInput,
+    Textarea,
 } from "@mantine/core";
-import { 
-    Printer, 
-    Download, 
-    Mail, 
+import {
+    Printer,
+    Download,
+    Mail,
     FileText,
     Calendar,
     User,
@@ -40,12 +41,12 @@ import {
     Calculator,
     StickyNote,
     Info,
-    CheckCircle,
-    AlertCircle
 } from 'lucide-react';
 import { getApprovalStatusColor, getStatusColor } from "./columns";
 import { formatCurrency } from '@/utils/format';
 import { format } from 'date-fns';
+import { useForm } from "@mantine/form";
+import { DateInput } from "@mantine/dates";
 
 interface Props extends PageProps {
     quotation: Quotation;
@@ -64,6 +65,26 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Show({ quotation }: Props) {
     const [loading, setLoading] = useState(true);
+    const [poModalOpen, setPoModalOpen] = useState(false);
+
+    // Prefill form with quotation data
+    const poForm = useForm({
+        initialValues: {
+            vendor: quotation.client?.name || '',
+            po_date: new Date(),
+            expected_delivery_date: '',
+            subtotal: quotation.subtotal,
+            tax_percentage: quotation.tax_percentage,
+            tax_amount: quotation.tax_amount,
+            discount_percentage: quotation.discount_percentage,
+            discount_amount: quotation.discount_amount,
+            total_amount: quotation.total_amount,
+            payment_terms: quotation.payment_terms || '',
+            delivery_terms: quotation.delivery_terms || '',
+            remarks: '',
+            items: quotation.items || [],
+        },
+    });
 
     useEffect(() => {
         setLoading(false);
@@ -71,11 +92,6 @@ export default function Show({ quotation }: Props) {
 
     const handlePrint = () => {
         window.print();
-    };
-
-    const handleDownload = () => {
-        // Implement PDF download functionality
-        console.log('Download PDF');
     };
 
     const handleEmail = () => {
@@ -102,30 +118,35 @@ export default function Show({ quotation }: Props) {
                                 </Text>
                             </Stack>
                             <Group>
-                                <Button 
+                                <Button
                                     leftSection={<Printer size={16} />}
                                     variant="light"
                                     onClick={handlePrint}
                                 >
                                     Print
                                 </Button>
-                                <Button 
-                                    leftSection={<Download size={16} />}
+                                <Button
+                                    leftSection={<FileText size={16} />}
                                     variant="light"
-                                    onClick={handleDownload}
+                                    onClick={() => setPoModalOpen(true)}
                                 >
-                                    Download PDF
-                                </Button>
-                                <Button 
-                                    leftSection={<Mail size={16} />}
-                                    variant="light"
-                                    onClick={handleEmail}
-                                >
-                                    Send Email
+                                    Generate Purchase Order
                                 </Button>
                             </Group>
                         </Flex>
                     </Card>
+
+                    {/* Generate PO Modal */}
+                    <Modal
+                        opened={poModalOpen}
+                        onClose={() => setPoModalOpen(false)}
+                        title="Generate Purchase Order"
+                        size="lg"
+                    >
+                        <div className="py-16 text-center">
+                            <span className="text-orange-500">Work in progress...</span>
+                        </div>
+                    </Modal>
 
                     {/* Company Header */}
                     <Card withBorder mb="lg" p="xl">
@@ -152,8 +173,8 @@ export default function Show({ quotation }: Props) {
                                 <Stack gap="md" align="flex-end">
                                     <Box>
                                         <Text size="sm" c="dimmed" ta="right" mb={8}>Quotation Status</Text>
-                                        <Badge 
-                                            size="lg" 
+                                        <Badge
+                                            size="lg"
                                             color={getStatusColor(quotation.status)}
                                             variant="filled"
                                             radius="md"
@@ -164,8 +185,8 @@ export default function Show({ quotation }: Props) {
                                     </Box>
                                     <Box>
                                         <Text size="sm" c="dimmed" ta="right" mb={8}>Approval Status</Text>
-                                        <Badge 
-                                            size="lg" 
+                                        <Badge
+                                            size="lg"
                                             color={getApprovalStatusColor(quotation.approval_status)}
                                             variant="filled"
                                             radius="md"
@@ -228,7 +249,7 @@ export default function Show({ quotation }: Props) {
                                     </ThemeIcon>
                                     <Text size="sm" c="dimmed">Valid Until</Text>
                                     <Text size="lg" fw={600}>
-                                        {quotation.valid_until 
+                                        {quotation.valid_until
                                             ? format(new Date(quotation.valid_until), 'dd MMM yyyy')
                                             : 'N/A'
                                         }
@@ -239,14 +260,14 @@ export default function Show({ quotation }: Props) {
                     </Grid>
 
                     {/* Status Alert */}
-                    <Alert 
-                        icon={<Info size={16} />} 
-                        title="Quotation Information" 
-                        color="blue" 
+                    <Alert
+                        icon={<Info size={16} />}
+                        title="Quotation Information"
+                        color="blue"
                         variant="light"
                         mb="lg"
                     >
-                        This quotation is valid until {quotation.valid_until 
+                        This quotation is valid until {quotation.valid_until
                             ? format(new Date(quotation.valid_until), 'dd MMMM yyyy')
                             : 'further notice'
                         }. Please review all terms and conditions before proceeding.
@@ -297,7 +318,7 @@ export default function Show({ quotation }: Props) {
                                                 <Calendar size={14} />
                                             </ThemeIcon>
                                             <Text fw={500}>
-                                                {quotation.valid_until 
+                                                {quotation.valid_until
                                                     ? format(new Date(quotation.valid_until), 'dd MMMM yyyy')
                                                     : 'Not specified'
                                                 }
@@ -394,7 +415,7 @@ export default function Show({ quotation }: Props) {
                                             {quotation.currency} {formatCurrency(quotation.subtotal)}
                                         </Text>
                                     </Group>
-                                    
+
                                     {quotation.tax_amount > 0 && (
                                         <Group justify="space-between">
                                             <Text size="lg">Tax ({quotation.tax_percentage}%)</Text>
@@ -403,7 +424,7 @@ export default function Show({ quotation }: Props) {
                                             </Text>
                                         </Group>
                                     )}
-                                    
+
                                     {(quotation.discount_amount ?? 0) > 0 && (
                                         <Group justify="space-between">
                                             <Text size="lg" c="green">Discount ({quotation.discount_percentage ?? 0}%)</Text>
@@ -412,9 +433,9 @@ export default function Show({ quotation }: Props) {
                                             </Text>
                                         </Group>
                                     )}
-                                    
+
                                     <Divider />
-                                    
+
                                     <Group justify="space-between">
                                         <Text size="xl" fw={700}>Total Amount</Text>
                                         <Text size="xl" fw={700} c="blue">
@@ -430,7 +451,7 @@ export default function Show({ quotation }: Props) {
                                         <Text size="sm" fw={500}>
                                             {quotation.payment_terms || 'Standard terms apply'}
                                         </Text>
-                                        
+
                                         <Text size="sm" c="dimmed" mt="md">Delivery Terms</Text>
                                         <Text size="sm" fw={500}>
                                             {quotation.delivery_terms || 'Standard delivery'}
@@ -476,7 +497,7 @@ export default function Show({ quotation }: Props) {
                                 Thank you for your business. We look forward to working with you.
                             </Text>
                             <Text size="xs" c="dimmed" ta="center">
-                                This quotation is valid until {quotation.valid_until 
+                                This quotation is valid until {quotation.valid_until
                                     ? format(new Date(quotation.valid_until), 'dd MMMM yyyy')
                                     : 'further notice'
                                 }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Quotation extends Model
 {
@@ -86,6 +87,16 @@ class Quotation extends Model
     public function salesOrders(): HasMany
     {
         return $this->hasMany(SalesOrder::class);
+    }
+
+    /**
+     * Get the purchase orders for the quotation.
+     */
+    public function purchaseOrders()
+    {
+        return $this->belongsToMany(PurchaseOrder::class, 'purchase_order_quotation')
+            ->withPivot(['created_by', 'remarks'])
+            ->withTimestamps();
     }
 
     /**

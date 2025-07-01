@@ -1,51 +1,59 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        <script>
-            (function() {
-                const appearance = '{{ $appearance ?? "system" }}';
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark'=> ($appearance ?? 'system') == 'dark'])>
 
-                if (appearance === 'system') {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        (function() {
+            const appearance = '{{ $appearance ?? "system" }}';
 
-                    if (prefersDark) {
-                        document.documentElement.classList.add('dark');
-                    }
+            if (appearance === 'system') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                if (prefersDark) {
+                    document.documentElement.classList.add('dark');
                 }
-            })();
-        </script>
-
-        <style>
-            html {
-                background-color: oklch(1 0 0);
             }
+        })();
+    </script>
 
-            html.dark {
-                background-color: gray;
-                color: white;
-            }
-        </style>
+    <style>
+        html {
+            background-color: oklch(1 0 0);
+        }
 
-        <title inertia>{{ config('app.name', 'AAYAN-GROUP') }}</title>
+        html.dark {
+            background-color: gray;
+            color: white;
+        }
+    </style>
 
-        <link rel="icon" href="/assets/images/favicon/favicon.ico" sizes="any">
-        <link rel="icon" href="/assets/images/favicon/favicon-16x16.png" type="image/png">
-        <link rel="icon" href="/assets/images/favicon/favicon-32x32.png" type="image/png">
-        <link rel="apple-touch-icon" href="/assets/images/favicon/apple-touch-icon.png">
+    <title inertia>{{ config('app.name', 'AAYAN-GROUP') }}</title>
 
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-        <link href="https://fonts.bunny.net/css?family=noto-sans-georgian:100,200,300,400,500,600,700,800,900" rel="stylesheet" />
+    <link rel="icon" href="/assets/images/favicon/favicon.ico" sizes="any">
+    <link rel="icon" href="/assets/images/favicon/favicon-16x16.png" type="image/png">
+    <link rel="icon" href="/assets/images/favicon/favicon-32x32.png" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/images/favicon/apple-touch-icon.png">
 
-        @routes
-        @viteReactRefresh
-        @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
-        @inertiaHead
-    </head>
-    <body class="font-sans antialiased">
-        @inertia
-    </body>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=noto-sans-georgian:100,200,300,400,500,600,700,800,900" rel="stylesheet" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Syne:wght@400..800&display=swap" rel="stylesheet">
+
+
+    @routes
+    @viteReactRefresh
+    @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+    @inertiaHead
+</head>
+
+<body class="font-sans antialiased">
+    @inertia
+</body>
+
 </html>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use Inertia\Inertia;
 use App\Models\Vendor;
+use App\Models\Department;
 use Illuminate\Http\Request;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseIntent;
@@ -57,11 +58,16 @@ class PurchaseOrderController extends Controller
 
         $orders = $query->paginate(10)->withQueryString();
         $vendors = Vendor::where('status', 'active')->get();
+        $departments = Department::where('status', 'active')->get();
         $items = Item::where('status','active')->get();
+        $intents = PurchaseIntent::where('status','approved')->get();
+
         return Inertia::render('purchases/orders/index', [
             'orders' => $orders,
             'items' => $items,
             'vendors' => $vendors,
+            'departments' => $departments,
+            'purchaseIntents'=> $intents,
             'filters' => $request->only(['status', 'approval_status', 'vendor_id', 'from_date', 'to_date', 'search'])
         ]);
     }
@@ -605,9 +611,11 @@ class PurchaseOrderController extends Controller
      */
     public function show($id)
     {
-        $order = PurchaseOrder::with(['vendor', 'department', 'creator', 'approver', 'items'])->findOrFail($id);
+        $order = PurchaseOrder::with(['vendor.contactDetails', 'department', 'creator', 'approver', 'items.item.category'])->findOrFail($id);
+        $items = Item::where('status','active')->get();
         return Inertia::render('purchases/orders/show', [
             'order' => $order,
+            'products' => $items
         ]);
     }
 }
